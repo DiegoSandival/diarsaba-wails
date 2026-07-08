@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIARSABA</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/monaco-editor@0.49.0/min/vs/loader.js"></script>
+
+    <script type="module" >
+        import { SavePredefinedFunctions } from './wailsjs/go/main/App';
+        window.SavePredefinedFunctions = SavePredefinedFunctions;
+    </script>
+
+    <script>
+
+       
+
+        const MONACO_BASE_URL = "https://unpkg.com/monaco-editor@0.49.0/min";
+        const MONACO_THEME_NAME = "glass-dark";
+        const LANGUAGE_OPTIONS = [
+            { id: "html", name: "HTML", icon: "fab fa-html5", color: "#e34f26" },
+            { id: "javascript", name: "JavaScript", icon: "fab fa-js-square", color: "#f7df1e" },
+            { id: "css", name: "CSS", icon: "fab fa-css3-alt", color: "#1572b6" },
+            { id: "python", name: "Python", icon: "fab fa-python", color: "#3776ab" },
+            { id: "go", name: "Go", icon: "fab fa-golang", color: "#00add8" },
+            { id: "plaintext", name: "Texto", icon: "fas fa-file-alt", color: "#666666" },
+        ];
+        const LANGUAGE_ALIAS_MAP = {
+            html: "html",
+            js: "javascript",
+            javascript: "javascript",
+            css: "css",
+            py: "python",
+            python: "python",
+            go: "go",
+            text: "plaintext",
+            plaintext: "plaintext",
+        };
+        const MONACO_THEME = {
+            base: "vs-dark",
+            inherit: true,
+            rules: [],
+            colors: {
+                "editor.background": "#0b0b0b42",
+                "editorGutter.background": "#0b0b0b24",
+                "editorLineNumber.foreground": "#94a3b8",
+                "editorLineNumber.activeForeground": "#f8fafc",
+                "editorCursor.foreground": "#f8fafc",
+                "editor.selectionBackground": "#ffffff18",
+                "editor.inactiveSelectionBackground": "#ffffff10",
+                "editor.lineHighlightBackground": "#ffffff08",
+                "editor.lineHighlightBorder": "#00000000",
+                "editorIndentGuide.background1": "#ffffff12",
+                "editorIndentGuide.activeBackground1": "#ffffff22",
+                "focusBorder": "#00000000",
+                "contrastBorder": "#00000000",
+                "contrastActiveBorder": "#00000000",
+                "editorWidget.border": "#ffffff12",
+                "scrollbarSlider.background": "#ffffff14",
+                "scrollbarSlider.hoverBackground": "#ffffff24",
+                "scrollbarSlider.activeBackground": "#ffffff30",
+            },
+        };
+
+        require.config({
+            paths: { vs: `${MONACO_BASE_URL}/vs` },
+        });
+
+        window.MonacoEnvironment = {
+            getWorkerUrl() {
+                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                self.MonacoEnvironment = {
+                    baseUrl: '${MONACO_BASE_URL}/'
+                };
+                importScripts('${MONACO_BASE_URL}/vs/base/worker/workerMain.js');
+            `)}`;
+            },
+        };
+
+        class CodeEditor {
+            constructor() {
+                this.isMonacoLoaded = Boolean(window.monaco);
+                this.isThemeDefined = false;
+                this.monacoLoader = this.loadMonaco();
+            }
+
+            loadMonaco() {
+                if (window.monaco) {
+                    this.isMonacoLoaded = true;
+                    return Promise.resolve(window.monaco);
+                }
+
+                if (this.monacoLoader && !this.isMonacoLoaded) {
+                    return this.monacoLoader;
+                }
+
+                this.monacoLoader = new Promise((resolve, reject) => {
+                    require(["vs/editor/editor.main"], () => {
+                        this.isMonacoLoaded = true;
+                        resolve(window.monaco);
+                    }, reject);
+                });
+
+                return this.monacoLoader;
+            }
+
+            getLanguageOption(language) {
+                const normalizedLanguage = LANGUAGE_ALIAS_MAP[language] || language;
+                return LANGUAGE_OPTIONS.find((option) => option.id === normalizedLanguage)
+                    || LANGUAGE_OPTIONS.find((option) => option.id === "javascript");
+            }
+
+            getMonacoLanguage(language) {
+                return LANGUAGE_ALIAS_MAP[language] || language;
+            }
+
+            ensureTheme() {
+                if (this.isThemeDefined) {
+                    return;
+                }
+
+                monaco.editor.defineTheme(MONACO_THEME_NAME, MONACO_THEME);
+                this.isThemeDefined = true;
+            }
+
+            createOverlay(title, initialLanguage) {
+                const overlay = document.createElement("div");
+                overlay.className = "editor-overlay";
+                overlay.innerHTML = `
+        <div class="editor-modal">
+            <div class="editor-header">
+                <div class="editor-title">
+                    <div class="language-selector">
+                        <button class="language-button" type="button" title="Seleccionar lenguaje">
+                            <i class="${initialLanguage.icon}" style="color: ${initialLanguage.color};"></i>
+                            <span class="language-name">${initialLanguage.name}</span>
+                        </button>
+                        <div class="language-dropdown">
+                            ${LANGUAGE_OPTIONS.map((language) => `
+                                <button class="dropdown-item" data-lang="${language.id}">
+                                    <i class="${language.icon}" style="color: ${language.color};"></i>
+                                    <span>${language.name}</span>
+                                </button>
+                            `).join("")}
+                        </div>
+                    </div>
+                    <span class="modal-title">${title}</span>
+                </div>
+                <div class="editor-controls">
+                    <button class="save-button" title="Guardar (Ctrl+S)">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button class="close-button" title="Cerrar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="monaco-container" style="width:100%;height:100%;"></div>
+        </div>
+    `;
+                return overlay;
+            }
+
+            getOverlayElements(overlay) {
+                return {
+                    container: overlay.querySelector(".monaco-container"),
+                    languageSelector: overlay.querySelector(".language-selector"),
+                    languageButton: overlay.querySelector(".language-button"),
+                    languageIcon: overlay.querySelector(".language-button i"),
+                    languageName: overlay.querySelector(".language-name"),
+                    dropdown: overlay.querySelector(".language-dropdown"),
+                    dropdownItems: overlay.querySelectorAll(".dropdown-item"),
+                    saveButton: overlay.querySelector(".save-button"),
+                    closeButton: overlay.querySelector(".close-button"),
+                };
+            }
+
+            updateLanguageButton(elements, language) {
+                elements.languageIcon.className = language.icon;
+                elements.languageIcon.style.color = language.color;
+                elements.languageName.textContent = language.name;
+            }
+
+            createEditor(container, code, language) {
+                this.ensureTheme();
+
+                return monaco.editor.create(container, {
+                    value: code,
+                    language: this.getMonacoLanguage(language),
+                    theme: MONACO_THEME_NAME,
+                    automaticLayout: true,
+                    fontSize: 14,
+                    fontFamily: "Fira Code, Consolas, monospace",
+                    scrollBeyondLastLine: false,
+                    minimap: { enabled: false },
+                    lineNumbers: "on",
+                    roundedSelection: false,
+                    scrollbars: {
+                        vertical: "auto",
+                        horizontal: "auto",
+                    },
+                });
+            }
+
+            async open(title = "Editor de Código", code = "", language = "javascript") {
+                await this.loadMonaco();
+
+                return new Promise((resolve) => {
+                    const initialLanguage = this.getLanguageOption(language);
+                    const overlay = this.createOverlay(title, initialLanguage);
+                    document.body.appendChild(overlay);
+
+                    const elements = this.getOverlayElements(overlay);
+                    const editor = this.createEditor(elements.container, code, initialLanguage.id);
+                    const cleanupCallbacks = [];
+                    let currentLanguage = initialLanguage.id;
+
+                    const registerListener = (target, eventName, handler) => {
+                        target.addEventListener(eventName, handler);
+                        cleanupCallbacks.push(() => target.removeEventListener(eventName, handler));
+                    };
+
+                    const hideDropdown = () => {
+                        elements.dropdown.classList.remove("show");
+                    };
+
+                    const closeEditor = (result) => {
+                        cleanupCallbacks.forEach((cleanup) => cleanup());
+                        editor.dispose();
+                        overlay.remove();
+                        resolve(result);
+                    };
+
+                    const changeLanguage = (nextLanguageId) => {
+                        const nextLanguage = this.getLanguageOption(nextLanguageId);
+
+                        if (!nextLanguage || currentLanguage === nextLanguage.id) {
+                            return;
+                        }
+
+                        this.updateLanguageButton(elements, nextLanguage);
+                        monaco.editor.setModelLanguage(editor.getModel(), this.getMonacoLanguage(nextLanguage.id));
+                        currentLanguage = nextLanguage.id;
+                        hideDropdown();
+                    };
+
+                    registerListener(elements.saveButton, "click", () => closeEditor(editor.getValue()));
+                    registerListener(elements.closeButton, "click", () => closeEditor(""));
+                    registerListener(elements.languageButton, "click", (event) => {
+                        event.stopPropagation();
+                        elements.dropdown.classList.toggle("show");
+                    });
+                    elements.dropdownItems.forEach((item) => {
+                        registerListener(item, "click", (event) => {
+                            event.stopPropagation();
+                            changeLanguage(item.dataset.lang);
+                        });
+                    });
+                    registerListener(document, "click", (event) => {
+                        if (!elements.languageSelector.contains(event.target)) {
+                            hideDropdown();
+                        }
+                    });
+                    registerListener(document, "keydown", (event) => {
+                        if (event.key === "Escape" && elements.dropdown.classList.contains("show")) {
+                            hideDropdown();
+                        }
+                    });
+                    registerListener(overlay, "click", (event) => {
+                        if (event.target === overlay) {
+                            closeEditor("");
+                        }
+                    });
+
+                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                        closeEditor(editor.getValue());
+                    });
+                    editor.addCommand(monaco.KeyCode.Escape, () => {
+                        if (elements.dropdown.classList.contains("show")) {
+                            hideDropdown();
+                            return;
+                        }
+
+                        closeEditor("");
+                    });
+
+                    editor.focus();
+                });
+            }
+        }
+
+        window.codeEditor = new CodeEditor();
+
+        function createFunction(functionString) {
+            const n = functionString.trim(),
+                t = [
+                    /^async\s*\(([^)]*)\)\s*=>\s*\{([\s\S]*)\}$/,
+                    /^async\s*\(([^)]*)\)\s*=>\s*([^{].*)$/,
+                    /^async\s+function[^(]*\(([^)]*)\)\s*\{([\s\S]*)\}$/,
+                    /^async\s+function\s*\(([^)]*)\)\s*\{([\s\S]*)\}$/,
+                    /^\(([^)]*)\)\s*=>\s*\{([\s\S]*)\}$/,
+                    /^\(([^)]*)\)\s*=>\s*([^{].*)$/,
+                    /^function[^(]*\(([^)]*)\)\s*\{([\s\S]*)\}$/,
+                    /^function\s*\(([^)]*)\)\s*\{([\s\S]*)\}$/,
+                ];
+            for (const s of t) {
+                const t = n.match(s);
+                if (t) {
+                    const n = t[1]
+                        .split(",")
+                        .map((n) => n.trim())
+                        .filter((n) => n);
+                    let i = t[2];
+                    const c = s.toString().includes("async");
+                    (!s.toString().includes("=>[^{]") &&
+                        !s.toString().includes("async.*=>[^{]")) ||
+                        i.trim().startsWith("return") ||
+                        (i = `return ${i}`);
+                    let r = null;
+                    if (c) {
+                        const t = `\n        return (async function(${n.join(
+                            ", "
+                        )}) {\n            ${i}\n        }).apply(this, arguments);\n    `;
+                        r = new Function(...n, t);
+                    } else r = new Function(...n, i);
+                    const o = (...n) => r.apply(this, n);
+                    return (
+                        Object.defineProperty(o, "toString", {
+                            value: () => functionString.trim(),
+                            writable: !1,
+                            configurable: !0,
+                        }),
+                        o
+                    );
+                }
+            }
+            throw new Error(`No se pudo parsear la función: ${functionString}`);
+        }
+
+        async function threads(e) {
+            if (e.endsWith("~")) {
+                const s = diarsaba.get(e);
+                for (let e = 0; e < s.length; e++) threads(s[e]);
+            } else if (e.endsWith("!")) {
+                const s = diarsaba.get(e);
+                if (s) {
+                    const a = diarsaba.get(s[0]);
+
+                    if (a && typeof a === "function") a.apply(null, s.slice(1));
+                    else {
+                        const a = `\n• Función buscada: "${s[0]
+                            }"\n• Llamada desde: "${e}"\n• Parámetros esperados: [${s
+                                .slice(1)
+                                .map((e) => `"${e}"`)
+                                .join(", ")}]\n  → ${e}\n     → ${s[0]} (NO ENCONTRADO)`.trim();
+                        alert(a);
+                    }
+                } else {
+                    const s = `• no exist "${e}"`.trim();
+                    alert(s);
+                }
+            }
+        }
+
+
+
+        const diarsaba = new Map();
+
+        window.addEventListener("DOMContentLoaded", async () => {
+
+            const response = await fetch("predefined_functions.json");
+            const predefinedFunctions = await response.json();
+
+            for (const [key, value] of Object.entries(predefinedFunctions)) {
+                if (key.endsWith("ƒ")) {
+
+                    diarsaba.set(key, createFunction(value));
+                } else {
+                    diarsaba.set(key, value);
+                }
+            }
+
+            diarsaba.get("on start ƒ")();
+
+        });
+
+
+    </script>
+
+</head>
+
+<body>
+
+</body>
+
+</html>
