@@ -1,0 +1,182 @@
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO 1: IDENTIDAD Y PERSISTENCIA (Criptografía)
+// ═══════════════════════════════════════════════════════════════
+
+func LoadOrCreateIdentity(path string) -> (PrivateKey, PeerID, TLSCert):
+    if fileExists(path):
+        privKey = readFile(path)
+    else:
+        privKey = generateEd25519Key()
+        writeFile(path, privKey)
+        
+    peerID = SHA256(privKey.Public())
+    
+    // NUEVO: Generamos un certificado TLS auto-firmado usando nuestra llave
+    // Esto es crucial para evitar ataques Man-in-the-Middle en QUIC.
+    tlsCert = generateSelfSignedCert(privKey) 
+    
+    return (privKey, peerID, tlsCert)
+
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO 2: BOOTSTRAP Y DESCUBRIMIENTO INICIAL
+// ═══════════════════════════════════════════════════════════════
+
+const BOOTSTRAP_URL = "https://bootstrap.midominio.com/seeds"
+
+func FetchInitialSeeds() -> List[Addr]:
+    response = httpGet(BOOTSTRAP_URL)
+    return parseJSON(response) 
+
+func BootstrapNode(ctx, privKey, peerID, tlsCert) -> Node:
+    seeds = FetchInitialSeeds()
+    node = NewNode(privKey, peerID, tlsCert)
+    
+    for seedAddr in seeds:
+        // CORREGIDO: Marcamos a los seeds como relays iniciales para señalización
+        conn, err = quic.Dial(seedAddr, tlsConfig={InsecureSkipVerify: false})
+        if err == nil:
+            node.publicAddr = conn.SendMessage(WHOAMI_MSG)
+            
+            // Pedimos los nodos más cercanos a nosotros para llenar los K-Buckets iniciales
+            initialPeers = conn.SendMessage(FIND_NODE_MSG, target=peerID)
+            node.routingTable.Add(initialPeers)
+            
+            // Mantenemos conexión con al menos un seed para usarlo de Relay de Señalización
+            node.signalingRelay = conn 
+            return node
+            
+    panic("FATAL: No se pudo conectar a ningún servidor semilla.")
+
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO 3: DHT (KADEMLIA) - BÚSQUEDAS ITERATIVAS Y MANTENIMIENTO
+// ═══════════════════════════════════════════════════════════════
+
+struct Node:
+    privKey: PrivateKey
+    peerID: PeerID
+    tlsCert: TLSCert
+    publicAddr: Addr
+    routingTable: RoutingTable
+    announcements: Map[ResourceID, AnnounceEntry]
+    signalingRelay: Connection // Para coordinar UDP Hole Punching
+
+// Parámetros de Kademlia
+const K = 20
+const ALPHA = 3 // Concurrencia de búsqueda iterativa
+
+func Search(ctx, node, targetID) -> List[PeerInfo]:
+    // CORREGIDO: Búsqueda Iterativa Kademlia verdadera
+    closestKnownNodes = node.routingTable.FindClosest(targetID, K)
+    queried = Set()
+    
+    while true:
+        // Tomamos hasta $\alpha$ nodos que aún no hemos consultado
+        nodesToQuery = closestKnownNodes.Unqueried().Take(ALPHA)
+        if nodesToQuery.IsEmpty():
+            break
+            
+        for peer in nodesToQuery:
+            queried.Add(peer)
+            // Consultamos asíncronamente
+            newPeers = sendToPeer(peer, FIND_NODE_MSG, targetID)
+            
+            for newPeer in newPeers:
+                node.routingTable.Add(newPeer)
+                closestKnownNodes.Add(newPeer)
+                
+        // Ordenamos y mantenemos solo los K más cercanos descubiertos
+        closestKnownNodes = closestKnownNodes.SortByDistance(targetID).KeepTop(K)
+        
+        // Condición de parada: Si las consultas no descubrieron nodos más cercanos
+        if noProgressMade():
+            break
+            
+    return closestKnownNodes
+
+func MaintainRoutingTable(node):
+    // NUEVO: Evicción de nodos muertos
+    ticker = newTicker(5 minutes)
+    for range ticker.C:
+        for bucket in node.routingTable.Buckets():
+            for peer in bucket:
+                if !Ping(peer):
+                    bucket.Remove(peer)
+            // Refrescar buckets vacíos o inactivos buscando una ID aleatoria en su rango
+            if bucket.NeedsRefresh():
+                randomID = generateIDInBucketRange(bucket)
+                Search(ctx, node, randomID)
+
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO 4: TRANSPORTE Y CONEXIÓN (SEÑALIZACIÓN + QUIC STREAMS)
+// ═══════════════════════════════════════════════════════════════
+
+func DialPeer(node, targetPeerID) -> quic.Connection:
+    peerInfo = Search(node, targetPeerID).Get(targetPeerID)
+    
+    // Configuración TLS requiriendo el PeerID correcto en el certificado
+    tlsConf = RequirePeerIDInCert(targetPeerID)
+    
+    if peerInfo.hasIPv6:
+        conn, err = quic.Dial(peerInfo.ipv6Addr, tlsConf)
+        if err == nil: return conn
+        
+    if peerInfo.hasIPv4Public:
+        conn, err = quic.Dial(peerInfo.ipv4Addr, tlsConf)
+        if err == nil: return conn
+        
+    if peerInfo.hasIPv4NAT:
+        // CORREGIDO: Usamos un nodo intermedio (Signaling Relay) para coordinar
+        // Ambos nodos deben saber que van a perforar el NAT ahora mismo.
+        err = RequestHolePunchViaRelay(node.signalingRelay, targetPeerID, node.publicAddr)
+        if err == nil:
+            return SimultaneousOpen(peerInfo.ipv4NATAddr, tlsConf)
+            
+    return Error("CONEXIÓN FALLIDA")
+
+func SimultaneousOpen(targetAddr, tlsConf) -> quic.Connection:
+    // Ahora sí funcionará, porque el otro nodo recibió la señal por el relay 
+    // y también está enviando paquetes UDP hacia nosotros en este instante.
+    go func():
+        for i in 1..200: 
+            udp.SendPacket(targetAddr, PUNCH_PAYLOAD)
+            sleep(50ms)
+    ()
+    
+    return quic.DialWithTimeout(targetAddr, tlsConf, timeout=10s)
+
+func SendDataStream(ctx, conn, dataReader) -> chan error:
+    errChan = make(chan error)
+    
+    go func():
+        // CORREGIDO: Eliminamos el límite de 1MB. Usamos Streams de QUIC 
+        // para transmitir gigabytes de datos si es necesario, de forma fluida.
+        stream, err = conn.OpenStream()
+        if err != nil:
+            errChan <- err
+            return
+            
+        // stream.Write maneja la fragmentación y control de congestión automáticamente
+        io.Copy(stream, dataReader) 
+        stream.Close()
+        errChan <- nil
+    ()
+    
+    return errChan
+
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO 5 Y 6: RED Y CICLO DE VIDA (Sin cambios mayores)
+// ═══════════════════════════════════════════════════════════════
+
+func StartNode(identityPath string) -> Node:
+    privKey, peerID, tlsCert = LoadOrCreateIdentity(identityPath)
+    node = BootstrapNode(ctx, privKey, peerID, tlsCert)
+    
+    go MaintainRoutingTable(node) // Iniciamos el mantenimiento de la DHT
+    StartNetworkMonitor(node)
+    
+    log("Nodo iniciado. PeerID: {peerID}, IP: {node.publicAddr}")
+    return node
