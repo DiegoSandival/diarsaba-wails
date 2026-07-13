@@ -9,9 +9,79 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/monaco-editor@0.49.0/min/vs/loader.js"></script>
 
+    <style>
+        /* --- UI del asistente de IA --- */
+        .editor-modal { position: relative; }
+
+        .ai-button {
+            border: none;
+            border-radius: 6px;
+            background: rgba(168, 85, 247, 0.22);
+            color: #f5e8ff;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ai-button:hover { background: rgba(168, 85, 247, 0.38); }
+        .ai-button:disabled { opacity: 0.6; cursor: default; }
+
+        .ai-prompt {
+            position: absolute;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            width: min(560px, 82%);
+            padding: 8px;
+            border-radius: 12px;
+            background: rgba(18, 18, 22, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            z-index: 10;
+        }
+
+        .ai-prompt-input {
+            flex: 1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            outline: none;
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.06);
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        .ai-prompt-input:focus { border-color: rgba(168, 85, 247, 0.55); }
+
+        .ai-prompt-send {
+            border: none;
+            border-radius: 8px;
+            background: rgba(168, 85, 247, 0.4);
+            color: #fff;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .ai-prompt-send:hover { background: rgba(168, 85, 247, 0.55); }
+    </style>
+
     <script type="module" >
-        import { SavePredefinedFunctions } from './wailsjs/go/main/App';
+        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig } from './wailsjs/go/main/App';
         window.SavePredefinedFunctions = SavePredefinedFunctions;
+        window.AIChat = AIChat;
+        window.GetAIConfig = GetAIConfig;
+        window.SetAIConfig = SetAIConfig;
     </script>
 
     <script>
@@ -150,6 +220,9 @@
                     <span class="modal-title">${title}</span>
                 </div>
                 <div class="editor-controls">
+                    <button class="ai-button" title="Asistente IA (Ctrl+I)">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                    </button>
                     <button class="save-button" title="Guardar (Ctrl+S)">
                         <i class="fas fa-save"></i>
                     </button>
@@ -175,6 +248,7 @@
                     dropdownItems: overlay.querySelectorAll(".dropdown-item"),
                     saveButton: overlay.querySelector(".save-button"),
                     closeButton: overlay.querySelector(".close-button"),
+                    aiButton: overlay.querySelector(".ai-button"),
                 };
             }
 
@@ -203,6 +277,91 @@
                         horizontal: "auto",
                     },
                 });
+            }
+
+            buildMessages(code, language, instruction) {
+                const system = (typeof diarsaba !== "undefined" && diarsaba.get)
+                    ? diarsaba.get("ai system §")
+                    : null;
+                const systemContent = (typeof system === "string" && system.trim())
+                    ? system
+                    : `Eres un asistente de programación integrado en un editor de código. Estás editando un único átomo de código en lenguaje "${language}". Devuelve ÚNICAMENTE el código resultante, sin explicaciones y sin envolverlo en bloques markdown (nada de \`\`\`). Conserva el estilo y las convenciones del código existente.`;
+                const userContent = `Código actual:\n\n${code || "(vacío)"}\n\nInstrucción: ${instruction}`;
+                return [
+                    { role: "system", content: systemContent },
+                    { role: "user", content: userContent },
+                ];
+            }
+
+            stripCodeFences(text) {
+                const trimmed = String(text).trim();
+                const match = trimmed.match(/^```[a-zA-Z0-9]*\s*\n([\s\S]*?)\n```$/);
+                return match ? match[1] : trimmed;
+            }
+
+            askInstruction(anchor) {
+                return new Promise((resolve) => {
+                    const wrap = document.createElement("div");
+                    wrap.className = "ai-prompt";
+                    wrap.innerHTML = `
+                        <input type="text" class="ai-prompt-input" placeholder="¿Qué quieres que haga la IA con este átomo?" spellcheck="false" />
+                        <button class="ai-prompt-send" type="button" title="Enviar (Enter)"><i class="fas fa-arrow-up"></i></button>
+                    `;
+                    anchor.appendChild(wrap);
+
+                    const input = wrap.querySelector(".ai-prompt-input");
+                    const send = wrap.querySelector(".ai-prompt-send");
+                    const finish = (value) => { wrap.remove(); resolve(value); };
+
+                    input.addEventListener("keydown", (event) => {
+                        event.stopPropagation();
+                        if (event.key === "Enter") finish(input.value.trim() || null);
+                        else if (event.key === "Escape") finish(null);
+                    });
+                    send.addEventListener("click", () => finish(input.value.trim() || null));
+                    input.focus();
+                });
+            }
+
+            async aiAssist(editor, elements, language) {
+                if (this.aiBusy) return;
+
+                const instruction = await this.askInstruction(elements.container.parentElement);
+                if (!instruction) { editor.focus(); return; }
+
+                this.aiBusy = true;
+                const icon = elements.aiButton.querySelector("i");
+                const previousIcon = icon.className;
+                icon.className = "fas fa-spinner fa-spin";
+                elements.aiButton.disabled = true;
+
+                try {
+                    const messages = this.buildMessages(editor.getValue(), language, instruction);
+                    const raw = await window.AIChat(JSON.stringify(messages));
+                    const result = this.stripCodeFences(raw);
+
+                    const selection = editor.getSelection();
+                    if (selection && !selection.isEmpty()) {
+                        editor.executeEdits("ai-assist", [
+                            { range: selection, text: result, forceMoveMarkers: true },
+                        ]);
+                    } else {
+                        editor.setValue(result);
+                    }
+                } catch (error) {
+                    console.error("AIChat error", error);
+                    const message = (error && error.message) ? error.message : String(error);
+                    if (message.includes("API key") && typeof window.openAIConfig === "function") {
+                        await window.openAIConfig();
+                    } else {
+                        alert("Error de IA: " + message);
+                    }
+                } finally {
+                    icon.className = previousIcon;
+                    elements.aiButton.disabled = false;
+                    this.aiBusy = false;
+                    editor.focus();
+                }
             }
 
             async open(title = "Editor de Código", code = "", language = "javascript") {
@@ -249,6 +408,9 @@
 
                     registerListener(elements.saveButton, "click", () => closeEditor(editor.getValue()));
                     registerListener(elements.closeButton, "click", () => closeEditor(""));
+                    registerListener(elements.aiButton, "click", () => {
+                        this.aiAssist(editor, elements, currentLanguage);
+                    });
                     registerListener(elements.languageButton, "click", (event) => {
                         event.stopPropagation();
                         elements.dropdown.classList.toggle("show");
@@ -278,6 +440,9 @@
                     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                         closeEditor(editor.getValue());
                     });
+                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+                        this.aiAssist(editor, elements, currentLanguage);
+                    });
                     editor.addCommand(monaco.KeyCode.Escape, () => {
                         if (elements.dropdown.classList.contains("show")) {
                             hideDropdown();
@@ -293,6 +458,40 @@
         }
 
         window.codeEditor = new CodeEditor();
+
+        // Abre el editor JSON con la configuración de IA (proveedor, modelo,
+        // baseURL, apiKey). La key se muestra enmascarada y vive solo en el
+        // backend Go, fuera del repositorio.
+        window.openAIConfig = async () => {
+            const template = {
+                provider: "openai",
+                model: "gpt-4o-mini",
+                baseURL: "https://api.openai.com/v1",
+                apiKey: "",
+            };
+            let current = JSON.stringify(template, null, 2);
+            try {
+                const loaded = await window.GetAIConfig();
+                const parsed = loaded && loaded.trim() ? JSON.parse(loaded) : {};
+                // Si ya hay algo configurado, mostramos eso; si está todo vacío,
+                // mostramos la plantilla con valores por defecto.
+                if (parsed.provider || parsed.baseURL || parsed.apiKey) {
+                    current = JSON.stringify({ ...template, ...parsed }, null, 2);
+                }
+            } catch (e) {
+                console.error("GetAIConfig error", e);
+            }
+
+            const res = await window.codeEditor.open("Configuración de IA", current, "json");
+            if (res != null && res.trim() !== "") {
+                try {
+                    await window.SetAIConfig(res);
+                } catch (e) {
+                    console.error("SetAIConfig error", e);
+                    alert("No se pudo guardar la configuración de IA: " + (e && e.message ? e.message : e));
+                }
+            }
+        };
 
         function createFunction(functionString) {
             const n = functionString.trim(),
@@ -315,10 +514,13 @@
                         .filter((n) => n);
                     let i = t[2];
                     const c = s.toString().includes("async");
-                    (!s.toString().includes("=>[^{]") &&
-                        !s.toString().includes("async.*=>[^{]")) ||
-                        i.trim().startsWith("return") ||
-                        (i = `return ${i}`);
+                    // Los patrones de cuerpo conciso (flecha sin llaves) capturan el
+                    // cuerpo con "[^{]"; a esos hay que anteponerles "return" para que
+                    // la función devuelva el valor de la expresión.
+                    const isConciseArrow = s.toString().includes("[^{]");
+                    if (isConciseArrow && !i.trim().startsWith("return")) {
+                        i = `return ${i}`;
+                    }
                     let r = null;
                     if (c) {
                         const t = `\n        return (async function(${n.join(

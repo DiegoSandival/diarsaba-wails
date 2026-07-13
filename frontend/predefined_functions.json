@@ -40,6 +40,7 @@
   ],
   "list option ƒ #": [
     "· * tomar",
+    "· * quitar",
     "· * eliminar",
     "· ƒ editor",
     "· * ocultar"
@@ -47,6 +48,7 @@
   "list option § #": [
     "· * tomar",
     "· § abrir",
+    "· * quitar",
     "· * eliminar",
     "· § editor",
     "· § guardar",
@@ -91,6 +93,7 @@
   ],
   "list option < #": [
     "· * tomar",
+    "· * quitar",
     "· * eliminar",
     "· < editor",
     "· * ocultar"
@@ -104,6 +107,7 @@
   ],
   "list option { #": [
     "· * tomar",
+    "· * quitar",
     "· * eliminar",
     "· { editor",
     "· * ocultar"
@@ -157,7 +161,8 @@
   "· # despues ƒ": "(dataset) => {\n    const tomado = diarsaba.get(\"· * tomar §\");\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice + 1, 0, tomado);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
   "· # antes ƒ": "(dataset) => {\n    const tomado = diarsaba.get(\"· * tomar §\");\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice, 0, tomado);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
   "· # eliminar ƒ": "(dataset) => {\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice, 1);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
-  "· * eliminar ƒ": "(dataset) => {\n\n    try {\n        //diarsaba.get(`${dataset.parent} # ֎`).remove();\n        diarsaba.get(`${dataset.parent} ֎`).remove();\n        diarsaba.delete(dataset.parent);\n        diarsaba.delete(`${dataset.parent} ֎`);\n        //diarsaba.delete(`${dataset.parent} # ֎`);\n    } catch (e) {\n\n    }\n\n}",
+  "· * quitar ƒ": "(dataset) => {\n    // Saca el chip del place actual y del DOM. El ÁTOMO permanece en diarsaba\n    // (puede volver a colocarse en otro place o seguir siendo referenciado).\n    const name = dataset.parent;\n\n    // 1. Quitar chips del DOM (principal e hijos abiertos) y sus referencias\n    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {\n        const el = diarsaba.get(k);\n        if (el && typeof el.remove === \"function\") el.remove();\n        diarsaba.delete(k);\n    });\n\n    // 2. Quitar la entrada del place actual (para que no reaparezca al recargar)\n    const placeName = diarsaba.get(\"current place §\");\n    const place = diarsaba.get(placeName);\n    if (place && typeof place === \"object\") {\n        const { [name]: _omit, ...rest } = place;\n        diarsaba.set(placeName, rest);\n    }\n}",
+  "· * eliminar ƒ": "(dataset) => {\n    // Borrado DEFINITIVO: elimina el átomo de diarsaba, sus chips del DOM y\n    // todas las referencias en cualquier place.\n    const name = dataset.parent;\n\n    // 1. Quitar chips del DOM (principal y posibles hijos abiertos) y sus refs\n    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {\n        const el = diarsaba.get(k);\n        if (el && typeof el.remove === \"function\") el.remove();\n        diarsaba.delete(k);\n    });\n\n    // 2. Quitar la referencia de TODOS los places que lo contengan\n    for (const [k, v] of diarsaba.entries()) {\n        if (typeof k === \"string\" && k.endsWith(\"@\") && v && typeof v === \"object\") {\n            if (Object.prototype.hasOwnProperty.call(v, name)) {\n                const { [name]: _omit, ...rest } = v;\n                diarsaba.set(k, rest);\n            }\n        }\n    }\n\n    // 3. Borrar el átomo de diarsaba (definitivo)\n    diarsaba.delete(name);\n}",
   "· < editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        diarsaba.get(dataset.parent) || \"\",\n        \"html\"\n    );\n\n    if (res != null && res != \"\") {\n        diarsaba.set(dataset.parent, res);\n    }\n}",
   "· ֎< guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
   "obtener index [0] ƒ": "(texto) => {\n    const regex = /^\\[(\\d+)\\]\\s*(.*)$/;\n    const match = texto.match(regex);\n\n    if (!match) {\n        throw new Error('Formato inválido. Se esperaba: \"[número] texto\"');\n    }\n\n    return {\n        indice: parseInt(match[1], 10),\n        texto: match[2].trim(),\n    };\n}",
@@ -333,6 +338,7 @@
   "list option $ #": [
     "· * tomar",
     "· $ abrir",
+    "· * quitar",
     "· * eliminar",
     "· * ocultar",
     "· $ editor"
@@ -340,6 +346,7 @@
   "list option # #": [
     "· * tomar",
     "· # abrir",
+    "· * quitar",
     "· * eliminar",
     "· * ocultar",
     "· # editor"
@@ -347,6 +354,7 @@
   "list option : #": [
     "· * tomar",
     "· : abrir",
+    "· * quitar",
     "· * eliminar",
     "· * ocultar",
     "· : editor"
@@ -354,6 +362,7 @@
   "list option ! #": [
     "· * tomar",
     "· ! abrir",
+    "· * quitar",
     "· * eliminar",
     "· * ocultar",
     "· ! action",
@@ -364,6 +373,7 @@
     "· ~ abrir",
     "· * ocultar",
     "· ~ action",
+    "· * quitar",
     "· * eliminar",
     "· ~ editor"
   ],
@@ -438,6 +448,10 @@
     "editables list #": {
       "x": 474,
       "y": 238
+    },
+    "ai config !": {
+      "x": 20,
+      "y": 460
     }
   },
   "on start place ƒ": "() => {\n    diarsaba.set(\"current place §\", \"diarsaba @\")\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        20,\n        20,\n        \"diarsaba @\",\n        \"\",\n        \"@\"\n    );\n\n    const diarsabaplace = diarsaba.get(\"diarsaba @\")\n\n    Object.entries(diarsabaplace).forEach(([clave, valor]) => {\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            valor.x,\n            valor.y,\n            clave,\n            \"\",\n            clave.slice(-1)\n        );\n    });\n\n}",
@@ -493,6 +507,12 @@
   "editables list # # ֎": {},
   "· ƒ editor ƒ ֎": {},
   "· § editor ƒ ֎": {},
-  "open general editor ƒ": "async (key) => {\n    var initial_code;\n\n    if (key.slice(-1) == \"ƒ\") {\n        if (diarsaba.get(key) instanceof Function) {\n            initial_code = diarsaba.get(key).toString();\n        } else {\n            initial_code = \"()=>{}\";\n        }\n\n        const res = await window.codeEditor.open(\n            key,\n            initial_code,\n            \"js\"\n        );\n\n        if (res != null && res != \"\") {\n            diarsaba.set(key, createFunction(res));\n        }\n    } else {\n        initial_code = diarsaba.get(key).toString();\n        const res = await window.codeEditor.open(\n            key,\n            initial_code,\n            \"text\"\n        );\n\n        if (res != null && res != \"\") {\n            diarsaba.set(key, res);\n        }\n\n    }\n\n\n}",
-  "open general editor ƒ ֎": {}
+  "open general editor ƒ": "async (key) => {\n    // Delegamos en el editor específico del tipo (mismo patrón que\n    // '· ֎ editor ƒ'), que serializa y reconstruye cada tipo según el\n    // sufijo de la clave. Así el átomo vuelve SIEMPRE a su tipo original.\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor({ parent: key });\n        return;\n    }\n\n    // Sin editor específico para este tipo: texto plano.\n    const res = await window.codeEditor.open(key, String(diarsaba.get(key) || \"\"), \"text\");\n    if (res != null && res !== \"\") {\n        diarsaba.set(key, res);\n    }\n}",
+  "open general editor ƒ ֎": {},
+  "ai config ƒ": "() => {\n    window.openAIConfig();\n}",
+  "ai config ƒ ֎": {},
+  "ai config !": [
+    "ai config ƒ"
+  ],
+  "ai config ! ֎": {}
 }
