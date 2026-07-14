@@ -4,3 +4,7 @@ frontend/dist
 
 # Binarios de build (el output de wails vive en build/bin)
 *.exe
+
+# Assets vendorizados (se regeneran en postinstall desde node_modules)
+frontend/public/vs
+frontend/public/fa
