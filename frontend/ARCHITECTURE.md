@@ -53,6 +53,12 @@ Tres formas de "quitar" un chip (menú contextual), de menos a más destructiva:
 - `· * quitar` — quita del place actual y del DOM; **el átomo permanece** en `diarsaba`.
 - `· * eliminar` — **definitivo**: borra el átomo de `diarsaba`, sus refs y de *todos* los places.
 
+Listas "vivas": al hacer click en un ítem de una lista abierta, `dispatch item ƒ` lo despacha
+por su sigilo — `!`/`~` ejecutan (`threads`), `#` abre esa lista como sublista, `ƒ` corre la
+función. Los `.context-menu` tienen `max-height` + scroll, así que sirven como widget de lista
+reutilizable. Al crearse, `clamp to viewport ƒ` los reposiciona para que no se salgan de la
+ventana (mide el tamaño natural en 0,0 porque el `.context-menu` es shrink-to-fit).
+
 ## Persistencia
 
 `guardar ! ƒ` serializa **todo el `Map`** de vuelta a `predefined_functions.json`
@@ -96,5 +102,23 @@ Asistente **a demanda dentro del editor**, no chat ni autocompletado estilo Copi
 
 - `frontend/index.html` — bootstrap, `createFunction`, `threads`, `CodeEditor`, bindings.
 - `frontend/predefined_functions.json` — **el programa entero** (átomos + places + estilos).
-- `app.go` — backend Go: `SavePredefinedFunctions`, `AIChat`, `Get/SetAIConfig`.
+- `app.go` — backend Go: `Load/SavePredefinedFunctions`, `AIChat`, `Get/SetAIConfig`.
 - `frontend/wailsjs/go/main/App.{js,d.ts}` — bindings generados por Wails.
+- `frontend/public/vs/` y `frontend/public/fa/` — Monaco y Font Awesome **vendorizados**
+  (sin CDN). Vite los copia a `dist/` y Go los embebe, así que el editor y los íconos
+  funcionan sin internet. `MONACO_BASE_URL = window.location.origin`.
+
+## Carga y guardado del programa (dev vs prod)
+
+El frontend **no** hace `fetch` del JSON: se lo pide al backend con
+`window.LoadPredefinedFunctions()` (con fallback a `fetch` si se abre el frontend sin backend
+Go). Go resuelve la ubicación en `predefinedPath()`:
+- **Dev** (`wails dev`): `frontend/predefined_functions.json` — el archivo del repo, versionado
+  en git y editado en vivo.
+- **Prod** (`wails build`): `UserConfigDir/diarsaba/predefined_functions.json` (escribible, ya
+  que los assets embebidos son de solo lectura), sembrado en el primer arranque desde el JSON
+  **embebido** en el binario (`//go:embed frontend/predefined_functions.json`).
+
+`SavePredefinedFunctions` escribe en esa misma ruta (y versiona el anterior como
+`predefined_functions_vN.json`), así que editar-y-guardar **persiste tanto en dev como en el
+build de producción**.

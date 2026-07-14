@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DIARSABA</title>
     <meta name="robots" content="noindex, nofollow">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/monaco-editor@0.49.0/min/vs/loader.js"></script>
+    <link rel="stylesheet" href="/fa/css/all.min.css">
+    <script src="/vs/loader.js"></script>
 
     <style>
         /* --- UI del asistente de IA --- */
@@ -77,18 +77,19 @@
     </style>
 
     <script type="module" >
-        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig } from './wailsjs/go/main/App';
+        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig, LoadPredefinedFunctions } from './wailsjs/go/main/App';
         window.SavePredefinedFunctions = SavePredefinedFunctions;
         window.AIChat = AIChat;
         window.GetAIConfig = GetAIConfig;
         window.SetAIConfig = SetAIConfig;
+        window.LoadPredefinedFunctions = LoadPredefinedFunctions;
     </script>
 
     <script>
 
        
 
-        const MONACO_BASE_URL = "https://unpkg.com/monaco-editor@0.49.0/min";
+        const MONACO_BASE_URL = window.location.origin;
         const MONACO_THEME_NAME = "glass-dark";
         const LANGUAGE_OPTIONS = [
             { id: "html", name: "HTML", icon: "fab fa-html5", color: "#e34f26" },
@@ -573,8 +574,18 @@
 
         window.addEventListener("DOMContentLoaded", async () => {
 
-            const response = await fetch("predefined_functions.json");
-            const predefinedFunctions = await response.json();
+            // El JSON lo provee el backend Go (LoadPredefinedFunctions): en dev lee
+            // el archivo del repo, en prod la copia escribible sembrada desde el
+            // embebido — así funciona igual en `wails dev` y en el build. Si no hay
+            // backend (p.ej. abriendo el frontend suelto), cae a fetch.
+            let predefinedFunctions;
+            try {
+                if (typeof window.LoadPredefinedFunctions !== "function") throw new Error("sin backend");
+                predefinedFunctions = JSON.parse(await window.LoadPredefinedFunctions());
+            } catch (e) {
+                const response = await fetch("predefined_functions.json");
+                predefinedFunctions = await response.json();
+            }
 
             for (const [key, value] of Object.entries(predefinedFunctions)) {
                 if (key.endsWith("ƒ")) {

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,40 +30,83 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// SavePredefinedFunctions guarda el JSON en el directorio del proyecto
-// y versiona el archivo anterior si ya existe.
-func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
-	// Obtiene el directorio actual (raíz del proyecto en 'wails dev')
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("error obteniendo directorio: %w", err)
+// defaultPredefined es el JSON base (semilla) embebido en el binario. Se usa en
+// producción para sembrar la copia editable en el primer arranque.
+//
+//go:embed frontend/predefined_functions.json
+var defaultPredefined []byte
+
+// predefinedPath resuelve dónde vive el JSON editable, y si estamos en dev.
+//   - Dev ('wails dev'): el archivo del repo (frontend/predefined_functions.json),
+//     versionado en git y editado en vivo.
+//   - Prod (.exe): una copia escribible en el directorio de configuración del
+//     usuario, ya que los assets embebidos son de solo lectura.
+func predefinedPath() (path string, isDev bool, err error) {
+	if cwd, e := os.Getwd(); e == nil {
+		devPath := filepath.Join(cwd, "frontend", "predefined_functions.json")
+		if _, statErr := os.Stat(devPath); statErr == nil {
+			return devPath, true, nil
+		}
 	}
 
-	// --- CAMBIO PRINCIPAL: Definir la ruta a la carpeta "frontend" ---
-	frontendDir := filepath.Join(dir, "frontend")
+	dir, e := os.UserConfigDir()
+	if e != nil {
+		return "", false, fmt.Errorf("error obteniendo directorio de configuración: %w", e)
+	}
+	appDir := filepath.Join(dir, "diarsaba")
+	if e := os.MkdirAll(appDir, 0755); e != nil {
+		return "", false, fmt.Errorf("error creando carpeta de datos: %w", e)
+	}
+	return filepath.Join(appDir, "predefined_functions.json"), false, nil
+}
 
-	// Asegurarse de que la carpeta frontend exista (buena práctica)
-	if err := os.MkdirAll(frontendDir, 0755); err != nil {
-		return "", fmt.Errorf("error al verificar/crear carpeta frontend: %w", err)
+// LoadPredefinedFunctions devuelve el JSON con el que arranca el frontend. En
+// producción, si la copia externa aún no existe, la siembra desde el embebido.
+func (a *App) LoadPredefinedFunctions() (string, error) {
+	path, isDev, err := predefinedPath()
+	if err != nil {
+		// Sin ruta escribible: al menos arrancamos con el embebido.
+		return string(defaultPredefined), nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err == nil {
+		return string(data), nil
+	}
+	if !os.IsNotExist(err) {
+		return "", fmt.Errorf("error leyendo %s: %w", path, err)
+	}
+
+	// No existe todavía: en prod sembramos la copia externa desde el embebido.
+	if !isDev {
+		_ = os.WriteFile(path, defaultPredefined, 0644)
+	}
+	return string(defaultPredefined), nil
+}
+
+// SavePredefinedFunctions guarda el JSON en la ubicación resuelta (repo en dev,
+// config del usuario en prod) y versiona el archivo anterior si ya existe.
+func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
+	targetPath, _, err := predefinedPath()
+	if err != nil {
+		return "", err
+	}
+
+	dir := filepath.Dir(targetPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("error al verificar/crear carpeta: %w", err)
 	}
 
 	baseName := "predefined_functions"
 	ext := ".json"
 
-	// El archivo objetivo ahora está dentro de frontendDir
-	targetPath := filepath.Join(frontendDir, baseName+ext)
-
-	// Verificar si el archivo base ya existe para versionarlo
+	// Versionar el archivo anterior si ya existe.
 	if _, err := os.Stat(targetPath); err == nil {
 		version := 1
 		for {
-			versionedName := fmt.Sprintf("%s_v%d%s", baseName, version, ext)
-			// Buscamos el archivo versionado DENTRO de la carpeta frontend
-			versionedPath := filepath.Join(frontendDir, versionedName)
-
+			versionedPath := filepath.Join(dir, fmt.Sprintf("%s_v%d%s", baseName, version, ext))
 			if _, err := os.Stat(versionedPath); os.IsNotExist(err) {
-				err = os.Rename(targetPath, versionedPath)
-				if err != nil {
+				if err := os.Rename(targetPath, versionedPath); err != nil {
 					return "", fmt.Errorf("error renombrando archivo anterior: %w", err)
 				}
 				break
@@ -71,9 +115,7 @@ func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
 		}
 	}
 
-	// Escribimos el nuevo archivo en la carpeta frontend
-	err = os.WriteFile(targetPath, []byte(jsonData), 0644)
-	if err != nil {
+	if err := os.WriteFile(targetPath, []byte(jsonData), 0644); err != nil {
 		return "", fmt.Errorf("error guardando archivo: %w", err)
 	}
 

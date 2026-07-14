@@ -5,6 +5,8 @@ export function AIChat(arg1:string):Promise<string>;
 
 export function GetAIConfig():Promise<string>;
 
+export function LoadPredefinedFunctions():Promise<string>;
+
 export function SavePredefinedFunctions(arg1:string):Promise<string>;
 
 export function SetAIConfig(arg1:string):Promise<void>;

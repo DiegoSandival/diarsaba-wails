@@ -1,3 +1,6 @@
 build/bin
 node_modules
 frontend/dist
+
+# Binarios de build (el output de wails vive en build/bin)
+*.exe

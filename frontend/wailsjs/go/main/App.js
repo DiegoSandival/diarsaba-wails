@@ -10,6 +10,10 @@ export function GetAIConfig() {
   return window['go']['main']['App']['GetAIConfig']();
 }
 
+export function LoadPredefinedFunctions() {
+  return window['go']['main']['App']['LoadPredefinedFunctions']();
+}
+
 export function SavePredefinedFunctions(arg1) {
   return window['go']['main']['App']['SavePredefinedFunctions'](arg1);
 }
