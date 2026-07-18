@@ -83,6 +83,33 @@
         window.GetAIConfig = GetAIConfig;
         window.SetAIConfig = SetAIConfig;
         window.LoadPredefinedFunctions = LoadPredefinedFunctions;
+
+        // Puente hacia p2plite (ver p2p.go). Va agrupado en window.p2p en vez de
+        // sueltas: son 18 y todas del mismo tema. Los ƒ del place "p2p @" son
+        // los que le dan forma; esto solo las pone al alcance.
+        import * as P2P from './wailsjs/go/main/App';
+        import { EventsOn } from './wailsjs/runtime/runtime';
+        window.p2p = {
+            Start: P2P.P2PStart,
+            Stop: P2P.P2PStop,
+            ID: P2P.P2PID,
+            Addrs: P2P.P2PAddrs,
+            FullAddrs: P2P.P2PFullAddrs,
+            Peers: P2P.P2PPeers,
+            RoutingTableSize: P2P.P2PRoutingTableSize,
+            ConnKind: P2P.P2PConnKind,
+            ConnIP: P2P.P2PConnIP,
+            Announce: P2P.P2PAnnounce,
+            StopAnnounce: P2P.P2PStopAnnounce,
+            FindProviders: P2P.P2PFindProviders,
+            Connect: P2P.P2PConnect,
+            OpenStream: P2P.P2POpenStream,
+            StreamWrite: P2P.P2PStreamWrite,
+            StreamRead: P2P.P2PStreamRead,
+            StreamCloseWrite: P2P.P2PStreamCloseWrite,
+            StreamClose: P2P.P2PStreamClose,
+        };
+        window.EventsOn = EventsOn;
     </script>
 
     <script>

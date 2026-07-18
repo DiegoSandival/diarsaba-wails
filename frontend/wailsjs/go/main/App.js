@@ -14,6 +14,78 @@ export function LoadPredefinedFunctions() {
   return window['go']['main']['App']['LoadPredefinedFunctions']();
 }
 
+export function P2PAddrs() {
+  return window['go']['main']['App']['P2PAddrs']();
+}
+
+export function P2PAnnounce(arg1) {
+  return window['go']['main']['App']['P2PAnnounce'](arg1);
+}
+
+export function P2PConnIP(arg1) {
+  return window['go']['main']['App']['P2PConnIP'](arg1);
+}
+
+export function P2PConnKind(arg1) {
+  return window['go']['main']['App']['P2PConnKind'](arg1);
+}
+
+export function P2PConnect(arg1, arg2) {
+  return window['go']['main']['App']['P2PConnect'](arg1, arg2);
+}
+
+export function P2PFindProviders(arg1, arg2) {
+  return window['go']['main']['App']['P2PFindProviders'](arg1, arg2);
+}
+
+export function P2PFullAddrs() {
+  return window['go']['main']['App']['P2PFullAddrs']();
+}
+
+export function P2PID() {
+  return window['go']['main']['App']['P2PID']();
+}
+
+export function P2POpenStream(arg1, arg2) {
+  return window['go']['main']['App']['P2POpenStream'](arg1, arg2);
+}
+
+export function P2PPeers() {
+  return window['go']['main']['App']['P2PPeers']();
+}
+
+export function P2PRoutingTableSize() {
+  return window['go']['main']['App']['P2PRoutingTableSize']();
+}
+
+export function P2PStart() {
+  return window['go']['main']['App']['P2PStart']();
+}
+
+export function P2PStop() {
+  return window['go']['main']['App']['P2PStop']();
+}
+
+export function P2PStopAnnounce(arg1) {
+  return window['go']['main']['App']['P2PStopAnnounce'](arg1);
+}
+
+export function P2PStreamClose(arg1) {
+  return window['go']['main']['App']['P2PStreamClose'](arg1);
+}
+
+export function P2PStreamCloseWrite(arg1) {
+  return window['go']['main']['App']['P2PStreamCloseWrite'](arg1);
+}
+
+export function P2PStreamRead(arg1, arg2, arg3) {
+  return window['go']['main']['App']['P2PStreamRead'](arg1, arg2, arg3);
+}
+
+export function P2PStreamWrite(arg1, arg2) {
+  return window['go']['main']['App']['P2PStreamWrite'](arg1, arg2);
+}
+
 export function SavePredefinedFunctions(arg1) {
   return window['go']['main']['App']['SavePredefinedFunctions'](arg1);
 }

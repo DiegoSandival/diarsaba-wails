@@ -80,6 +80,36 @@ Protocolo binario hacia un backend Go: `ws opcodes :` (mapa de opcodes),
 `encode frame ƒ` / `decode frame ƒ`, y funciones como `create db ƒ`, `write ƒ`, `read ƒ`,
 `relay ƒ`, `dial ƒ`, `sub/pub ƒ`, firma de llaves, etc. (libp2p + una capa de DB por celdas).
 
+## Red P2P — p2plite (añadida 2026-07)
+
+El place **`p2p @`** es la librería [`p2plite`](../../p2plite) hecha átomos: seis primitivas
+(`Announce`, `StopAnnounce`, `FindProviders`, `Connect`, `OpenStream`, `SetStreamHandler`)
+más diagnóstico (`ID`, `Addrs`, `FullAddrs`, `Peers`, `RoutingTableSize`, `ConnKind`, `ConnIP`).
+
+- **Go (`p2p.go`)**: bindings `P2P*`. El nodo **arranca solo** la primera vez que se usa
+  cualquier primitiva, así que el place no necesita un botón de encendido y la app no paga
+  la red si nunca se toca. `OnShutdown` lo cierra limpiamente.
+- **Lo que no es serializable se queda en Go.** Un `Stream` no cabe en un binding: Go
+  devuelve un identificador y el frontend lo opera con `P2PStreamRead/Write/CloseWrite/Close`.
+  Los bytes viajan en **base64** — para la librería son opacos y aquí siguen siéndolo.
+  Un stream que nadie toque en 2 minutos se recoge solo (el frontend puede recargarse a media
+  conversación y dejarlo huérfano).
+- **Streams entrantes**: Go registra su handler *antes* de `Start` y emite el evento
+  `p2p:stream` con `{from, stream}`. `SetStreamHandler ƒ` se suscribe una sola vez y delega en
+  el átomo **`p2p on stream ƒ`** — editable como cualquier otro: ahí se decide qué se contesta.
+- **Frontend (`index.html`)**: los bindings se agrupan en `window.p2p` (son 18 y todas del
+  mismo tema) y se expone `window.EventsOn`.
+- **Átomos de apoyo del place**: `p2p arg ƒ` / `p2p peer ƒ` (un ƒ se llama desde código con el
+  valor, o con un clic — y entonces hay que preguntar), `p2p out ƒ` (deja el resultado en
+  `p2p result §`), `p2p stream ƒ` (envuelve el identificador en algo con lo que hablar),
+  `p2p peer §`, `p2p providers #`, `p2p announced #`.
+- **El peer se hereda**: `FindProviders` deja el primer proveedor en `p2p peer §`, así que
+  `Connect`/`OpenStream`/`ConnKind` funcionan con un clic. `OpenStream` con clic hace el viaje
+  completo (mensaje → respuesta); llamado desde código devuelve el stream y decides tú.
+
+> **Compilar**: p2plite pide Go **1.25.7** (`quic-go v0.60` aún no soporta 1.26). El
+> `go 1.25.7` del `go.mod` no basta si tienes 1.26 instalado: `GOTOOLCHAIN=go1.25.7 wails build`.
+
 ## Integración de IA (añadida 2026-07)
 
 Asistente **a demanda dentro del editor**, no chat ni autocompletado estilo Copilot
@@ -103,6 +133,8 @@ Asistente **a demanda dentro del editor**, no chat ni autocompletado estilo Copi
 - `frontend/index.html` — bootstrap, `createFunction`, `threads`, `CodeEditor`, bindings.
 - `frontend/predefined_functions.json` — **el programa entero** (átomos + places + estilos).
 - `app.go` — backend Go: `Load/SavePredefinedFunctions`, `AIChat`, `Get/SetAIConfig`.
+- `p2p.go` — puente hacia p2plite (bindings `P2P*`, handles de stream, evento `p2p:stream`).
+- `p2p_smoke_test.go` — integración real contra la red (`go test -short` la salta).
 - `frontend/wailsjs/go/main/App.{js,d.ts}` — bindings generados por Wails.
 - `frontend/public/vs/` y `frontend/public/fa/` — Monaco y Font Awesome **vendorizados**
   (sin CDN). Vite los copia a `dist/` y Go los embebe, así que el editor y los íconos

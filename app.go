@@ -17,11 +17,17 @@ import (
 // App struct
 type App struct {
 	ctx context.Context
+
+	// p2p es el nodo de la red y sus streams vivos. Ver p2p.go: se construye
+	// vacío y el nodo real arranca la primera vez que el frontend lo usa.
+	p2p *p2pBridge
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{}
+	return &App{
+		p2p: &p2pBridge{streams: make(map[string]*p2pStream)},
+	}
 }
 
 // startup is called when the app starts. The context is saved
