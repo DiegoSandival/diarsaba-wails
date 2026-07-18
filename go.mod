@@ -2,7 +2,10 @@ module diarsaba-wails
 
 go 1.25.7
 
-require github.com/wailsapp/wails/v2 v2.13.0
+require (
+	github.com/DiegoSandival/p2plite v0.1.1-0.20260718191710-d01f8a640828
+	github.com/wailsapp/wails/v2 v2.13.0
+)
 
 require (
 	filippo.io/bigmod v0.1.1-0.20260103110540-f8a47775ebe5 // indirect
@@ -110,7 +113,6 @@ require (
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
-	github.com/DiegoSandival/p2plite v0.0.0
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
@@ -141,5 +143,3 @@ require (
 )
 
 // replace github.com/wailsapp/wails/v2 v2.13.0 => C:\Users\Starnet\go\pkg\mod
-
-replace github.com/DiegoSandival/p2plite => ../p2plite
