@@ -8,3 +8,6 @@ frontend/dist
 # Assets vendorizados (se regeneran en postinstall desde node_modules)
 frontend/public/vs
 frontend/public/fa
+
+# Backups rotativos de predefined_functions (dev)
+frontend/backups/

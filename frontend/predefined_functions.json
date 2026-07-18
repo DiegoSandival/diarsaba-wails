@@ -177,7 +177,7 @@
   "· ֎* ocultar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    diarsaba.delete(`${dataset.parent} ֎ ֎`);\n}",
   "eliminar elemento del dom ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎`).remove();\n}",
   "create ~ thread ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
-  "create ƒ func ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, null);\n}",
+  "create ƒ func ƒ": "(name) => {\n    // Nunca null: un ƒ nulo se guarda como el string \"null\" y al recargar\n    // createFunction lo rechaza, rompiendo la carga entera. Empezamos con\n    // una función vacía válida, que serializa y vuelve a cargar sin drama.\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, createFunction(\"()=>{}\"));\n}",
   "create ! action ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
   "create $ num ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, 0);\n}",
   "create § text ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
@@ -194,23 +194,11 @@
   "create list ƒ": "(x, y, list, parent) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    if (list.length == 0) {\n        div.innerHTML += `<span class=\"menu-item\">[0]</span>`;\n    } else {\n        for (const key in list) {\n            div.innerHTML += `<span class=\"menu-item\">[${key}] ${list[key]}</span>`;\n        }\n    }\n\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.dataset.parent = parent;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
   "create list menu ƒ": "(list, parent = \"\", current = \"\") => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n    for (const key of list) {\n        div.innerHTML += `<span class=\"menu-item\">${key}</span>`;\n    }\n    div.style.left = `${diarsaba.get(\"pointer x\")}px`;\n    div.style.top = `${diarsaba.get(\"pointer y\")}px`;\n\n    div.dataset.parent = parent;\n    div.dataset.current = current;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
   "create chip ƒ": "(x, y, text, parent = \"\", type = \"\") => {\n    const div = document.createElement(\"div\");\n    div.classList = \"object-name\";\n    div.textContent = text;\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.spellcheck = false;\n    div.dataset.parent = parent;\n    div.dataset.type = type;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
-  "pointer move event": {
-    "isTrusted": true
-  },
-  "pointer x": 334,
-  "pointer y": 536,
-  "pointer down event": {
-    "isTrusted": true
-  },
-  "pointer up event": {
-    "isTrusted": true
-  },
-  "current menu": {},
-  "open x $": 296,
-  "open y $": 322,
+  "pointer x": 743,
+  "pointer y": 364,
+  "open x $": 700,
+  "open y $": 144,
   "todo el estilo {": "  :root {\r\n      --graph-bg: #050505;\r\n      --graph-bg-elevated: rgba(255, 255, 255, 0.08);\r\n      --graph-bg-strong: rgba(10, 10, 10, 0.92);\r\n      --graph-border: rgba(255, 255, 255, 0.14);\r\n      --graph-border-active: rgba(255, 255, 255, 0.24);\r\n      --graph-text: #f8fafc;\r\n      --graph-text-muted: #cbd5e1;\r\n      --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);\r\n  }\r\n\r\n  * {\r\n      padding: 0;\r\n      margin: 0;\r\n  }\r\n\r\n  .object-name {\r\n      position: absolute;\r\n      font-size: 1rem;\r\n      color: var(--graph-text);\r\n      font-weight: 500;\r\n      cursor: pointer;\r\n      padding: 6px 12px;\r\n      border-radius: 999px;\r\n      transition: background-color 0.15s ease, border-color 0.15s ease,\r\n          transform 0.15s ease;\r\n      width: fit-content;\r\n      background: var(--graph-bg-elevated);\r\n      border: 1px solid var(--graph-border);\r\n      box-shadow: var(--graph-shadow);\r\n      backdrop-filter: blur(14px);\r\n      -webkit-backdrop-filter: blur(14px);\r\n      outline: none;\r\n      user-select: none;\r\n  }\r\n\r\n  .object-name:hover {\r\n      background: rgba(255, 255, 255, 0.12);\r\n      border-color: var(--graph-border-active);\r\n      transform: translateY(-1px);\r\n  }\r\n\r\n  .object-name:focus {\r\n      border: 1px solid rgba(88, 166, 255, 0.55);\r\n  }\r\n\r\n  .object-name:active {\r\n      background: rgba(255, 255, 255, 0.18);\r\n      transform: translateY(0);\r\n  }\r\n\r\n  .widget-shell {\r\n      position: fixed;\r\n      width: min(560px, calc(100vw - 28px));\r\n      touch-action: none;\r\n  }\r\n\r\n  .widget-shell.dragging {\r\n      z-index: 999;\r\n  }\r\n\r\n  .widget-card {\r\n      overflow: hidden;\r\n      border: 1px solid var(--graph-border);\r\n      border-radius: 18px;\r\n      background: transparent;\r\n      box-shadow: none;\r\n  }\r\n\r\n  .widget-grip {\r\n      display: flex;\r\n      align-items: center;\r\n      justify-content: space-between;\r\n      padding: 9px 10px;\r\n      cursor: grab;\r\n      user-select: none;\r\n      border-bottom: 1px solid var(--graph-border);\r\n      background: var(--graph-bg-elevated);\r\n      box-shadow: var(--graph-shadow);\r\n      backdrop-filter: blur(14px);\r\n      -webkit-backdrop-filter: blur(14px);\r\n  }\r\n\r\n  .widget-grip:active {\r\n      cursor: grabbing;\r\n  }\r\n\r\n  .widget-tag {\r\n      margin: 0;\r\n      text-transform: uppercase;\r\n      letter-spacing: 0.14em;\r\n      font-size: 10px;\r\n      color: var(--graph-text-muted);\r\n  }\r\n\r\n  .widget-body {\r\n      padding: 12px;\r\n  }\r\n\r\n  .graph-widget-body {\r\n      position: relative;\r\n      background: transparent;\r\n  }\r\n\r\n  .graph-widget-stage {\r\n      position: relative;\r\n      min-height: 320px;\r\n      background: transparent;\r\n      overflow: hidden;\r\n      cursor: grab;\r\n  }\r\n\r\n  .graph-widget-stage.is-panning {\r\n      cursor: grabbing;\r\n  }\r\n\r\n  .graph-viewport {\r\n      position: absolute;\r\n      inset: 0;\r\n      transform-origin: 0 0;\r\n  }\r\n\r\n  .graph-layer {\r\n      position: absolute;\r\n      inset: 0;\r\n      width: 100%;\r\n      height: 100%;\r\n      overflow: visible;\r\n      pointer-events: none;\r\n  }\r\n\r\n  .graph-edge {\r\n      stroke: rgba(255, 255, 255, 0.18);\r\n      stroke-width: 1.5;\r\n  }\r\n\r\n  .graph-node {\r\n      position: absolute;\r\n      padding: 0;\r\n      border: 0;\r\n      background: transparent;\r\n      color: var(--graph-text);\r\n      transform: translate(-50%, -50%);\r\n      cursor: pointer;\r\n      text-align: center;\r\n      touch-action: none;\r\n      appearance: none;\r\n      font: inherit;\r\n  }\r\n\r\n  .graph-node.is-selected .graph-node-key {\r\n      opacity: 0.6;\r\n  }\r\n\r\n  .graph-node-key {\r\n      display: block;\r\n      font-size: 0.92rem;\r\n  }\r\n\r\n  .context-menu {\r\n      position: absolute;\r\n      background: var(--graph-bg-strong);\r\n      border-radius: 14px;\r\n      box-shadow: var(--graph-shadow);\r\n      border: 1px solid var(--graph-border);\r\n      z-index: 1000;\r\n      min-width: 140px;\r\n      max-height: min(420px, 70vh);\r\n      overflow-y: auto;\r\n      overflow-x: hidden;\r\n      transition: opacity 0.1s ease, transform 0.1s ease;\r\n      user-select: none;\r\n      backdrop-filter: blur(14px);\r\n      -webkit-backdrop-filter: blur(14px);\r\n  }\r\n\r\n  .menu-item {\r\n      padding: 8px 12px;\r\n      font-size: 0.75rem;\r\n      color: var(--graph-text-muted);\r\n      cursor: pointer;\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 6px;\r\n      user-select: none;\r\n      border-bottom: 1px solid rgba(255, 255, 255, 0.08);\r\n  }\r\n\r\n  .menu-item:last-child {\r\n      border-bottom: none;\r\n  }\r\n\r\n  .menu-item:hover {\r\n      background: rgba(255, 255, 255, 0.08);\r\n  }\r\n\r\n  .menu-item:active {\r\n      background: rgba(255, 255, 255, 0.12);\r\n  }\r\n\r\n  .modal-content {\r\n      position: absolute;\r\n      left: 50%;\r\n      top: 50%;\r\n      padding: 1rem;\r\n      border: 1px solid var(--graph-border);\r\n      border-radius: 18px;\r\n      background: rgba(11, 15, 20, 0.88);\r\n      box-shadow: var(--graph-shadow);\r\n      backdrop-filter: blur(18px);\r\n      -webkit-backdrop-filter: blur(18px);\r\n      transform: translate(-50%, -50%);\r\n      z-index: 2000;\r\n  }\r\n\r\n  .modal-content button {\r\n      font-size: 0.75rem;\r\n      color: var(--graph-text);\r\n      font-weight: 500;\r\n      cursor: pointer;\r\n      padding: 4px 12px;\r\n      border-radius: 10px;\r\n      transition: all 0.15s ease;\r\n      width: fit-content;\r\n      background: rgba(255, 255, 255, 0.08);\r\n      border: 1px solid var(--graph-border);\r\n      outline: none;\r\n      user-select: none;\r\n  }\r\n\r\n  .modal-content button:hover {\r\n      background: rgba(255, 255, 255, 0.12);\r\n      border-color: var(--graph-border-active);\r\n  }\r\n\r\n  .modal-content button:active {\r\n      background: rgba(255, 255, 255, 0.18);\r\n      transform: scale(0.98);\r\n  }\r\n\r\n  .modal-content button[data-modal=\"continue\"] {\r\n      background: rgba(88, 166, 255, 0.22);\r\n      color: #f8fbff;\r\n      border: 1px solid rgba(88, 166, 255, 0.35);\r\n  }\r\n\r\n  .modal-content button[data-modal=\"continue\"]:hover {\r\n      background: rgba(88, 166, 255, 0.3);\r\n      color: #ffffff;\r\n  }\r\n\r\n  .modal-content input {\r\n      border: 1px solid rgba(255, 255, 255, 0.1);\r\n      outline: none;\r\n      padding: 4px 8px;\r\n      border-radius: 8px;\r\n      color: var(--graph-text);\r\n      font-family: inherit;\r\n      font-size: 1rem;\r\n      flex: 1;\r\n      background: rgba(255, 255, 255, 0.06);\r\n  }\r\n\r\n  .modal-content span {\r\n      font-family: \"Courier New\", Courier, monospace;\r\n      color: #94a3b8;\r\n      font-weight: 100;\r\n      font-size: smaller;\r\n      font-style: italic;\r\n  }\r\n\r\n  .modal-buttons {\r\n      display: flex;\r\n      gap: 8px;\r\n      justify-content: space-around;\r\n      margin-top: 12px;\r\n  }\r\n\r\n  /**/\r\n  * {\r\n      margin: 0;\r\n      padding: 0;\r\n      box-sizing: border-box;\r\n  }\r\n\r\n  body {\r\n      background:\r\n          radial-gradient(circle at top, rgba(88, 166, 255, 0.12), transparent 28%),\r\n          linear-gradient(180deg, #020202 0%, var(--graph-bg) 100%);\r\n      min-height: 100vh;\r\n      display: flex;\r\n      flex-direction: column;\r\n      align-items: center;\r\n      justify-content: center;\r\n      font-family: \"Segoe UI\", system-ui, -apple-system, sans-serif;\r\n      color: #c9d1d9;\r\n      padding: 20px;\r\n  }\r\n\r\n  @keyframes fadeIn {\r\n      from {\r\n          opacity: 0;\r\n          transform: translateY(20px);\r\n      }\r\n\r\n      to {\r\n          opacity: 1;\r\n          transform: translateY(0);\r\n      }\r\n  }\r\n\r\n  h1 {\r\n      font-size: 2.8rem;\r\n      margin-bottom: 1rem;\r\n      background: linear-gradient(to right, #58a6ff, #79c0ff, #a5d6ff);\r\n      -webkit-background-clip: text;\r\n      background-clip: text;\r\n      color: transparent;\r\n      font-weight: 700;\r\n      letter-spacing: -0.5px;\r\n  }\r\n\r\n  .subtitle {\r\n      font-size: 1.2rem;\r\n      color: #8b949e;\r\n      margin-bottom: 1.5rem;\r\n      line-height: 1.6;\r\n  }\r\n\r\n  .btn {\r\n      background: linear-gradient(to right, #1f6feb, #388bfd);\r\n      color: white;\r\n      border: 1px solid #388bfd;\r\n      border-radius: 8px;\r\n      padding: 12px 28px;\r\n      font-size: 1.1rem;\r\n      font-weight: 500;\r\n      cursor: pointer;\r\n      transition: all 0.3s ease;\r\n      margin: 10px;\r\n      display: inline-flex;\r\n      align-items: center;\r\n      gap: 8px;\r\n  }\r\n\r\n  .btn:hover {\r\n      background: linear-gradient(to right, #388bfd, #58a6ff);\r\n      transform: translateY(-2px);\r\n      box-shadow: 0 4px 20px rgba(56, 139, 253, 0.4);\r\n  }\r\n\r\n  .editor-overlay {\r\n      position: fixed;\r\n      top: 0;\r\n      left: 0;\r\n      width: 100%;\r\n      height: 100%;\r\n      background: rgba(0, 0, 0, 0.22);\r\n      justify-content: center;\r\n      align-items: center;\r\n      z-index: 1000;\r\n      backdrop-filter: blur(1px) saturate(0.6%);\r\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\r\n      display: flex;\r\n  }\r\n\r\n  .editor-modal {\r\n      width: 90%;\r\n      max-width: 900px;\r\n      height: 80%;\r\n      max-height: 700px;\r\n      border-radius: 18px;\r\n      background: rgba(12, 12, 12, 0.34);\r\n      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);\r\n      border: 1px solid rgba(255, 255, 255, 0.14);\r\n      backdrop-filter: blur(1px) saturate(0.6%);\r\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\r\n      display: flex;\r\n      flex-direction: column;\r\n      overflow: hidden;\r\n  }\r\n\r\n  .editor-header {\r\n      display: flex;\r\n      justify-content: space-between;\r\n      align-items: center;\r\n      background: rgba(255, 255, 255, 0.06);\r\n      border-bottom: 1px solid rgba(255, 255, 255, 0.1);\r\n      padding: 12px 16px;\r\n      flex-shrink: 0;\r\n  }\r\n\r\n  .editor-title {\r\n      color: #c9d1d9;\r\n      font-size: 14px;\r\n      font-weight: 500;\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 8px;\r\n  }\r\n\r\n  .editor-title-icon {\r\n      color: #c9d1d9;\r\n      font-size: 16px;\r\n  }\r\n\r\n  .editor-controls {\r\n      display: flex;\r\n      gap: 10px;\r\n  }\r\n\r\n  .close-button,\r\n  .save-button {\r\n      border: none;\r\n      border-radius: 6px;\r\n      color: #fff;\r\n      padding: 6px 12px;\r\n      font-size: 12px;\r\n      cursor: pointer;\r\n      transition: all 0.2s;\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 4px;\r\n  }\r\n\r\n  .close-button {\r\n      background: #f85149;\r\n  }\r\n\r\n  .close-button:hover {\r\n      background: #da3633;\r\n  }\r\n\r\n  .save-button {\r\n      background: #30363d;\r\n      color: #c9d1d9;\r\n  }\r\n\r\n  .save-button:hover {\r\n      background: #3d444d;\r\n  }\r\n\r\n  .monaco-container {\r\n      flex: 1;\r\n      width: 100%;\r\n      height: 100%;\r\n      background: rgba(255, 255, 255, 0.04);\r\n      backdrop-filter: blur(8px);\r\n      -webkit-backdrop-filter: blur(8px);\r\n  }\r\n\r\n  .monaco-container .monaco-editor,\r\n  .monaco-container .monaco-editor-background,\r\n  .monaco-container .margin,\r\n  .monaco-container .monaco-scrollable-element {\r\n      background: transparent !important;\r\n  }\r\n\r\n  .footer {\r\n      text-align: center;\r\n      margin-top: 2rem;\r\n      color: #8b949e;\r\n      font-size: 0.9rem;\r\n      padding: 1rem;\r\n  }\r\n\r\n  @media (max-width: 768px) {\r\n      h1 {\r\n          font-size: 2.2rem;\r\n      }\r\n  }\r\n\r\n  .language-selector {\r\n      position: relative;\r\n      display: inline-block;\r\n  }\r\n\r\n  .language-button {\r\n      background: none;\r\n      border-radius: 10px;\r\n      border: none;\r\n      color: white;\r\n      padding: 6px 12px;\r\n      cursor: pointer;\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 8px;\r\n      font-size: 14px;\r\n      transition: all 0.3s ease;\r\n\r\n  }\r\n\r\n  .language-button:hover {\r\n      background: rgba(255, 255, 255, 0.15);\r\n      border-color: rgba(255, 255, 255, 0.3);\r\n  }\r\n\r\n  .language-name {\r\n      flex-grow: 1;\r\n      text-align: left;\r\n  }\r\n\r\n\r\n  .language-dropdown {\r\n      display: none;\r\n      position: absolute;\r\n      top: 100%;\r\n      left: 0;\r\n      background: #1e1e1e;\r\n      border: 1px solid rgba(255, 255, 255, 0.2);\r\n      border-radius: 4px;\r\n      min-width: 150px;\r\n      z-index: 1000;\r\n      margin-top: 5px;\r\n      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\r\n  }\r\n\r\n  .language-dropdown.show {\r\n      display: block;\r\n  }\r\n\r\n  .dropdown-item {\r\n      width: 100%;\r\n      padding: 10px 15px;\r\n      background: none;\r\n      border: none;\r\n      color: white;\r\n      text-align: left;\r\n      cursor: pointer;\r\n      display: flex;\r\n      align-items: center;\r\n      gap: 10px;\r\n      transition: background 0.2s ease;\r\n  }\r\n\r\n  .dropdown-item:hover {\r\n      background: rgba(255, 255, 255, 0.1);\r\n  }\r\n\r\n  .dropdown-item i {\r\n      width: 20px;\r\n      text-align: center;\r\n  }",
-  "todo el estilo { ֎": {},
-  "current chip menu": {},
   "ws random bytes ƒ": "(length) => {\n    const bytes = new Uint8Array(length);\n    crypto.getRandomValues(bytes);\n    return bytes;\n}",
   "ws text bytes ƒ": "(value) => {\n    const encoder = new TextEncoder();\n    return encoder.encode(value || '');\n}",
   "ws u16 ƒ": "(value) => {\n    const out = new Uint8Array(2);\n    new DataView(out.buffer).setUint16(0, Number(value) >>> 0, false);\n    return out;\n}",
@@ -260,47 +248,27 @@
     "VALIDATE_TICKET": 71,
     "GET_PUBLIC_KEY": 72
   },
-  "connect ws ƒ ֎": {},
-  "send ws ƒ ֎": {},
-  "handle entry ws ƒ ֎": {},
-  "ws opcode name ƒ ֎": {},
-  "create db ƒ ֎": {},
   "connect !": [
     "connect ws ƒ"
   ],
-  "connect ! ֎": {},
   "· * tomar §": "delete db ƒ",
-  "connect ! # ֎": {},
   "crear ƒ": "() => {\n   //diarsaba.get(\"create db ƒ\")(\"real_db\", \"clave_secreta\", 16, 1023)\n   //diarsaba.get(\"delete db ƒ\")(\"real_db\", \"clave_secreta\", 0)\n   //diarsaba.get(\"write ƒ\")(\"real_db\", \"clave_secreta\", 0, \"saludo\", \"hola samsara\")\n\n   //diarsaba.get(\"read ƒ\")(\"real_db\", \"clave_secreta\", 0, \"saludo\")\n   diarsaba.get(\"read free ƒ\")(\"real_db\", \"saludo\")\n   //diarsaba.get(\"delete ƒ\")(\"real_db\", \"clave_secreta\", 0, \"saludo\")\n   diarsaba.get(\"read cell ƒ\")(\"real_db\", \"clave_secreta\", 0)\n   diarsaba.get(\"diferir ƒ\")(\"real_db\", \"secreto_padre\", 0, 64, 0, 0, 0, \"secreto_hijo\")\n   diarsaba.get(\"cruzar ƒ\")(\"real_db\", \"secreto_a\", 0, \"secreto_b\", 1, 0, 0, 0, \"secreto_hijo\");\n\n\n   diarsaba.get(\"relay ƒ\")(\"/ip4/127.0.0.1/udp/4001/quic-v1/p2p/12D3KooWExample\");\n   diarsaba.get(\"dial ƒ\")(\"/ip4/127.0.0.1/udp/4001/quic-v1/p2p/12D3KooWExample\");\n   diarsaba.get(\"sub ƒ\")(\"mi-tema\");\n   diarsaba.get(\"use ƒ\")(\"mi-tema\");\n   diarsaba.get(\"pub ƒ\")(\"mi-tema\", \"hola mundo\");\n   diarsaba.get(\"peers ƒ\");\n   diarsaba.get(\"unsub ƒ\")(\"mi-tema\");\n   diarsaba.get(\"announce ƒ\")(\"bafkreifn22l3dvpyz7s4bzsbkacirpw2qxhfdid22n6r3qrygciuztwpom\");\n   diarsaba.get(\"unannounce ƒ\")(\"bafkreifn22l3dvpyz7s4bzsbkacirpw2qxhfdid22n6r3qrygciuztwpom\");\n   diarsaba.get(\"find providers ƒ\")(\"bafkreifn22l3dvpyz7s4bzsbkacirpw2qxhfdid22n6r3qrygciuztwpom\");\n   diarsaba.get(\"direct msg ƒ\")(\"12D3KooWExample\", \"mensaje directo\");\n   diarsaba.get(\"disconnect ƒ\")(\"12D3KooWExample\");\n   diarsaba.get(\"generate cid ƒ\")(\"contenido de ejemplo\");\n\n}",
-  "crear ƒ ֎": {},
   "crea !": [
     "crear ƒ"
   ],
-  "crea ! ֎": {},
-  "crea ! # ֎": {},
   "ws pending :": {
     "5ed7115a48fc2e33abab0c7aeb23942d": 1
   },
-  "ws socket": {},
   "ws state §": "conectado",
   "delete db ƒ": "(db, secret, cellIndex) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const secretBytes = textBytes(secret);\n    const payload = concat(\n        u32(Number(cellIndex)),\n        u32(dbBytes.length),\n        u32(secretBytes.length),\n        dbBytes,\n        secretBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.DELETE_DB, id, payload);\n    sendWs(frame, id, opcodes.DELETE_DB);\n}",
-  "delete db ƒ ֎": {},
   "write ƒ": "(db, secret, cellIndex, key, value) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const keyBytes = textBytes(key);\n    const valueBytes = textBytes(value);\n    const secretBytes = textBytes(secret);\n    const payload = concat(\n        u32(Number(cellIndex)),\n        u32(dbBytes.length),\n        u32(keyBytes.length),\n        u32(valueBytes.length),\n        u32(secretBytes.length),\n        dbBytes,\n        keyBytes,\n        valueBytes,\n        secretBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.WRITE, id, payload);\n    sendWs(frame, id, opcodes.WRITE);\n}",
-  "write ƒ ֎": {},
   "read ƒ": "(db, secret, cellIndex, key) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const keyBytes = textBytes(key);\n    const secretBytes = textBytes(secret);\n    const payload = concat(\n        u32(Number(cellIndex)),\n        u32(dbBytes.length),\n        u32(keyBytes.length),\n        u32(secretBytes.length),\n        dbBytes,\n        keyBytes,\n        secretBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.READ, id, payload);\n    sendWs(frame, id, opcodes.READ);\n}",
-  "read ƒ ֎": {},
   "read free ƒ": "(db, key) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const keyBytes = textBytes(key);\n    const payload = concat(\n        u32(dbBytes.length),\n        u32(keyBytes.length),\n        dbBytes,\n        keyBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.READ_FREE, id, payload);\n    sendWs(frame, id, opcodes.READ_FREE);\n}",
-  "read free ƒ ֎": {},
   "delete ƒ": "(db, secret, cellIndex, key) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const keyBytes = textBytes(key);\n    const secretBytes = textBytes(secret);\n    const payload = concat(\n        u32(Number(cellIndex)),\n        u32(dbBytes.length),\n        u32(keyBytes.length),\n        u32(secretBytes.length),\n        dbBytes,\n        keyBytes,\n        secretBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.DELETE, id, payload);\n    sendWs(frame, id, opcodes.DELETE);\n}",
-  "delete ƒ ֎": {},
   "read cell ƒ": "(db, secret, cellIndex) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const secretBytes = textBytes(secret);\n    const payload = concat(\n        u32(Number(cellIndex)),\n        u32(dbBytes.length),\n        u32(secretBytes.length),\n        dbBytes,\n        secretBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.READ_CELL, id, payload);\n    sendWs(frame, id, opcodes.READ_CELL);\n}",
-  "read cell ƒ ֎": {},
   "diferir ƒ": "(db, parentSecret, cellIndex, childGenome, x, y, z, childSecret) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const secretBytes = textBytes(parentSecret);\n    const childBytes = textBytes(childSecret);\n    const nonce = randomBytes(16);\n    const payload = concat(\n        u32(dbBytes.length),\n        u32(Number(cellIndex)),\n        u32(secretBytes.length),\n        u32(Number(childGenome)),\n        u32(Number(x)),\n        u32(Number(y)),\n        u32(Number(z)),\n        nonce,\n        u32(childBytes.length),\n        dbBytes,\n        secretBytes,\n        childBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.DIFERIR, id, payload);\n    sendWs(frame, id, opcodes.DIFERIR);\n}",
-  "diferir ƒ ֎": {},
   "cruzar ƒ": "(db, secretA, cellA, secretB, cellB, x, y, z, childSecret) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const dbBytes = textBytes(db);\n    const secABytes = textBytes(secretA);\n    const secBBytes = textBytes(secretB);\n    const childBytes = textBytes(childSecret);\n    const payload = concat(\n        u32(dbBytes.length),\n        u32(Number(cellA)),\n        u32(Number(cellB)),\n        u32(secABytes.length),\n        u32(secBBytes.length),\n        u32(Number(x)),\n        u32(Number(y)),\n        u32(Number(z)),\n        u32(childBytes.length),\n        dbBytes,\n        secABytes,\n        secBBytes,\n        childBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.CRUZAR, id, payload);\n    sendWs(frame, id, opcodes.CRUZAR);\n}",
-  "cruzar ƒ ֎": {},
   "relay ƒ": "(addr) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const addrBytes = textBytes(addr);\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.RELAY, id, addrBytes);\n    sendWs(frame, id, opcodes.RELAY);\n}",
-  "relay ƒ ֎": {},
   "dial ƒ": "(addr) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const addrBytes = textBytes(addr);\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.DIAL, id, addrBytes);\n    sendWs(frame, id, opcodes.DIAL);\n}",
   "sub ƒ": "(topic) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const topicBytes = textBytes(topic);\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.SUB, id, topicBytes);\n    sendWs(frame, id, opcodes.SUB);\n}",
   "use ƒ": "(topic) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const topicBytes = textBytes(topic);\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.USE, id, topicBytes);\n    sendWs(frame, id, opcodes.USE);\n}",
@@ -322,14 +290,7 @@
   "verify user ƒ": "(userId, signature, message) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const userIdBytes = textBytes(userId);\n    const sigBytes = textBytes(signature);\n    const msgBytes = textBytes(message);\n    const payload = concat(\n        u32(userIdBytes.length),\n        u32(sigBytes.length),\n        u32(msgBytes.length),\n        userIdBytes,\n        sigBytes,\n        msgBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.VERIFY_USER, id, payload);\n    sendWs(frame, id, opcodes.VERIFY_USER);\n}",
   "is ticket fresh ƒ": "(timestamp) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const payload = u32(Number(timestamp));\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.IS_TICKET_FRESH, id, payload);\n    sendWs(frame, id, opcodes.IS_TICKET_FRESH);\n}",
   "validate ticket ƒ": "(publicKey, signature, timestamp) => {\n    const opcodes = diarsaba.get('ws opcodes :');\n    const encodeFrame = diarsaba.get('encode frame ƒ');\n    const sendWs = diarsaba.get('send ws ƒ');\n    const textBytes = diarsaba.get('ws text bytes ƒ');\n    const u32 = diarsaba.get('ws u32 ƒ');\n    const concat = diarsaba.get('ws concat ƒ');\n    const randomBytes = diarsaba.get('ws random bytes ƒ');\n\n    const pubKeyBytes = textBytes(publicKey);\n    const sigBytes = textBytes(signature);\n    const payload = concat(\n        u32(pubKeyBytes.length),\n        u32(sigBytes.length),\n        u32(Number(timestamp)),\n        pubKeyBytes,\n        sigBytes\n    );\n    const id = randomBytes(16);\n    const frame = encodeFrame(opcodes.VALIDATE_TICKET, id, payload);\n    sendWs(frame, id, opcodes.VALIDATE_TICKET);\n}",
-  "handle click ƒ ֎": {},
-  "show context menu ƒ ֎": {},
   "new place ƒ": "async () => {\n    //preguntamos el nombre\n    //creamos un chip\n    // al dar click en el chip el toma control del contexto del bodi\n    // todo lo creado o eliminado se agencia al chip\n    // si se da click en otro place para ser avierto ahora ese chip pasa a tener la agencia\n\n    const name = await diarsaba.get(\"modal input ƒ\")(\"@\");\n\n    if (name == \"\" || name == null)\n        return\n\n\n    const place_exist = diarsaba.get(name)\n    //si no existe creamos su place\n    if (place_exist == null || place_exist == undefined) {\n        diarsaba.set(name, {})\n    } else {\n        //si ya existe no hacemos nada\n    }\n\n\n    //tenemos ahora el chip con el que interactuar\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        diarsaba.get(\"open x $\"),\n        diarsaba.get(\"open y $\"),\n        name,\n        \"\",\n        \"@\");\n\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        diarsaba.set(\"current place §\", name)\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n    }\n\n}",
-  "new place ƒ ֎": {},
-  "guardar ! ƒ ֎": {},
-  "show options list ƒ ֎": {},
-  "list option # # ֎": {},
-  "list option # # # ֎": {},
   "· : editor ƒ": "async (dataset) => {\n    const currentObj = diarsaba.get(dataset.parent) || {};\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        JSON.stringify(currentObj, null, 2),\n        \"json\"\n    );\n\n    if (res != null && res.trim() !== \"\") {\n        try {\n            diarsaba.set(dataset.parent, JSON.parse(res));\n        } catch (e) {\n            console.error('Error al guardar: JSON inválido', e);\n            alert('El formato JSON es inválido. No se guardaron los cambios.');\n        }\n    }\n}",
   "· # editor ƒ": "async (dataset) => {\n    const currentList = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        currentList.join(\",\\n\"),\n        \"text\"\n    );\n\n    if (res != null) {\n        if (res.trim() === \"\") {\n            diarsaba.set(dataset.parent, []);\n        } else {\n            const newList = res.split(\",\").map(item => item.trim()).filter(item => item !== \"\");\n            diarsaba.set(dataset.parent, newList);\n        }\n    }\n}",
   "· ! editor ƒ": "async (dataset) => {\n    const currentList = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        currentList.join(\",\\n\"),\n        \"text\"\n    );\n\n    if (res != null) {\n        if (res.trim() === \"\") {\n            diarsaba.set(dataset.parent, []);\n        } else {\n            const newList = res.split(\",\").map(item => item.trim()).filter(item => item !== \"\");\n            diarsaba.set(dataset.parent, newList);\n        }\n    }\n}",
@@ -379,18 +340,12 @@
   ],
   "· ֎ editor ƒ": "async (dataset) => {\n    const type = dataset.parent.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n    if (specificEditor) {\n        specificEditor(dataset);\n    } else {\n        const res = await window.codeEditor.open(dataset.parent, String(diarsaba.get(dataset.parent) || \"\"), \"text\");\n        if (res != null) diarsaba.set(dataset.parent, res);\n    }\n}",
   "TODO #": [],
-  "TODO # ֎": {},
   "TODO §": "ARREGLAR EL EDIT\r\n\r\nARREGLAR EL DELETE\r\n\r\nHACER LAS LISTAS\r\n\r\nLISTAS DINAMICAS\r\n\r\n\r\n\r\n",
-  "TODO § ֎": {},
-  "current place §": "develop @",
-  "last click on §": "",
+  "current place §": "p2p @",
+  "last click on §": "Continue",
   "on double tap place ƒ": "() => {\n\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n    const content = target.textContent;\n\n    if (content == \"diarsaba-map @\") {\n\n        // 1. Calculamos los límites de la ventana UNA VEZ fuera del bucle (mejor rendimiento)\n        // Añadimos un \"margen\" para que los chips no queden cortados en los bordes de la pantalla\n        const margen = 50;\n        const maximoX = window.innerWidth - margen;\n        const maximoY = window.innerHeight - margen;\n\n        diarsaba.forEach((valor, clave) => {\n            // 2. Generamos las coordenadas aleatorias\n            // Math.random() da un decimal entre 0 y 1. Lo multiplicamos por el máximo.\n            // Usamos Math.floor() para redondear a números enteros (los píxeles suelen ser enteros)\n            // Sumamos el margen para que empiece desde el margen y no desde el 0 absoluto.\n            const xAleatorio = Math.floor(Math.random() * maximoX) + margen;\n            const yAleatorio = Math.floor(Math.random() * maximoY) + margen;\n\n            // 3. Llamamos a la función con los nuevos valores\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                xAleatorio,\n                yAleatorio,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n        });\n\n        //en caso opuesto a esto, mejor crear una lista y que habra automaticamente en el editor\n    } else {\n        document.body.replaceChildren();\n\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            100,\n            50,\n            content,\n            \"\",\n            content.slice(-1)\n        );\n\n        // Desestructuramos el array en [clave, valor]\n        let place = diarsaba.get(content)\n        Object.entries(place).forEach(([clave, valor]) => {\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                valor.x,\n                valor.y,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n        });\n\n        \n        diarsaba.set(\"current place §\", content)\n    }\n\n\n\n}",
-  "on double tap place ƒ ֎": {},
-  "· * eliminar ƒ ֎": {},
   "add to place ƒ": "(name) => {\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        // unicamente si es un place\n\n        if (name.slice(-1) == \"@\") {\n            diarsaba.set(\"current place §\", name)\n        }else{\n            alert(\"todos los movimientos que hagas no seran registrados\")\n        }\n\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n    }\n}",
-  "add to place ƒ ֎": {},
   "nuevo ejemplo §": "",
-  "nuevo ejemplo § ֎": {},
   "examples @": {
     "TODO §": {
       "x": 180,
@@ -409,7 +364,6 @@
       "y": 74
     }
   },
-  "on start ƒ ֎": {},
   "diarsaba @": {
     "on start ƒ": {
       "x": 249,
@@ -453,7 +407,6 @@
     }
   },
   "on start place ƒ": "() => {\n    diarsaba.set(\"current place §\", \"diarsaba @\")\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        20,\n        20,\n        \"diarsaba @\",\n        \"\",\n        \"@\"\n    );\n\n    const diarsabaplace = diarsaba.get(\"diarsaba @\")\n\n    Object.entries(diarsabaplace).forEach(([clave, valor]) => {\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            valor.x,\n            valor.y,\n            clave,\n            \"\",\n            clave.slice(-1)\n        );\n    });\n\n}",
-  "on start place ƒ ֎": {},
   "develop @": {
     "diarsaba @": {
       "x": 221,
@@ -486,6 +439,10 @@
     "open general editor ƒ": {
       "x": 506,
       "y": 195
+    },
+    "p2p @": {
+      "x": 64,
+      "y": 326
     }
   },
   "editables list #": [
@@ -501,16 +458,76 @@
     ":",
     "@"
   ],
-  "editables list # ֎": {},
-  "editables list # # ֎": {},
-  "· ƒ editor ƒ ֎": {},
-  "· § editor ƒ ֎": {},
   "open general editor ƒ": "async (key) => {\n    // Delegamos en el editor específico del tipo (mismo patrón que\n    // '· ֎ editor ƒ'), que serializa y reconstruye cada tipo según el\n    // sufijo de la clave. Así el átomo vuelve SIEMPRE a su tipo original.\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor({ parent: key });\n        return;\n    }\n\n    // Sin editor específico para este tipo: texto plano.\n    const res = await window.codeEditor.open(key, String(diarsaba.get(key) || \"\"), \"text\");\n    if (res != null && res !== \"\") {\n        diarsaba.set(key, res);\n    }\n}",
-  "open general editor ƒ ֎": {},
   "ai config ƒ": "() => {\n    window.openAIConfig();\n}",
-  "ai config ƒ ֎": {},
   "ai config !": [
     "ai config ƒ"
   ],
-  "ai config ! ֎": {}
+  "p2p @": {
+    "Announce ƒ": {
+      "x": 120,
+      "y": 174
+    },
+    "StopAnnounce ƒ": {
+      "x": 120,
+      "y": 246
+    },
+    "FindProviders ƒ": {
+      "x": 140,
+      "y": 313
+    },
+    "Connect ƒ": {
+      "x": 139,
+      "y": 386
+    },
+    "OpenStream ƒ": {
+      "x": 143,
+      "y": 471
+    },
+    "SetStreamHandler ƒ": {
+      "x": 167,
+      "y": 537
+    },
+    "ID ƒ": {
+      "x": 529,
+      "y": 186
+    },
+    "Addrs ƒ": {
+      "x": 546,
+      "y": 240
+    },
+    "FullAddrs ƒ": {
+      "x": 561,
+      "y": 303
+    },
+    "Peers ƒ": {
+      "x": 563,
+      "y": 386
+    },
+    "RoutingTableSize ƒ": {
+      "x": 576,
+      "y": 436
+    },
+    "ConnKind ƒ": {
+      "x": 588,
+      "y": 501
+    },
+    "ConnIP ƒ": {
+      "x": 592,
+      "y": 565
+    }
+  },
+  "Announce ƒ": "()=>{}",
+  "StopAnnounce ƒ": "()=>{}",
+  "FindProviders ƒ": "()=>{}",
+  "Connect ƒ": "()=>{}",
+  "OpenStream ƒ": "()=>{}",
+  "SetStreamHandler ƒ": "()=>{}",
+  "ID ƒ": "()=>{}",
+  "Addrs ƒ": "()=>{}",
+  "FullAddrs ƒ": "()=>{}",
+  "Peers ƒ": "()=>{}",
+  "RoutingTableSize ƒ": "()=>{}",
+  "ConnKind ƒ": "()=>{}",
+  "ConnIP ƒ": "()=>{}"
 }

@@ -86,6 +86,33 @@ func (a *App) LoadPredefinedFunctions() (string, error) {
 
 // SavePredefinedFunctions guarda el JSON en la ubicación resuelta (repo en dev,
 // config del usuario en prod) y versiona el archivo anterior si ya existe.
+// maxBackups es cuántas copias anteriores se conservan en <dir>/backups.
+const maxBackups = 3
+
+// rotateBackups corre los backups un lugar (_v1→_v2→_v3), descarta el más viejo
+// y deja libre el slot _v1 para la copia que está por hacerse.
+func rotateBackups(backupDir, baseName, ext string) error {
+	path := func(n int) string {
+		return filepath.Join(backupDir, fmt.Sprintf("%s_v%d%s", baseName, n, ext))
+	}
+
+	// El más antiguo se descarta.
+	if err := os.Remove(path(maxBackups)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// Se corren hacia atrás para no pisar el siguiente.
+	for n := maxBackups - 1; n >= 1; n-- {
+		if _, err := os.Stat(path(n)); os.IsNotExist(err) {
+			continue
+		}
+		if err := os.Rename(path(n), path(n+1)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
 	targetPath, _, err := predefinedPath()
 	if err != nil {
@@ -100,18 +127,19 @@ func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
 	baseName := "predefined_functions"
 	ext := ".json"
 
-	// Versionar el archivo anterior si ya existe.
+	// Respaldar el archivo anterior en <dir>/backups, rotando: _v1 es siempre el
+	// más reciente y solo se conservan maxBackups (los más viejos se descartan).
 	if _, err := os.Stat(targetPath); err == nil {
-		version := 1
-		for {
-			versionedPath := filepath.Join(dir, fmt.Sprintf("%s_v%d%s", baseName, version, ext))
-			if _, err := os.Stat(versionedPath); os.IsNotExist(err) {
-				if err := os.Rename(targetPath, versionedPath); err != nil {
-					return "", fmt.Errorf("error renombrando archivo anterior: %w", err)
-				}
-				break
-			}
-			version++
+		backupDir := filepath.Join(dir, "backups")
+		if err := os.MkdirAll(backupDir, 0755); err != nil {
+			return "", fmt.Errorf("error creando carpeta de backups: %w", err)
+		}
+		if err := rotateBackups(backupDir, baseName, ext); err != nil {
+			return "", fmt.Errorf("error rotando backups: %w", err)
+		}
+		newest := filepath.Join(backupDir, fmt.Sprintf("%s_v1%s", baseName, ext))
+		if err := os.Rename(targetPath, newest); err != nil {
+			return "", fmt.Errorf("error respaldando archivo anterior: %w", err)
 		}
 	}
 

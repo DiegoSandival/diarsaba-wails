@@ -66,9 +66,14 @@ ManifestDPIAware true
 
 !insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
 
-## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
-#!uninstfinalize 'signtool --file "%1"'
-#!finalize 'signtool --file "%1"'
+## Firma de código (opcional, pero muy recomendado para distribuir: sin firma
+## SmartScreen advierte "editor desconocido"). Descomenta cuando tengas el
+## certificado instalado en el almacén de Windows. NSIS pasa la ruta del binario en %1.
+##   /a       elige automáticamente el mejor certificado del almacén
+##   /fd      algoritmo de hash del archivo
+##   /tr /td  sellado de tiempo: hace que la firma siga siendo válida tras expirar el cert
+#!uninstfinalize 'signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /a "%1"'
+#!finalize 'signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /a "%1"'
 
 Name "${INFO_PRODUCTNAME}"
 OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the installer's file.
@@ -109,6 +114,12 @@ Section "uninstall"
     !insertmacro wails.setShellContext
 
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
+
+    # NOTA: los datos del usuario viven en "$APPDATA\diarsaba"
+    # (predefined_functions.json y ai_config.json). NO se borran a propósito:
+    # ese JSON es el programa del usuario, no un archivo desechable.
+    # Si quisieras eliminarlos en la desinstalación, descomenta:
+    # RMDir /r "$APPDATA\diarsaba"
 
     RMDir /r $INSTDIR
 

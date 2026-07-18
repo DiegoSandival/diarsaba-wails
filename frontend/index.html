@@ -587,16 +587,61 @@
                 predefinedFunctions = await response.json();
             }
 
+            // Un átomo ƒ inválido no debe tumbar el arranque entero. Si no
+            // compila, queda un "stub" inerte que CONSERVA el código original en
+            // toString(): así no se pierde al guardar y se puede seguir abriendo
+            // en el editor para corregirlo.
+            const stubRoto = (source, key) => {
+                // Si el valor ni siquiera era código (null, "null", vacío), lo
+                // normalizamos a una función vacía válida para no perpetuarlo al
+                // guardar. Si SÍ era código (con un error), se conserva tal cual.
+                const src = typeof source === "string" ? source.trim() : "";
+                const esCodigo = src && src !== "null" && src !== "undefined";
+                const original = esCodigo ? source : "()=>{}";
+                const f = () => {
+                    console.error(`[diarsaba] "${key}" no compiló: es inerte. Ábrelo en el editor para corregirlo.`);
+                };
+                Object.defineProperty(f, "toString", {
+                    value: () => original,
+                    writable: false,
+                    configurable: true,
+                });
+                return f;
+            };
+
+            const funcionesRotas = [];
+
             for (const [key, value] of Object.entries(predefinedFunctions)) {
                 if (key.endsWith("ƒ")) {
-
-                    diarsaba.set(key, createFunction(value));
+                    try {
+                        diarsaba.set(key, createFunction(value));
+                    } catch (e) {
+                        funcionesRotas.push(key);
+                        diarsaba.set(key, stubRoto(value, key));
+                    }
                 } else {
                     diarsaba.set(key, value);
                 }
             }
 
-            diarsaba.get("on start ƒ")();
+            if (funcionesRotas.length) {
+                console.warn(
+                    `[diarsaba] ${funcionesRotas.length} función(es) no compilaron y quedaron inertes ` +
+                    `(su código se conserva, puedes editarlas):`,
+                    funcionesRotas
+                );
+            }
+
+            const onStart = diarsaba.get("on start ƒ");
+            if (typeof onStart === "function") {
+                try {
+                    onStart();
+                } catch (e) {
+                    console.error("[diarsaba] error ejecutando 'on start ƒ':", e);
+                }
+            } else {
+                console.error("[diarsaba] no se encontró 'on start ƒ': el entorno no se inicializó.");
+            }
 
         });
 
