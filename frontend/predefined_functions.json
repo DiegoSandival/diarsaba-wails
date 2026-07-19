@@ -442,6 +442,10 @@
     "p2p @": {
       "x": 64,
       "y": 326
+    },
+    "simple p2p @": {
+      "x": 64,
+      "y": 400
     }
   },
   "editables list #": [
@@ -556,7 +560,7 @@
   "StopAnnounce ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const key = await diarsaba.get(\"p2p arg ƒ\")(arg, \"recurso a dejar de anunciar\");\n        if (!key) return;\n        await window.p2p.StopAnnounce(key);\n        diarsaba.set(\"p2p announced #\", (diarsaba.get(\"p2p announced #\") || []).filter((k) => k !== key));\n        // Nadie borra un provider record: el anuncio sigue vivo en la red hasta\n        // que caduca solo.\n        return out(\"StopAnnounce\", `dejado de publicar \"${key}\" (la red lo olvidará al caducar)`);\n    } catch (e) {\n        return out(\"StopAnnounce ✗\", e);\n    }\n}",
   "FindProviders ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const key = await diarsaba.get(\"p2p arg ƒ\")(arg, \"recurso a buscar\");\n        if (!key) return;\n        // No hay parámetro de límite: lo que acota la búsqueda es el plazo.\n        const found = await window.p2p.FindProviders(key, 30000);\n        diarsaba.set(\"p2p providers #\", found.map((p) => p.id));\n        if (found.length) diarsaba.set(\"p2p peer §\", found[0].id);\n        // Lista vacía es \"nadie lo tiene\", no un fallo.\n        return out(\n            `FindProviders \"${key}\"`,\n            found.length ? found : \"nadie lo tiene (¿lo anunció el otro nodo? ¿misma red?)\"\n        );\n    } catch (e) {\n        return out(\"FindProviders ✗\", e);\n    }\n}",
   "Connect ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n        await window.p2p.Connect(peer, 30000);\n        const kind = await window.p2p.ConnKind(peer);\n        const ip = await window.p2p.ConnIP(peer);\n        return out(\"Connect\", `conectado a ${peer.slice(-8)} (${kind} ${ip})`);\n    } catch (e) {\n        return out(\"Connect ✗\", e);\n    }\n}",
-  "OpenStream ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n        const stream = diarsaba.get(\"p2p stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n\n        // Desde código se devuelve el stream y decides tú. Con un clic no hay\n        // dónde devolverlo, así que se hace el viaje completo: mensaje, cierre\n        // de escritura, respuesta — el ida y vuelta que prueba la red.\n        if (arg && typeof arg === \"object\") {\n            const msg = await diarsaba.get(\"modal input ƒ\")(\"hola desde diarsaba\");\n            if (msg == null || msg === \"\") {\n                await stream.close();\n                return;\n            }\n            await stream.write(msg);\n            await stream.done();\n            const reply = await stream.read();\n            await stream.close();\n            return out(\"OpenStream\", `→ ${msg}\\n← ${reply}`);\n        }\n\n        out(\"OpenStream\", `stream ${stream.id} abierto hacia ${peer.slice(-8)}`);\n        return stream;\n    } catch (e) {\n        return out(\"OpenStream ✗\", e);\n    }\n}",
+  "OpenStream ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // Un string es \"me llaman desde código con el peer resuelto\": se\n        // devuelve el stream y decide quien llama. CUALQUIER otra cosa es un\n        // clic — y ojo: una acción ! llega sin argumentos (threads no pasa\n        // ninguno), no con el dataset. Por eso no se puede preguntar por\n        // typeof arg === \"object\": eso dejaba fuera justo el caso normal.\n        const desdeCodigo = typeof arg === \"string\" && arg !== \"\";\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n\n        // El mensaje se pide ANTES de conectar. Si el otro lado no está,\n        // OpenStream tarda hasta 30 s en rendirse, y preguntar después de esa\n        // espera parece que la app se colgó.\n        let msg;\n        if (!desdeCodigo) {\n            msg = await diarsaba.get(\"modal input ƒ\")(\"hola desde diarsaba\");\n            if (msg == null || msg === \"\") return;\n        }\n\n        const stream = diarsaba.get(\"p2p stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n        if (desdeCodigo) {\n            out(\"OpenStream\", `stream ${stream.id} abierto hacia ${peer.slice(-8)}`);\n            return stream;\n        }\n\n        await stream.write(msg);\n        await stream.done();\n        const reply = await stream.read();\n        await stream.close();\n        return out(\"OpenStream\", `→ ${msg}\\n← ${reply}`);\n    } catch (e) {\n        return out(\"OpenStream ✗\", e);\n    }\n}",
   "SetStreamHandler ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // Del backend llega un aviso ({from, stream}), no el stream: esto\n        // suscribe una sola vez y deja que \"p2p on stream ƒ\" decida qué se\n        // responde. Pasa una función para cambiar el trato desde código.\n        if (typeof arg === \"function\") diarsaba.set(\"p2p on stream ƒ\", arg);\n        if (diarsaba.get(\"p2p handler ֎\")) return out(\"SetStreamHandler\", \"ya estaba escuchando\");\n\n        // La clave ֎ no se persiste: la suscripción vive solo en esta sesión.\n        diarsaba.set(\n            \"p2p handler ֎\",\n            window.EventsOn(\"p2p:stream\", async (ev) => {\n                const stream = diarsaba.get(\"p2p stream ƒ\")(ev.stream, ev.from);\n                try {\n                    const handler = diarsaba.get(\"p2p on stream ƒ\");\n                    if (typeof handler === \"function\") await handler(stream);\n                    else await stream.close();\n                } catch (e) {\n                    console.error(\"[p2p] el handler de stream falló\", e);\n                    await stream.close();\n                }\n            })\n        );\n\n        // Sin nodo arrancado nadie puede llamarnos.\n        const me = await window.p2p.Start();\n        return out(\"SetStreamHandler\", `escuchando streams entrantes como ${me.slice(-8)}`);\n    } catch (e) {\n        return out(\"SetStreamHandler ✗\", e);\n    }\n}",
   "ID ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // La primera llamada arranca el nodo, así que puede tardar: está\n        // resolviendo las semillas y entrando a la red.\n        return out(\"ID\", await window.p2p.ID());\n    } catch (e) {\n        return out(\"ID ✗\", e);\n    }\n}",
   "Addrs ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        return out(\"Addrs\", await window.p2p.Addrs());\n    } catch (e) {\n        return out(\"Addrs ✗\", e);\n    }\n}",
@@ -573,5 +577,63 @@
   "p2p peer §": "",
   "p2p result §": "",
   "p2p providers #": [],
-  "p2p announced #": []
+  "p2p announced #": [],
+  "p2p dice ƒ": "(texto) => {\n    // El place simple habla en voz alta a propósito: un § solo se ve si lo\n    // abres, y aquí el resultado no se puede perder. Queda además en\n    // \"p2p dice §\" para releerlo después.\n    diarsaba.set(\"p2p dice §\", texto);\n    console.log(\"[p2p]\", texto);\n    alert(texto);\n    return texto;\n}",
+  "hablar por ƒ": "(id, de) => {\n    // Un stream vive en Go; aquí llega su identificador. Esto lo envuelve en\n    // algo con lo que hablar. Los bytes van en base64 porque para la librería\n    // son opacos.\n    const aB64 = (t) => {\n        const bytes = new TextEncoder().encode(t);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b) => new TextDecoder().decode(Uint8Array.from(atob(b), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        de: de || \"\",\n        escribir: async (t) => await window.p2p.StreamWrite(id, aB64(t)),\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            let t = \"\";\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) t += deB64(c.data);\n                if (c.eof) break;\n            }\n            return t;\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
+  "mi id ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    try {\n        const id = await window.p2p.ID();\n        return dice(`MI ID:\\n${id}\\n\\nLa primera vez tarda unos segundos: está entrando a la red.`);\n    } catch (e) {\n        return dice(`NO PUDE ENTRAR A LA RED:\\n${e.message || e}`);\n    }\n}",
+  "escuchar ƒ": "async (callado) => {\n    // Deja la app lista para recibir. Lo que llegue se apila en \"entradas #\".\n    // Es idempotente: suscribirse dos veces duplicaría cada mensaje.\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    try {\n        if (!diarsaba.get(\"p2p escuchando ֎\")) {\n            diarsaba.set(\n                \"p2p escuchando ֎\",\n                window.EventsOn(\"p2p:stream\", async (ev) => {\n                    const s = diarsaba.get(\"hablar por ƒ\")(ev.stream, ev.from);\n                    try {\n                        const msg = await s.leer();\n                        const hora = new Date().toLocaleTimeString();\n                        const previas = diarsaba.get(\"entradas #\") || [];\n                        // Lo nuevo arriba, y con techo: esto crece solo y se guarda.\n                        diarsaba.set(\"entradas #\", [`[${hora}] ${ev.from.slice(-8)}: ${msg}`, ...previas].slice(0, 100));\n                        await s.escribir(`recibido: ${msg}`);\n                    } catch (e) {\n                        console.error(\"[p2p] una entrada falló\", e);\n                    }\n                    await s.cerrar();\n                })\n            );\n        }\n        await window.p2p.Start();\n        if (!callado) dice(\"ESCUCHANDO.\\n\\nLo que te llegue aparece en «entradas #».\");\n    } catch (e) {\n        if (!callado) dice(`NO PUDE ESCUCHAR:\\n${e.message || e}`);\n    }\n}",
+  "anunciar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    let clave = \"\";\n    try {\n        clave = await diarsaba.get(\"modal input ƒ\")(diarsaba.get(\"lo que anuncio §\") || \"hola\");\n        if (!clave) return;\n        // Anunciar sin escuchar no sirve de nada: te encontrarían y no\n        // contestarías. Van juntos a propósito.\n        await diarsaba.get(\"escuchar ƒ\")(true);\n        await window.p2p.Announce(clave);\n        diarsaba.set(\"lo que anuncio §\", clave);\n        return dice(\n            `ANUNCIADO: \"${clave}\"\\n\\nDEJA ESTA APP ABIERTA.\\nSi la cierras, te encontrarán pero nadie contestará.\\n\\nDel otro lado busca esa misma palabra, exacta.`\n        );\n    } catch (e) {\n        return dice(\n            `NO PUDE ANUNCIAR \"${clave}\":\\n${e.message || e}\\n\\nSi habla de la DHT, espera unos segundos y reintenta: la red todavía no estaba lista.`\n        );\n    }\n}",
+  "buscar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    let clave = \"\";\n    try {\n        clave = await diarsaba.get(\"modal input ƒ\")(diarsaba.get(\"lo que busco §\") || \"hola\");\n        if (!clave) return;\n        diarsaba.set(\"lo que busco §\", clave);\n        // Puede tardar hasta 30 s: no hay resultado parcial que mostrar.\n        const encontrados = await window.p2p.FindProviders(clave, 30000);\n        if (!encontrados.length) {\n            return dice(\n                `NADIE TIENE \"${clave}\".\\n\\n¿La otra app sigue abierta?\\n¿Anunció exactamente esa palabra?`\n            );\n        }\n        diarsaba.set(\"a quien le hablo §\", encontrados[0].id);\n        return dice(\n            `ENCONTRÉ ${encontrados.length}.\\n\\nHablaré con: ${encontrados[0].id.slice(-8)}\\n\\nAhora usa «enviar !».`\n        );\n    } catch (e) {\n        return dice(`NO PUDE BUSCAR:\\n${e.message || e}`);\n    }\n}",
+  "enviar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    let s = null;\n    try {\n        const peer = diarsaba.get(\"a quien le hablo §\");\n        if (!peer) return dice(\"PRIMERO BUSCA A ALGUIEN.\\n\\nUsa «buscar !» y luego vuelve aquí.\");\n\n        // El mensaje se pide ANTES de conectar: conectar puede tardar 30 s, y\n        // preguntar después de esa espera parece que la app se colgó.\n        const msg = await diarsaba.get(\"modal input ƒ\")(\"hola\");\n        if (!msg) return;\n\n        s = diarsaba.get(\"hablar por ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n        await s.escribir(msg);\n        await s.termine();\n        const respuesta = await s.leer();\n        await s.cerrar();\n        return dice(`ENVIÉ: ${msg}\\n\\nCONTESTÓ: ${respuesta}`);\n    } catch (e) {\n        if (s) {\n            try {\n                await s.cerrar();\n            } catch (_) {}\n        }\n        return dice(\n            `NO PUDE HABLAR CON ESE NODO:\\n${e.message || e}\\n\\nLo más probable: la otra app se cerró. Vuelve a «buscar !».`\n        );\n    }\n}",
+  "dejar de anunciar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    try {\n        const clave = diarsaba.get(\"lo que anuncio §\");\n        if (!clave) return dice(\"NO ESTÁS ANUNCIANDO NADA.\");\n        await window.p2p.StopAnnounce(clave);\n        diarsaba.set(\"lo que anuncio §\", \"\");\n        return dice(\n            `DEJASTE DE ANUNCIAR \"${clave}\".\\n\\nLa red lo olvidará cuando caduque: no existe el borrado inmediato.`\n        );\n    } catch (e) {\n        return dice(`NO PUDE PARAR:\\n${e.message || e}`);\n    }\n}",
+  "mi id !": [
+    "mi id ƒ"
+  ],
+  "anunciar !": [
+    "anunciar ƒ"
+  ],
+  "buscar !": [
+    "buscar ƒ"
+  ],
+  "enviar !": [
+    "enviar ƒ"
+  ],
+  "dejar de anunciar !": [
+    "dejar de anunciar ƒ"
+  ],
+  "p2p #": [
+    "mi id !",
+    "anunciar !",
+    "buscar !",
+    "enviar !",
+    "dejar de anunciar !",
+    "entradas #"
+  ],
+  "entradas #": [],
+  "p2p dice §": "",
+  "a quien le hablo §": "",
+  "lo que anuncio §": "",
+  "lo que busco §": "",
+  "simple p2p @": {
+    "p2p #": {
+      "x": 80,
+      "y": 90
+    },
+    "entradas #": {
+      "x": 80,
+      "y": 250
+    },
+    "p2p dice §": {
+      "x": 380,
+      "y": 90
+    },
+    "a quien le hablo §": {
+      "x": 380,
+      "y": 170
+    },
+    "lo que anuncio §": {
+      "x": 380,
+      "y": 250
+    }
+  }
 }

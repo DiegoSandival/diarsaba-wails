@@ -107,6 +107,27 @@ más diagnóstico (`ID`, `Addrs`, `FullAddrs`, `Peers`, `RoutingTableSize`, `Con
   `Connect`/`OpenStream`/`ConnKind` funcionan con un clic. `OpenStream` con clic hace el viaje
   completo (mensaje → respuesta); llamado desde código devuelve el stream y decides tú.
 
+### `simple p2p @` — la versión a prueba de tontos
+
+`p2p @` expone la librería tal cual (trece ƒ, una por primitiva) y sirve para explorar.
+Para *usar* la red hay un segundo place, independiente: **`simple p2p @`**. No comparte
+átomos con `p2p @`, así que romper uno experimentando no rompe el otro.
+
+Son cinco chips y un menú. **`p2p #` es el menú, no un inventario**: al abrirlo, un clic
+simple en un ítem lo ejecuta (`dispatch item ƒ` corre las `!` directas), y `entradas #`
+se abre como sublista. Eso evita tener que saber que ejecutar es click-derecho →
+`· ! action`.
+
+- `mi id !`, `anunciar !`, `buscar !`, `enviar !`, `dejar de anunciar !` — y `entradas #`.
+- **`SetStreamHandler` no existe como concepto aquí**: `anunciar !` activa la escucha solo.
+  Anunciar sin escuchar es una trampa (te encuentran y no contestas). Lo entrante se apila
+  en `entradas #` con hora y remitente, y se contesta `recibido: …` automáticamente.
+- Todo termina en un modal: un `§` solo se ve si lo abres, y aquí el resultado no se puede
+  perder. Los mensajes entrantes NO alertan — taparían la pantalla.
+- El mensaje se pide **antes** de conectar: `OpenStream` tarda hasta 30 s en rendirse, y
+  preguntar después de esa espera parece que la app se colgó.
+- Los errores dicen qué hacer, no qué pasó ("la otra app se cerró, vuelve a «buscar !»").
+
 > **Compilar**: p2plite pide Go **1.25.7** (`quic-go v0.60` aún no soporta 1.26). El
 > `go 1.25.7` del `go.mod` no basta si tienes 1.26 instalado: `GOTOOLCHAIN=go1.25.7 wails build`.
 
