@@ -448,8 +448,12 @@
                         hideDropdown();
                     };
 
+                    // Cancelar resuelve null; guardar resuelve el texto. Antes
+                    // cancelar devolvía "", que es indistinguible de "el usuario
+                    // vació el contenido": los editores de lista lo leían como
+                    // vaciar y cerrar con Escape borraba la lista entera.
                     registerListener(elements.saveButton, "click", () => closeEditor(editor.getValue()));
-                    registerListener(elements.closeButton, "click", () => closeEditor(""));
+                    registerListener(elements.closeButton, "click", () => closeEditor(null));
                     registerListener(elements.aiButton, "click", () => {
                         this.aiAssist(editor, elements, currentLanguage);
                     });
@@ -475,7 +479,7 @@
                     });
                     registerListener(overlay, "click", (event) => {
                         if (event.target === overlay) {
-                            closeEditor("");
+                            closeEditor(null);
                         }
                     });
 
@@ -491,7 +495,7 @@
                             return;
                         }
 
-                        closeEditor("");
+                        closeEditor(null);
                     });
 
                     editor.focus();
