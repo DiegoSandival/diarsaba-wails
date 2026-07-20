@@ -133,6 +133,10 @@
             { id: "css", name: "CSS", icon: "fab fa-css3-alt", color: "#1572b6" },
             { id: "python", name: "Python", icon: "fab fa-python", color: "#3776ab" },
             { id: "go", name: "Go", icon: "fab fa-golang", color: "#00add8" },
+            // JSON es el lenguaje de los átomos ":" (· : editor ƒ lo pide por
+            // nombre). Sin esta entrada Monaco sí resaltaba, pero el selector
+            // no lo encontraba y mostraba "JavaScript" en la cabecera.
+            { id: "json", name: "JSON", icon: "fas fa-file-code", color: "#22c55e" },
             { id: "plaintext", name: "Texto", icon: "fas fa-file-alt", color: "#666666" },
         ];
         const LANGUAGE_ALIAS_MAP = {
@@ -143,6 +147,7 @@
             py: "python",
             python: "python",
             go: "go",
+            json: "json",
             text: "plaintext",
             plaintext: "plaintext",
         };
