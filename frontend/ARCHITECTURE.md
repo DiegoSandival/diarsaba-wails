@@ -74,6 +74,33 @@ Un place es un objeto `{ "atom": {x, y} }`. `current place §` indica el activo.
 Doble-tap sobre un chip `@` (`on double tap place ƒ`) carga los chips de ese place.
 `add to place ƒ` registra la posición de lo que creas en el place actual.
 
+> ⚠️ **Los pintores DEBEN registrar `"<nombre> ֎"`.** `create chip ƒ` devuelve el div y hay
+> que guardarlo en el Map: todo lo que ancla a un chip (`· # abrir`, `· § abrir`, `· * ocultar`,
+> `· ֎* padre`) lo busca ahí. Durante un tiempo los dos pintores lo tiraban, así que los chips
+> *pintados* al cargar un place no tenían referencia — solo la tenían los que *creabas* en el
+> momento (`handle click ƒ` sí la registraba). El síntoma era que el hijo aparecía desplazado:
+> `· # abrir ƒ` cae a la posición del puntero cuando no encuentra el chip, y el puntero está
+> *encima* del chip que acabas de pulsar, no a su lado. `· * ocultar` simplemente no hacía nada.
+> `on double tap place ƒ` además limpia las refs antes de `replaceChildren()`, o quedarían
+> apuntando a nodos ya fuera del documento.
+
+### Mover chips
+
+Botón `✥` (abajo a la derecha, `install mover ƒ`) que activa un **modo**: mientras está
+encendido, arrastrar mueve el chip y guarda su nueva posición en el place actual. Es un modo y
+no un arrastre siempre-activo para no pelearse con el clic, que abre y edita.
+
+El clic se corta por partida doble, a propósito: los listeners van en **fase de captura** sobre
+`window` (llegan antes que los de `on start ƒ`, que están en burbuja, y hacen `stopPropagation`),
+y además `handle click ƒ` y `show context menu ƒ` empiezan con una guarda explícita. Lo segundo
+es porque lo primero depende de un detalle sutil del orden de eventos que se rompería en
+silencio si algún día reescribes `on start ƒ`.
+
+El botón vive en el `body`, así que `replaceChildren()` lo borra al cambiar de place: por eso
+`on double tap place ƒ` lo reinstala. `install mover ƒ` es idempotente en sus dos mitades (el
+botón se recrea; los listeners de `window` solo se registran una vez, marcado con
+`mover instalado ֎`).
+
 ## Capa WebSocket / p2p (backend Go)
 
 Protocolo binario hacia un backend Go: `ws opcodes :` (mapa de opcodes),
