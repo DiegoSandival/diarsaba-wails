@@ -66,8 +66,17 @@ func predefinedPath() (path string, isDev bool, err error) {
 	return filepath.Join(appDir, "predefined_functions.json"), false, nil
 }
 
-// LoadPredefinedFunctions devuelve el JSON con el que arranca el frontend. En
-// producción, si la copia externa aún no existe, la siembra desde el embebido.
+// LoadPredefinedFunctions devuelve el JSON con el que arranca el frontend.
+//
+// En producción la copia externa se REEMPLAZA con la embebida cuando difieren:
+// hoy el JSON es un recurso de desarrollo que viaja con el binario, así que lo
+// que trae el .exe es la verdad y una copia vieja solo esconde los arreglos.
+// (Cuando el programa del usuario y el del binario dejen de ser el mismo, esto
+// tendrá que volverse un merge que distinga lo editado de lo heredado.)
+//
+// Se compara antes de escribir a propósito. Sobrescribir en cada arranque
+// gastaría los maxBackups slots en tres aperturas, tirando justo el respaldo
+// que contiene lo que el usuario hubiera editado en producción.
 func (a *App) LoadPredefinedFunctions() (string, error) {
 	path, isDev, err := predefinedPath()
 	if err != nil {
@@ -75,17 +84,36 @@ func (a *App) LoadPredefinedFunctions() (string, error) {
 		return string(defaultPredefined), nil
 	}
 
-	data, err := os.ReadFile(path)
-	if err == nil {
-		return string(data), nil
-	}
-	if !os.IsNotExist(err) {
-		return "", fmt.Errorf("error leyendo %s: %w", path, err)
+	// En dev el archivo del repo manda: es el que editas en vivo y el que se
+	// versiona en git. Pisarlo con el embebido borraría el trabajo en curso.
+	if isDev {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			return string(data), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("error leyendo %s: %w", path, err)
+		}
+		return string(defaultPredefined), nil
 	}
 
-	// No existe todavía: en prod sembramos la copia externa desde el embebido.
-	if !isDev {
-		_ = os.WriteFile(path, defaultPredefined, 0644)
+	data, err := os.ReadFile(path)
+	switch {
+	case err == nil && bytes.Equal(data, defaultPredefined):
+		return string(data), nil // ya está al día: nada que hacer
+	case err != nil && !os.IsNotExist(err):
+		return "", fmt.Errorf("error leyendo %s: %w", path, err)
+	case err == nil:
+		// Difiere: respaldamos antes de pisar, para que lo que hubiera ahí sea
+		// recuperable desde <dir>/backups.
+		if e := backupPredefined(path); e != nil {
+			return "", fmt.Errorf("no se pudo respaldar antes de actualizar: %w", e)
+		}
+	}
+
+	if e := os.WriteFile(path, defaultPredefined, 0644); e != nil {
+		// No es fatal: arrancamos igual con el embebido, solo que sin persistir.
+		fmt.Fprintf(os.Stderr, "aviso: no se pudo actualizar %s: %v\n", path, e)
 	}
 	return string(defaultPredefined), nil
 }
@@ -119,34 +147,47 @@ func rotateBackups(backupDir, baseName, ext string) error {
 	return nil
 }
 
+// backupPredefined mueve el archivo actual a <dir>/backups como _v1, rotando
+// los anteriores. Si el archivo no existe no hay nada que respaldar y no es un
+// error. Lo usan el guardado y la actualización desde el embebido.
+func backupPredefined(targetPath string) error {
+	if _, err := os.Stat(targetPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	backupDir := filepath.Join(filepath.Dir(targetPath), "backups")
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return fmt.Errorf("error creando carpeta de backups: %w", err)
+	}
+
+	const baseName, ext = "predefined_functions", ".json"
+	if err := rotateBackups(backupDir, baseName, ext); err != nil {
+		return fmt.Errorf("error rotando backups: %w", err)
+	}
+	newest := filepath.Join(backupDir, fmt.Sprintf("%s_v1%s", baseName, ext))
+	if err := os.Rename(targetPath, newest); err != nil {
+		return fmt.Errorf("error respaldando archivo anterior: %w", err)
+	}
+	return nil
+}
+
 func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
 	targetPath, _, err := predefinedPath()
 	if err != nil {
 		return "", err
 	}
 
-	dir := filepath.Dir(targetPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		return "", fmt.Errorf("error al verificar/crear carpeta: %w", err)
 	}
 
-	baseName := "predefined_functions"
-	ext := ".json"
-
 	// Respaldar el archivo anterior en <dir>/backups, rotando: _v1 es siempre el
 	// más reciente y solo se conservan maxBackups (los más viejos se descartan).
-	if _, err := os.Stat(targetPath); err == nil {
-		backupDir := filepath.Join(dir, "backups")
-		if err := os.MkdirAll(backupDir, 0755); err != nil {
-			return "", fmt.Errorf("error creando carpeta de backups: %w", err)
-		}
-		if err := rotateBackups(backupDir, baseName, ext); err != nil {
-			return "", fmt.Errorf("error rotando backups: %w", err)
-		}
-		newest := filepath.Join(backupDir, fmt.Sprintf("%s_v1%s", baseName, ext))
-		if err := os.Rename(targetPath, newest); err != nil {
-			return "", fmt.Errorf("error respaldando archivo anterior: %w", err)
-		}
+	if err := backupPredefined(targetPath); err != nil {
+		return "", err
 	}
 
 	if err := os.WriteFile(targetPath, []byte(jsonData), 0644); err != nil {

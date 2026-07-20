@@ -207,9 +207,30 @@ Go). Go resuelve la ubicación en `predefinedPath()`:
 - **Dev** (`wails dev`): `frontend/predefined_functions.json` — el archivo del repo, versionado
   en git y editado en vivo.
 - **Prod** (`wails build`): `UserConfigDir/diarsaba/predefined_functions.json` (escribible, ya
-  que los assets embebidos son de solo lectura), sembrado en el primer arranque desde el JSON
-  **embebido** en el binario (`//go:embed frontend/predefined_functions.json`).
+  que los assets embebidos son de solo lectura), sembrado desde el JSON **embebido** en el
+  binario (`//go:embed frontend/predefined_functions.json`).
 
-`SavePredefinedFunctions` escribe en esa misma ruta (y versiona el anterior como
-`predefined_functions_vN.json`), así que editar-y-guardar **persiste tanto en dev como en el
-build de producción**.
+`SavePredefinedFunctions` escribe en esa misma ruta (respaldando el anterior en
+`<dir>/backups`), así que editar-y-guardar **persiste tanto en dev como en el build de
+producción**.
+
+### El binario manda en prod
+
+En producción la copia externa se **reemplaza** con la embebida cuando difieren. Antes solo
+se sembraba si no existía, y eso hacía que una instalación vieja nunca viera los cambios:
+un `.exe` nuevo arrancaba con el JSON antiguo y los arreglos no llegaban nunca (el síntoma
+concreto fue un `on start ƒ` viejo que no registraba el handler de streams).
+
+Hoy el JSON es un **recurso de desarrollo que viaja con el binario**, así que lo que trae el
+`.exe` es la verdad. Dos salvaguardas:
+
+- Se **respalda antes de pisar** (`backupPredefined`), así lo que hubiera es recuperable.
+- Se **compara antes de escribir**: sobrescribir en cada arranque gastaría los tres slots de
+  backup en tres aperturas, tirando justo el respaldo con lo que hubieras editado en prod.
+
+En **dev no se pisa nunca**: ahí el archivo del repo es el que editas en vivo.
+
+> ⚠️ Consecuencia: **lo que edites y guardes en producción se pierde al abrir un `.exe`
+> nuevo** (queda en `backups/`). Es aceptable mientras el programa del usuario y el del
+> binario sean el mismo. Cuando dejen de serlo, esto tiene que volverse un merge que
+> distinga lo heredado de lo editado — ver `LoadPredefinedFunctions` en `app.go`.
