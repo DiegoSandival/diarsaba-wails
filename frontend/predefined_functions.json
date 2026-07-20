@@ -1,5 +1,5 @@
 {
-  "on start ƒ": "() => {\n    // instalar manejador de estilos desde predefined_functions.json\n    const installer = diarsaba.get(\"install style manager ƒ\");\n    if (installer) try { installer(); } catch (e) { console.error('install style manager failed', e); }\n\n    window.addEventListener(\"contextmenu\", (e) => {\n        e.preventDefault();\n    });\n    window.addEventListener(\"pointerup\", (e) => {\n        diarsaba.set(\"pointer up event\", e);\n        threads(`pointer up ${e.button} ~`);\n    });\n    window.addEventListener(\"wheel\", (e) => {\n        //diarsaba.set(\"wheel event\", e)\n        //threads(`wheel ~`)\n    });\n    window.addEventListener(\"pointerdown\", (e) => {\n        diarsaba.set(\"pointer down event\", e);\n        threads(`pointer down ${e.button} ~`);\n    });\n    window.addEventListener(\"pointermove\", (e) => {\n        diarsaba.set(\"pointer move event\", e);\n        diarsaba.set(\"pointer x\", e.clientX);\n        diarsaba.set(\"pointer y\", e.clientY);\n        //threads(`pointer move ~`)\n    });\n\n    window.addEventListener(\"keydown\", (e) => {\n        // if is input no prevent default\n        if (\n            e.target.tagName === \"INPUT\" ||\n            e.target.tagName === \"TEXTAREA\" ||\n            e.target.isContentEditable\n        ) {\n        } else {\n            //e.preventDefault()\n        }\n\n        //threads(`key down ~`)\n        //threads(`key down ${e.key} ~`)\n    });\n\n    diarsaba.get(\"on start place ƒ\")()\n\n\n}",
+  "on start ƒ": "() => {\n    // instalar manejador de estilos desde predefined_functions.json\n    const installer = diarsaba.get(\"install style manager ƒ\");\n    if (installer) try { installer(); } catch (e) { console.error('install style manager failed', e); }\n\n    window.addEventListener(\"contextmenu\", (e) => {\n        e.preventDefault();\n    });\n    window.addEventListener(\"pointerup\", (e) => {\n        diarsaba.set(\"pointer up event\", e);\n        threads(`pointer up ${e.button} ~`);\n    });\n    window.addEventListener(\"wheel\", (e) => {\n        //diarsaba.set(\"wheel event\", e)\n        //threads(`wheel ~`)\n    });\n    window.addEventListener(\"pointerdown\", (e) => {\n        diarsaba.set(\"pointer down event\", e);\n        threads(`pointer down ${e.button} ~`);\n    });\n    window.addEventListener(\"pointermove\", (e) => {\n        diarsaba.set(\"pointer move event\", e);\n        diarsaba.set(\"pointer x\", e.clientX);\n        diarsaba.set(\"pointer y\", e.clientY);\n        //threads(`pointer move ~`)\n    });\n\n    window.addEventListener(\"keydown\", (e) => {\n        // if is input no prevent default\n        if (\n            e.target.tagName === \"INPUT\" ||\n            e.target.tagName === \"TEXTAREA\" ||\n            e.target.isContentEditable\n        ) {\n        } else {\n            //e.preventDefault()\n        }\n\n        //threads(`key down ~`)\n        //threads(`key down ${e.key} ~`)\n    });\n\n    diarsaba.get(\"on start place ƒ\")()\n\n    // Escuchar streams entrantes desde el arranque: si el handler se\n    // registrara más tarde, un stream podría llegar antes que él.\n    const p2pEscuchar = diarsaba.get(\"p2p ƒ @ StreamHandle ƒ\");\n    if (p2pEscuchar) Promise.resolve()\n        .then(() => p2pEscuchar())\n        .catch((e) => console.error('[p2p ƒ] no se pudo escuchar al arrancar', e));\n\n\n}",
   "install style manager ƒ": "() => {\n    const styleIdFromKey = (k) => {\n        const base = String(k).replace(/\\s*\\{$/, \"\").trim();\n        return 'diarsaba-style-' + base.replace(/[^\\w-]/g, '_').replace(/^_+|_+$/g, '');\n    };\n\n    // crear inicialmente las etiquetas <style> para claves que terminen en '{'\n    for (const [k, v] of diarsaba.entries()) {\n        if (typeof k === 'string' && k.endsWith('{')) {\n            const id = styleIdFromKey(k);\n            if (!document.getElementById(id)) {\n                const el = document.createElement('style');\n                el.id = id;\n                el.textContent = typeof v === 'string' ? v : '';\n                document.head.appendChild(el);\n            }\n        }\n    }\n\n    // override diarsaba.set para mantener sincronizados los estilos\n    const originalSet = diarsaba.set.bind(diarsaba);\n    diarsaba.set = (key, value) => {\n        originalSet(key, value);\n        try {\n            if (typeof key === 'string' && key.endsWith('{')) {\n                const id = styleIdFromKey(key);\n                let el = document.getElementById(id);\n                if (el) el.textContent = typeof value === 'string' ? value : '';\n                else {\n                    el = document.createElement('style');\n                    el.id = id;\n                    el.textContent = typeof value === 'string' ? value : '';\n                    document.head.appendChild(el);\n                }\n            }\n        } catch (e) { console.error('install style manager error', e); }\n        return diarsaba;\n    };\n}",
   "pointer down 0 ~": [],
   "pointer down 2 ~": [],
@@ -141,7 +141,7 @@
   "handle click !": [
     "handle click ƒ"
   ],
-  "guardar ! ƒ": "async () => {\n    // No persistir refs DOM (claves terminadas en ֎) ni objetos vivos de\n    // runtime: se regeneran solos y solo ensucian el archivo (y provocan\n    // entradas {} que rompen código que espera un elemento).\n    const skipKeys = new Set([\n        \"ws socket\",\n        \"current menu\",\n        \"current chip menu\",\n        \"pointer up event\",\n        \"pointer down event\",\n        \"pointer move event\"\n    ]);\n\n    const dataToSave = {};\n    for (const [key, value] of diarsaba.entries()) {\n        if (key.endsWith(\"֎\") || skipKeys.has(key)) continue;\n\n        if (key.endsWith(\"ƒ\")) {\n            dataToSave[key] = String(value).replace(/\\r\\n/g, \"\\n\").trim();\n        } else {\n            dataToSave[key] = value;\n        }\n    }\n    const jsonString = JSON.stringify(dataToSave, null, 2);\n\n    try {\n        const savedPath = await SavePredefinedFunctions(jsonString);\n        console.log(\"Archivo guardado exitosamente en:\", savedPath);\n    } catch (error) {\n        console.error(\"Error al guardar el archivo:\", error);\n    }\n}",
+  "guardar ! ƒ": "async () => {\n    // No persistir refs DOM (claves terminadas en ֎) ni objetos vivos de\n    // runtime: se regeneran solos y solo ensucian el archivo (y provocan\n    // entradas {} que rompen código que espera un elemento).\n    const skipKeys = new Set([\n        \"ws socket\",\n        \"Streams #\",\n        \"current menu\",\n        \"current chip menu\",\n        \"pointer up event\",\n        \"pointer down event\",\n        \"pointer move event\"\n    ]);\n\n    const dataToSave = {};\n    for (const [key, value] of diarsaba.entries()) {\n        if (key.endsWith(\"֎\") || skipKeys.has(key)) continue;\n\n        if (key.endsWith(\"ƒ\")) {\n            dataToSave[key] = String(value).replace(/\\r\\n/g, \"\\n\").trim();\n        } else {\n            dataToSave[key] = value;\n        }\n    }\n    const jsonString = JSON.stringify(dataToSave, null, 2);\n\n    try {\n        const savedPath = await SavePredefinedFunctions(jsonString);\n        console.log(\"Archivo guardado exitosamente en:\", savedPath);\n    } catch (error) {\n        console.error(\"Error al guardar el archivo:\", error);\n    }\n}",
   "show context menu ƒ": "() => {\n    const event = diarsaba.get(\"pointer up event\");\n\n    if (event.target.nodeName === \"HTML\" || event.target.nodeName === \"BODY\") {\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu && typeof currentMenu.remove === \"function\") {\n                        currentMenu.remove();\n        }\n\n        diarsaba.set(\n            \"current menu\",\n            diarsaba.get(\"create list menu ƒ\")(diarsaba.get(\"atom name list #\"))\n        );\n\n        diarsaba.set(\"open x $\", event.clientX);\n        diarsaba.set(\"open y $\", event.clientY);\n    } else {\n        const type = event.target.textContent.slice(-1);\n        const name = event.target.textContent;\n\n        diarsaba.get(\"show options list ƒ\")(type, name);\n    }\n}",
   "show options list ƒ": "(type, name) => {\n    // 1. Limpiar el menú anterior si existe\n    const currentMenu = diarsaba.get(\"current chip menu\");\n    if (currentMenu instanceof Element) {\n        currentMenu.remove();\n    }\n\n    // 2. Obtener los recursos compartidos que usan todas las ramas\n    const event = diarsaba.get(\"pointer up event\");\n    const createMenu = diarsaba.get(\"create list menu ƒ\");\n    const target = event.target;\n\n    // Variables que determinarán cómo se creará el menú\n    let menuOptions;\n    let menuArgs = [];\n\n    // 3. Determinar las opciones y argumentos según el caso\n    if (/^\\[\\d+\\]/.test(name)) {\n        menuOptions = diarsaba.get(\"list option [] #\");\n        menuArgs = [target.parentElement.dataset.parent, name];\n    } else if (diarsaba.get(\"types list #\").includes(type)) {\n        menuOptions = diarsaba.get(`list option ${type} #`);\n        menuArgs = [name];\n    } else {\n        const fallbackType = \"֎\";\n        const parentDataset = target.dataset.parent;\n        const lastChar = parentDataset.slice(-1);\n        \n        menuOptions = diarsaba.get(`list option ${fallbackType} ${lastChar} #`);\n        menuArgs = [parentDataset];\n    }\n\n    // 4. Crear y guardar el nuevo menú en un solo lugar\n    const newMenu = createMenu(menuOptions, ...menuArgs);\n    diarsaba.set(\"current chip menu\", newMenu);\n}",
   "handle click ƒ": "async () => {\n    // 1. Obtener el evento y el elemento clickeado\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n    const nodeName = target.nodeName;\n\n    // 2. Si se hizo clic en el fondo (HTML/BODY), solo limpiar menús\n    if (nodeName === \"HTML\" || nodeName === \"BODY\") {\n        diarsaba.get(\"clear menus ƒ\")();\n        return;\n    }\n\n    const content = target.textContent;\n    const clearMenus = () => diarsaba.get(\"clear menus ƒ\")(); // función auxiliar para limpiar\n\n    // 3. Caso especial: \"guardar !\"\n    if (content === \"@ place\") {\n        diarsaba.get(\"new place ƒ\")()\n        clearMenus();\n        return\n    }\n\n    if (content === \"guardar !\") {\n        const guardarFn = diarsaba.get(\"guardar ! ƒ\");\n        if (guardarFn) guardarFn();\n        clearMenus();\n        return;\n    }\n\n    if (content === \"reload !\") {\n        window.location.reload();\n        return;\n    }\n\n\n\n    // 4. Obtener referencias comunes\n    const atomList = diarsaba.get(\"atom name list #\");\n    const parentDataset = target.parentElement.dataset;\n\n    // 5. Si el contenido pertenece a la lista de átomos → crear nuevo elemento\n    if (atomList.includes(content)) {\n        // Eliminar menú actual si existe\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu) currentMenu.remove();\n\n        // Pedir nombre mediante un modal (usa la primera letra como pista)\n        const name = await diarsaba.get(\"modal input ƒ\")(content.slice(0, 1));\n\n        // Solo proceder si se ingresó un nombre válido\n        if (name != null && name !== \"\") {\n            \n            \n            diarsaba.get(\"add to place ƒ\")(name)\n            // Ejecutar la función de creación correspondiente al tipo de átomo\n            const createFn = diarsaba.get(`create ${content} ƒ`);\n            createFn(name);\n\n            // Crear el chip visual asociado\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                diarsaba.get(\"open x $\"),\n                diarsaba.get(\"open y $\"),\n                name,\n                \"\",\n                content.slice(0, 1) // letra inicial como categoría\n            );\n\n            // Guardar referencia del chip en el almacenamiento global\n            diarsaba.set(`${name} ֎`, chip);\n        }\n        clearMenus();\n        return;\n    }\n\n    // 6. Solo si es un ÍTEM de lista con formato \"[número] texto\".\n    // Ojo: no basta con que contenga corchetes — opciones como \"· []* ocultar\"\n    // los llevan en su etiqueta y caían aquí, donde el parseo fallaba en\n    // silencio y nunca se ejecutaban.\n    if (/^\\[\\d+\\]/.test(content)) {\n        try {\n            const parsed = diarsaba.get(\"obtener index [0] ƒ\")(content);\n            const label = parsed.texto;\n\n            // Despacho por sigilo: el ítem \"cobra vida\" según su tipo\n            // (! ~ ejecutan, # abre sublista, ƒ corre). Si no lo maneja,\n            // se cae al comportamiento anterior (función con ese nombre).\n            const dispatch = diarsaba.get(\"dispatch item ƒ\");\n            const handled = dispatch ? dispatch(label, parentDataset, target) : false;\n            if (!handled) {\n                const fn = diarsaba.get(`${label} ƒ`) || diarsaba.get(`${content} ƒ`);\n                if (fn) {\n                    fn(parentDataset);\n                }\n            }\n        } catch (err) {\n            // Si el parseo falla, simplemente se ignora\n        }\n        clearMenus();\n        return;\n    }\n\n    //otro caso\n    \n    let last_click = diarsaba.get(\"last click on §\")\n    if (last_click == undefined || last_click == null) {\n        diarsaba.set(\"last click on §\", content)\n    } else {\n        if (last_click == content) {\n            if(content.slice(-1) == \"@\"){\n                diarsaba.get(\"on double tap place ƒ\")()\n            }else{\n                const editables = diarsaba.get(\"editables list #\")\n                if (editables.includes(content.slice(-1))){\n                    \n                    diarsaba.get(\"open general editor ƒ\")(content)\n                }\n            }\n            diarsaba.set(\"last click on §\", null)\n        } else {\n            diarsaba.set(\"last click on §\", content)\n        }\n    }\n\n\n    // 7. Caso general: el contenido corresponde directamente a una función\n    //revisar por que se agrega ƒ o para que casos servia\n    const generalFn = diarsaba.get(`${content} ƒ`);\n    if (generalFn) {\n        generalFn(parentDataset);\n    }\n    clearMenus();\n}",
@@ -446,6 +446,14 @@
     "simple p2p @": {
       "x": 64,
       "y": 400
+    },
+    "p2p ƒ @": {
+      "x": 300,
+      "y": 326
+    },
+    "p2p ! @": {
+      "x": 300,
+      "y": 400
     }
   },
   "editables list #": [
@@ -634,6 +642,154 @@
     "lo que anuncio §": {
       "x": 380,
       "y": 250
+    }
+  },
+  "p2p ƒ @ arg ƒ": "(v) => {\n    // Un ejecutor ! pasa los elementos del arreglo COMO STRINGS: threads hace\n    // a.apply(null, s.slice(1)), así que llega el NOMBRE del átomo, no su\n    // valor. Por eso cada ƒ resuelve aquí: si el string nombra un átomo, se\n    // usa su contenido; si no, se toma tal cual como literal.\n    //\n    // Es lo que permite [\"... Announce ƒ\", \"valor para anunciar §\"] sin que la\n    // ƒ tenga que saber de dónde viene el dato.\n    if (typeof v !== \"string\") return v;\n    return diarsaba.has(v) ? diarsaba.get(v) : v;\n}",
+  "p2p ƒ @ dice ƒ": "(etiqueta, valor) => {\n    // Deja el resultado a la vista: un ! disparado con un clic no tiene dónde\n    // devolver. Los fallos además se gritan.\n    const plano = valor instanceof Error ? valor.message : valor;\n    diarsaba.set(\"p2p ƒ @ dice §\", `${etiqueta}\\n${typeof plano === \"string\" ? plano : JSON.stringify(plano, null, 2)}`);\n    console.log(`[p2p ƒ] ${etiqueta}`, valor);\n    if (String(etiqueta).endsWith(\"✗\")) alert(`${etiqueta}\\n${plano}`);\n    return valor;\n}",
+  "p2p ƒ @ stream ƒ": "(id, peer) => {\n    // Un Stream vive en Go; aquí llega su identificador. Esto lo envuelve.\n    //\n    // Lo que viaja por el stream va en msgpack, así que puedes mandar objetos,\n    // números o binario, no solo texto. El base64 que se ve abajo NO es el\n    // formato: es el salto Go↔JS, que es JSON por definición de los bindings\n    // de Wails y codifica []byte en base64 quieras o no. msgpack va por dentro.\n    const aB64 = (bytes) => {\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));\n\n    return {\n        id,\n        peer: peer || \"\",\n        escribir: async (valor) => await window.p2p.StreamWrite(id, aB64(window.msgpack.encode(valor))),\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            // Se acumulan los trozos y se decodifica UNA vez al final: msgpack\n            // necesita el mensaje completo, y un chunk cortado a la mitad no\n            // se puede decodificar.\n            const partes = [];\n            let total = 0;\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) {\n                    const t = deB64(c.data);\n                    partes.push(t);\n                    total += t.length;\n                }\n                if (c.eof) break;\n            }\n            if (!total) return null;\n            const todo = new Uint8Array(total);\n            let o = 0;\n            for (const p of partes) {\n                todo.set(p, o);\n                o += p.length;\n            }\n            return window.msgpack.decode(todo);\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
+  "p2p ƒ @ ID ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        return dice(\"ID\", await window.p2p.ID());\n    } catch (e) {\n        return dice(\"ID ✗\", e);\n    }\n}",
+  "p2p ƒ @ Announce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"Announce ✗\", \"sin clave: pásale un § con el valor a anunciar\");\n        // Anunciar sin escuchar no sirve: te encontrarían y no contestarías.\n        // StreamHandle ya corre desde el arranque, así que solo se comprueba.\n        await window.p2p.Announce(k);\n        return dice(\"Announce\", `anunciado \"${k}\" — sirviendo mientras la app siga abierta`);\n    } catch (e) {\n        return dice(\"Announce ✗\", e);\n    }\n}",
+  "p2p ƒ @ StopAnnounce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"StopAnnounce ✗\", \"sin clave que parar\");\n        await window.p2p.StopAnnounce(k);\n        // No existe el borrado: el registro sigue en la red hasta que caduca.\n        return dice(\"StopAnnounce\", `dejado de publicar \"${k}\" (la red lo olvidará al caducar)`);\n    } catch (e) {\n        return dice(\"StopAnnounce ✗\", e);\n    }\n}",
+  "p2p ƒ @ FindProviders ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"FindProviders ✗\", \"sin clave que buscar\");\n        // No hay límite de resultados: lo que acota es el plazo.\n        const hallados = await window.p2p.FindProviders(k, 30000);\n        diarsaba.set(\"p2p ƒ @ providers #\", hallados.map((p) => p.id));\n        if (hallados.length) diarsaba.set(\"p2p ƒ @ peer §\", hallados[0].id);\n        // Cero proveedores no es un fallo: es que nadie lo tiene.\n        return dice(`FindProviders \"${k}\"`, hallados.length ? hallados.map((p) => p.id) : \"nadie lo tiene\");\n    } catch (e) {\n        return dice(\"FindProviders ✗\", e);\n    }\n}",
+  "p2p ƒ @ OpenStream ƒ": "async (peer, datos) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    let s = null;\n    try {\n        // Sin peer explícito se usa el último que dejó FindProviders.\n        const p = arg(peer) || diarsaba.get(\"p2p ƒ @ peer §\");\n        if (!p) return dice(\"OpenStream ✗\", \"sin peer: corre FindProviders antes, o pásale uno\");\n\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ enviar\") : arg(datos);\n        s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(p, 30000), p);\n\n        await s.escribir(carga === undefined ? null : carga);\n        await s.termine(); // le decimos que terminamos: ahora puede contestar\n        const respuesta = await s.leer();\n        await s.cerrar();\n        diarsaba.set(\"p2p ƒ @ respuesta\", respuesta);\n        return dice(\"OpenStream\", { a: p.slice(-8), envié: carga, contestó: respuesta });\n    } catch (e) {\n        if (s) {\n            try {\n                await s.cerrar();\n            } catch (_) {}\n        }\n        return dice(\"OpenStream ✗\", e);\n    }\n}",
+  "p2p ƒ @ StreamHandle ƒ": "async () => {\n    // Deja la app lista para RECIBIR. La llama \"on start ƒ\", así que no hace\n    // falta tocarla: al abrir la app ya se escucha.\n    //\n    // Cada stream entrante se apila en \"Streams #\" como {id, peer, data} y se\n    // deja ABIERTO, para que puedas contestarlo con Reply. Go lo recoge a los\n    // 15 min si nadie lo toca.\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        // Idempotente: suscribirse dos veces duplicaría cada entrada.\n        if (diarsaba.get(\"p2p ƒ @ escuchando ֎\")) return \"ya escuchaba\";\n\n        diarsaba.set(\n            \"p2p ƒ @ escuchando ֎\",\n            window.EventsOn(\"p2p:stream\", async (ev) => {\n                try {\n                    const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(ev.stream, ev.from);\n                    // Se lee hasta el final ANTES de guardar: así \"data\" ya\n                    // trae el mensaje y el stream queda listo para contestar.\n                    const data = await s.leer();\n                    const entrada = {\n                        id: ev.stream,\n                        peer: ev.from,\n                        data,\n                        // Sin esto la lista dibuja \"[object Object]\": create\n                        // list ƒ interpola el elemento. Con toString se ve el\n                        // resumen y el objeto conserva sus campos.\n                        toString() {\n                            const d = typeof this.data === \"string\" ? this.data : JSON.stringify(this.data);\n                            return `${this.id} ← ${this.peer.slice(-8)}: ${d}`;\n                        },\n                    };\n                    diarsaba.set(\"Streams #\", [entrada, ...(diarsaba.get(\"Streams #\") || [])].slice(0, 100));\n                    console.log(\"[p2p ƒ] entrante\", entrada.id, \"de\", ev.from.slice(-8), data);\n                } catch (e) {\n                    console.error(\"[p2p ƒ] entrante falló\", e);\n                }\n            })\n        );\n\n        await window.p2p.Start();\n        return dice(\"StreamHandle\", \"escuchando: lo entrante aparece en «Streams #»\");\n    } catch (e) {\n        return dice(\"StreamHandle ✗\", e);\n    }\n}",
+  "p2p ƒ @ Reply ƒ": "async (id, datos) => {\n    // Contesta un stream de \"Streams #\" y lo cierra. El id puede venir como\n    // string, como nombre de un átomo, o como la entrada entera (si le pasas\n    // el objeto de la lista).\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        let sid = arg(id);\n        if (sid && typeof sid === \"object\" && sid.id) sid = sid.id;\n        // Sin id: se contesta el más reciente, que es lo que se querrá el 90%.\n        if (!sid) {\n            const pendientes = diarsaba.get(\"Streams #\") || [];\n            if (!pendientes.length) return dice(\"Reply ✗\", \"no hay streams entrantes que contestar\");\n            sid = pendientes[0].id;\n        }\n\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ responder\") : arg(datos);\n        const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(sid, \"\");\n        await s.escribir(carga === undefined ? null : carga);\n        await s.cerrar();\n\n        // Fuera de la lista: ya está contestado y cerrado.\n        diarsaba.set(\"Streams #\", (diarsaba.get(\"Streams #\") || []).filter((e) => e.id !== sid));\n        return dice(\"Reply\", `contestado ${sid}`);\n    } catch (e) {\n        return dice(\"Reply ✗\", e);\n    }\n}",
+  "ID !": [
+    "p2p ƒ @ ID ƒ"
+  ],
+  "Announce !": [
+    "p2p ƒ @ Announce ƒ",
+    "p2p ƒ @ anunciar §"
+  ],
+  "StopAnnounce !": [
+    "p2p ƒ @ StopAnnounce ƒ",
+    "p2p ƒ @ anunciar §"
+  ],
+  "FindProviders !": [
+    "p2p ƒ @ FindProviders ƒ",
+    "p2p ƒ @ buscar §"
+  ],
+  "OpenStream !": [
+    "p2p ƒ @ OpenStream ƒ",
+    "p2p ƒ @ peer §",
+    "p2p ƒ @ enviar"
+  ],
+  "Reply !": [
+    "p2p ƒ @ Reply ƒ",
+    "p2p ƒ @ responder id §",
+    "p2p ƒ @ responder"
+  ],
+  "Streams #": [],
+  "p2p ƒ @ providers #": [],
+  "p2p ƒ @ dice §": "",
+  "p2p ƒ @ peer §": "",
+  "p2p ƒ @ anunciar §": "hola",
+  "p2p ƒ @ buscar §": "hola",
+  "p2p ƒ @ responder id §": "",
+  "p2p ƒ @ enviar": "hola desde diarsaba",
+  "p2p ƒ @ responder": "recibido",
+  "p2p ƒ @": {
+    "p2p ƒ @ ID ƒ": {
+      "x": 80,
+      "y": 90
+    },
+    "p2p ƒ @ Announce ƒ": {
+      "x": 80,
+      "y": 150
+    },
+    "p2p ƒ @ StopAnnounce ƒ": {
+      "x": 80,
+      "y": 210
+    },
+    "p2p ƒ @ FindProviders ƒ": {
+      "x": 80,
+      "y": 270
+    },
+    "p2p ƒ @ OpenStream ƒ": {
+      "x": 80,
+      "y": 330
+    },
+    "p2p ƒ @ StreamHandle ƒ": {
+      "x": 80,
+      "y": 390
+    },
+    "p2p ƒ @ Reply ƒ": {
+      "x": 80,
+      "y": 450
+    },
+    "p2p ƒ @ arg ƒ": {
+      "x": 480,
+      "y": 90
+    },
+    "p2p ƒ @ dice ƒ": {
+      "x": 480,
+      "y": 150
+    },
+    "p2p ƒ @ stream ƒ": {
+      "x": 480,
+      "y": 210
+    }
+  },
+  "p2p ! @": {
+    "ID !": {
+      "x": 80,
+      "y": 90
+    },
+    "Announce !": {
+      "x": 80,
+      "y": 150
+    },
+    "StopAnnounce !": {
+      "x": 80,
+      "y": 210
+    },
+    "FindProviders !": {
+      "x": 80,
+      "y": 270
+    },
+    "OpenStream !": {
+      "x": 80,
+      "y": 330
+    },
+    "Reply !": {
+      "x": 80,
+      "y": 390
+    },
+    "Streams #": {
+      "x": 400,
+      "y": 90
+    },
+    "p2p ƒ @ dice §": {
+      "x": 400,
+      "y": 150
+    },
+    "p2p ƒ @ peer §": {
+      "x": 400,
+      "y": 210
+    },
+    "p2p ƒ @ anunciar §": {
+      "x": 400,
+      "y": 270
+    },
+    "p2p ƒ @ buscar §": {
+      "x": 400,
+      "y": 330
+    },
+    "p2p ƒ @ enviar": {
+      "x": 400,
+      "y": 390
+    },
+    "p2p ƒ @ responder": {
+      "x": 400,
+      "y": 450
+    },
+    "p2p ƒ @ responder id §": {
+      "x": 400,
+      "y": 510
+    },
+    "p2p ƒ @ providers #": {
+      "x": 700,
+      "y": 90
     }
   }
 }

@@ -110,6 +110,15 @@
             StreamClose: P2P.P2PStreamClose,
         };
         window.EventsOn = EventsOn;
+
+        // msgpack: el formato de lo que viaja ENTRE peers. Ojo, no sustituye al
+        // base64 — los bindings de Wails vuelven por JSON (dispatcher/calls.go)
+        // y encoding/json ya codifica []byte en base64, así que ese salto es
+        // inevitable. Lo que aporta msgpack es que por el stream puedan ir
+        // objetos, números y binario en vez de solo texto.
+        // Vite lo empaqueta desde node_modules: sin CDN, como Monaco.
+        import { encode as mpEncode, decode as mpDecode } from '@msgpack/msgpack';
+        window.msgpack = { encode: mpEncode, decode: mpDecode };
     </script>
 
     <script>

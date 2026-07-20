@@ -43,7 +43,12 @@ const (
 	// p2pStreamIdle es cuánto sobrevive un stream sin que nadie lo toque. Un
 	// stream entrante que el frontend no atienda (o abandone a medias) se
 	// quedaría abierto para siempre: esto lo recoge.
-	p2pStreamIdle = 2 * time.Minute
+	//
+	// Son 15 minutos porque un stream entrante puede quedarse esperando a que
+	// una persona lo lea y conteste a mano (ver "Streams #" en el place
+	// "p2p ! @"); con los 2 minutos de antes, el reaper cerraba la
+	// conversación antes de que llegaras a mirarla.
+	p2pStreamIdle = 15 * time.Minute
 )
 
 // p2pBridge es el estado vivo del lado Go: el nodo y los streams abiertos.
