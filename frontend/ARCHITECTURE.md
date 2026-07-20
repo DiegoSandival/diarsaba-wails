@@ -171,11 +171,24 @@ diarsaba es plano (un place es solo posiciones), sus átomos van prefijados —
 nombra un átomo, usa su contenido; si no, lo toma literal). Así
 `["… Announce ƒ", "p2p ƒ @ anunciar §"]` funciona editando solo el `§`.
 
-**msgpack, y por qué el base64 no se va.** Lo que viaja entre peers va en msgpack, así que
-puedes mandar objetos, números y binario (`Uint8Array` sobrevive intacto). Lo que **no**
-se puede quitar es el base64 del salto Go↔JS: los bindings de Wails vuelven por JSON
-(`internal/frontend/dispatcher/calls.go`) y `encoding/json` codifica `[]byte` en base64
-por definición. msgpack va *dentro* de eso, enterrado en `stream ƒ`.
+**JSON por el cable, y por qué el base64 no se va.** La carga viaja como JSON. El base64 que
+se ve en `stream ƒ` **no** es el formato: es el salto Go↔JS, que es JSON por definición de los
+bindings de Wails (`internal/frontend/dispatcher/calls.go`) y codifica `[]byte` en base64
+quieras o no.
+
+Los átomos de carga son **mapas `:`** (`p2p ƒ @ enviar :`, `p2p ƒ @ responder :`), no valores
+sueltos, y eso es lo importante: en diarsaba un valor sin sigilo no se puede abrir, editar ni
+despachar. Con `:` los edita `· : editor ƒ` — Monaco en modo `json`, que valida y rechaza el
+guardado si el JSON es inválido.
+
+> Esto empezó siendo **msgpack** (binario, tipado, compacto) y se cambió por dos razones que
+> pesan más que sus ventajas: obligaba a un átomo **sin sigilo** —es decir, fuera del modelo
+> del entorno—, y **aislaba el place**: ni la propia CLI de p2plite podía hablar con él, hubo
+> que escribir un peer a medida solo para probarlo. `window.msgpack` sigue expuesto para
+> cuando haga falta binario de verdad (archivos, chunks), que es un diseño aparte.
+
+`leer()` intenta `JSON.parse` y, si no es JSON, **devuelve el texto tal cual** en vez de
+reventar: así el place entiende también a un peer que hable texto plano.
 
 **Streams entrantes.** `StreamHandle ƒ` se registra desde `on start ƒ` — al abrir la app ya
 se escucha. Cada stream se lee hasta el final y se apila en `Streams #` como
