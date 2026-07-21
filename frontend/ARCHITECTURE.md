@@ -109,57 +109,32 @@ Protocolo binario hacia un backend Go: `ws opcodes :` (mapa de opcodes),
 
 ## Red P2P — p2plite (añadida 2026-07)
 
-El place **`p2p @`** es la librería [`p2plite`](../../p2plite) hecha átomos: seis primitivas
-(`Announce`, `StopAnnounce`, `FindProviders`, `Connect`, `OpenStream`, `SetStreamHandler`)
-más diagnóstico (`ID`, `Addrs`, `FullAddrs`, `Peers`, `RoutingTableSize`, `ConnKind`, `ConnIP`).
+La red vive en **`p2p ƒ @`** (las funciones) y **`p2p ! @`** (los ejecutores y su estado),
+sobre la librería [`p2plite`](../../p2plite).
 
 - **Go (`p2p.go`)**: bindings `P2P*`. El nodo **arranca solo** la primera vez que se usa
-  cualquier primitiva, así que el place no necesita un botón de encendido y la app no paga
-  la red si nunca se toca. `OnShutdown` lo cierra limpiamente.
+  cualquier primitiva, así que no hace falta un botón de encendido y la app no paga la red si
+  nunca se toca. `OnShutdown` lo cierra limpiamente.
 - **Lo que no es serializable se queda en Go.** Un `Stream` no cabe en un binding: Go
   devuelve un identificador y el frontend lo opera con `P2PStreamRead/Write/CloseWrite/Close`.
-  Los bytes viajan en **base64** — para la librería son opacos y aquí siguen siéndolo.
-  Un stream que nadie toque en 2 minutos se recoge solo (el frontend puede recargarse a media
+  Un stream que nadie toque en 60 minutos se recoge solo (el frontend puede recargarse a media
   conversación y dejarlo huérfano).
 - **Streams entrantes**: Go registra su handler *antes* de `Start` y emite el evento
-  `p2p:stream` con `{from, stream}`. `SetStreamHandler ƒ` se suscribe una sola vez y delega en
-  el átomo **`p2p on stream ƒ`** — editable como cualquier otro: ahí se decide qué se contesta.
+  `p2p:stream` con `{from, stream}`.
 - **Frontend (`index.html`)**: los bindings se agrupan en `window.p2p` (son 18 y todas del
   mismo tema) y se expone `window.EventsOn`.
-- **Átomos de apoyo del place**: `p2p arg ƒ` / `p2p peer ƒ` (un ƒ se llama desde código con el
-  valor, o con un clic — y entonces hay que preguntar), `p2p out ƒ` (deja el resultado en
-  `p2p result §`), `p2p stream ƒ` (envuelve el identificador en algo con lo que hablar),
-  `p2p peer §`, `p2p providers #`, `p2p announced #`.
-- **El peer se hereda**: `FindProviders` deja el primer proveedor en `p2p peer §`, así que
-  `Connect`/`OpenStream`/`ConnKind` funcionan con un clic. `OpenStream` con clic hace el viaje
-  completo (mensaje → respuesta); llamado desde código devuelve el stream y decides tú.
 
-### `simple p2p @` — la versión a prueba de tontos
-
-`p2p @` expone la librería tal cual (trece ƒ, una por primitiva) y sirve para explorar.
-Para *usar* la red hay un segundo place, independiente: **`simple p2p @`**. No comparte
-átomos con `p2p @`, así que romper uno experimentando no rompe el otro.
-
-Son cinco chips y un menú. **`p2p #` es el menú, no un inventario**: al abrirlo, un clic
-simple en un ítem lo ejecuta (`dispatch item ƒ` corre las `!` directas), y `entradas #`
-se abre como sublista. Eso evita tener que saber que ejecutar es click-derecho →
-`· ! action`.
-
-- `mi id !`, `anunciar !`, `buscar !`, `enviar !`, `dejar de anunciar !` — y `entradas #`.
-- **`SetStreamHandler` no existe como concepto aquí**: `anunciar !` activa la escucha solo.
-  Anunciar sin escuchar es una trampa (te encuentran y no contestas). Lo entrante se apila
-  en `entradas #` con hora y remitente, y se contesta `recibido: …` automáticamente.
-- Todo termina en un modal: un `§` solo se ve si lo abres, y aquí el resultado no se puede
-  perder. Los mensajes entrantes NO alertan — taparían la pantalla.
-- El mensaje se pide **antes** de conectar: `OpenStream` tarda hasta 30 s en rendirse, y
-  preguntar después de esa espera parece que la app se colgó.
-- Los errores dicen qué hacer, no qué pasó ("la otra app se cerró, vuelve a «buscar !»").
+> Hubo dos paradigmas más y **se borraron** (2026-07): `p2p @`, que era la librería cruda —un
+> átomo por primitiva, incluidas `Connect`, `Addrs`, `Peers`, `ConnKind`, `ConnIP`— y servía
+> para explorarla; y `simple p2p @`, un menú guiado a prueba de tontos. Los tres hacían lo
+> mismo por caminos distintos, y mantener tres superficies sobre la misma librería costaba
+> más de lo que daba. Si algún día hace falta el diagnóstico de `p2p @` (`ConnKind`, `Peers`),
+> los bindings de Go siguen ahí: solo falta el átomo que los llame.
 
 ### `p2p ƒ @` y `p2p ! @` — funciones y ejecutores, separados
 
-Un tercer par de places, pensados para **componer** en vez de para guiar. Como el Map de
-diarsaba es plano (un place es solo posiciones), sus átomos van prefijados —
-`p2p ƒ @ Announce ƒ` — para no pisar los de `p2p @`.
+Pensados para **componer**. Como el Map de diarsaba es plano (un place es solo posiciones),
+sus átomos van prefijados — `p2p ƒ @ Announce ƒ` — para no chocar entre sí ni con lo demás.
 
 - **`p2p ƒ @`** tiene las funciones: `ID`, `Announce`, `StopAnnounce`, `FindProviders`,
   `OpenStream`, `StreamHandle`, `Reply`, más los helpers `arg ƒ`, `dice ƒ`, `stream ƒ`.

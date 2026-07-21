@@ -340,7 +340,7 @@
   "· ֎ editor ƒ": "async (dataset) => {\n    const key = dataset.parent;\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor(dataset);\n        return;\n    }\n\n    // Sin editor específico. Un valor estructurado se edita como JSON:\n    // String(objeto) daría \"[object Object]\" y guardarlo lo destruiría.\n    const actual = diarsaba.get(key);\n    const esEstructura = actual !== null && typeof actual === \"object\";\n    const res = await window.codeEditor.open(\n        key,\n        esEstructura ? JSON.stringify(actual, null, 2) : String(actual ?? \"\"),\n        esEstructura ? \"json\" : \"text\"\n    );\n    if (res == null) return;\n\n    if (esEstructura) {\n        try {\n            diarsaba.set(key, JSON.parse(res));\n        } catch (e) {\n            alert(`\"${key}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        }\n        return;\n    }\n    diarsaba.set(key, res);\n}",
   "TODO #": [],
   "TODO §": "ARREGLAR EL EDIT\r\n\r\nARREGLAR EL DELETE\r\n\r\nHACER LAS LISTAS\r\n\r\nLISTAS DINAMICAS\r\n\r\n\r\n\r\n",
-  "current place §": "p2p @",
+  "current place §": "diarsaba @",
   "last click on §": "Continue",
   "on double tap place ƒ": "() => {\n\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n    const content = target.textContent;\n\n    if (content == \"diarsaba-map @\") {\n\n        // 1. Calculamos los límites de la ventana UNA VEZ fuera del bucle (mejor rendimiento)\n        // Añadimos un \"margen\" para que los chips no queden cortados en los bordes de la pantalla\n        const margen = 50;\n        const maximoX = window.innerWidth - margen;\n        const maximoY = window.innerHeight - margen;\n\n        diarsaba.forEach((valor, clave) => {\n            // 2. Generamos las coordenadas aleatorias\n            // Math.random() da un decimal entre 0 y 1. Lo multiplicamos por el máximo.\n            // Usamos Math.floor() para redondear a números enteros (los píxeles suelen ser enteros)\n            // Sumamos el margen para que empiece desde el margen y no desde el 0 absoluto.\n            const xAleatorio = Math.floor(Math.random() * maximoX) + margen;\n            const yAleatorio = Math.floor(Math.random() * maximoY) + margen;\n\n            // 3. Llamamos a la función con los nuevos valores\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                xAleatorio,\n                yAleatorio,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n        });\n\n        //en caso opuesto a esto, mejor crear una lista y que habra automaticamente en el editor\n    } else {\n        // Las referencias ֎ apuntan a nodos que están a punto de\n        // desaparecer: se limpian antes de repintar.\n        for (const k of [...diarsaba.keys()]) {\n            if (typeof k === \"string\" && k.endsWith(\"֎\") && diarsaba.get(k) instanceof Element) {\n                diarsaba.delete(k);\n            }\n        }\n        document.body.replaceChildren();\n\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            100,\n            50,\n            content,\n            \"\",\n            content.slice(-1)\n        );\n        diarsaba.set(`${content} ֎`, chip);\n\n        // Desestructuramos el array en [clave, valor]\n        let place = diarsaba.get(content)\n        Object.entries(place).forEach(([clave, valor]) => {\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                valor.x,\n                valor.y,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n\n            // Sin esta referencia, abrir/ocultar/padre no encuentran el\n            // chip y anclan al puntero: el hijo sale desplazado.\n            diarsaba.set(`${clave} ֎`, chip);\n        });\n\n        \n        diarsaba.set(\"current place §\", content)\n\n        diarsaba.get(\"install mover ƒ\")();\n    }\n\n\n\n}",
   "add to place ƒ": "(name) => {\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        // unicamente si es un place\n\n        if (name.slice(-1) == \"@\") {\n            diarsaba.set(\"current place §\", name)\n        }else{\n            alert(\"todos los movimientos que hagas no seran registrados\")\n        }\n\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n    }\n}",
@@ -439,14 +439,6 @@
       "x": 506,
       "y": 195
     },
-    "p2p @": {
-      "x": 64,
-      "y": 326
-    },
-    "simple p2p @": {
-      "x": 64,
-      "y": 400
-    },
     "p2p ƒ @": {
       "x": 300,
       "y": 326
@@ -478,176 +470,6 @@
   "ai config !": [
     "ai config ƒ"
   ],
-  "p2p @": {
-    "Announce ƒ": {
-      "x": 120,
-      "y": 174
-    },
-    "StopAnnounce ƒ": {
-      "x": 120,
-      "y": 246
-    },
-    "FindProviders ƒ": {
-      "x": 140,
-      "y": 313
-    },
-    "Connect ƒ": {
-      "x": 139,
-      "y": 386
-    },
-    "OpenStream ƒ": {
-      "x": 143,
-      "y": 471
-    },
-    "SetStreamHandler ƒ": {
-      "x": 167,
-      "y": 537
-    },
-    "ID ƒ": {
-      "x": 529,
-      "y": 186
-    },
-    "Addrs ƒ": {
-      "x": 546,
-      "y": 240
-    },
-    "FullAddrs ƒ": {
-      "x": 561,
-      "y": 303
-    },
-    "Peers ƒ": {
-      "x": 563,
-      "y": 386
-    },
-    "RoutingTableSize ƒ": {
-      "x": 576,
-      "y": 436
-    },
-    "ConnKind ƒ": {
-      "x": 588,
-      "y": 501
-    },
-    "ConnIP ƒ": {
-      "x": 592,
-      "y": 565
-    },
-    "p2p arg ƒ": {
-      "x": 900,
-      "y": 174
-    },
-    "p2p peer ƒ": {
-      "x": 900,
-      "y": 240
-    },
-    "p2p out ƒ": {
-      "x": 900,
-      "y": 306
-    },
-    "p2p stream ƒ": {
-      "x": 900,
-      "y": 372
-    },
-    "p2p on stream ƒ": {
-      "x": 900,
-      "y": 438
-    },
-    "p2p peer §": {
-      "x": 900,
-      "y": 504
-    },
-    "p2p result §": {
-      "x": 900,
-      "y": 570
-    },
-    "p2p providers #": {
-      "x": 1120,
-      "y": 174
-    },
-    "p2p announced #": {
-      "x": 1120,
-      "y": 240
-    }
-  },
-  "Announce ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const key = await diarsaba.get(\"p2p arg ƒ\")(arg, \"recurso a anunciar\");\n        if (!key) return;\n        // La primera publicación es síncrona; a partir de ahí se mantiene sola.\n        await window.p2p.Announce(key);\n        const live = diarsaba.get(\"p2p announced #\") || [];\n        if (!live.includes(key)) diarsaba.set(\"p2p announced #\", [...live, key]);\n        return out(\"Announce\", `anunciado \"${key}\" — sirviendo`);\n    } catch (e) {\n        return out(\"Announce ✗\", e);\n    }\n}",
-  "StopAnnounce ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const key = await diarsaba.get(\"p2p arg ƒ\")(arg, \"recurso a dejar de anunciar\");\n        if (!key) return;\n        await window.p2p.StopAnnounce(key);\n        diarsaba.set(\"p2p announced #\", (diarsaba.get(\"p2p announced #\") || []).filter((k) => k !== key));\n        // Nadie borra un provider record: el anuncio sigue vivo en la red hasta\n        // que caduca solo.\n        return out(\"StopAnnounce\", `dejado de publicar \"${key}\" (la red lo olvidará al caducar)`);\n    } catch (e) {\n        return out(\"StopAnnounce ✗\", e);\n    }\n}",
-  "FindProviders ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const key = await diarsaba.get(\"p2p arg ƒ\")(arg, \"recurso a buscar\");\n        if (!key) return;\n        // No hay parámetro de límite: lo que acota la búsqueda es el plazo.\n        const found = await window.p2p.FindProviders(key, 30000);\n        diarsaba.set(\"p2p providers #\", found.map((p) => p.id));\n        if (found.length) diarsaba.set(\"p2p peer §\", found[0].id);\n        // Lista vacía es \"nadie lo tiene\", no un fallo.\n        return out(\n            `FindProviders \"${key}\"`,\n            found.length ? found : \"nadie lo tiene (¿lo anunció el otro nodo? ¿misma red?)\"\n        );\n    } catch (e) {\n        return out(\"FindProviders ✗\", e);\n    }\n}",
-  "Connect ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n        await window.p2p.Connect(peer, 30000);\n        const kind = await window.p2p.ConnKind(peer);\n        const ip = await window.p2p.ConnIP(peer);\n        return out(\"Connect\", `conectado a ${peer.slice(-8)} (${kind} ${ip})`);\n    } catch (e) {\n        return out(\"Connect ✗\", e);\n    }\n}",
-  "OpenStream ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // Un string es \"me llaman desde código con el peer resuelto\": se\n        // devuelve el stream y decide quien llama. CUALQUIER otra cosa es un\n        // clic — y ojo: una acción ! llega sin argumentos (threads no pasa\n        // ninguno), no con el dataset. Por eso no se puede preguntar por\n        // typeof arg === \"object\": eso dejaba fuera justo el caso normal.\n        const desdeCodigo = typeof arg === \"string\" && arg !== \"\";\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n\n        // El mensaje se pide ANTES de conectar. Si el otro lado no está,\n        // OpenStream tarda hasta 30 s en rendirse, y preguntar después de esa\n        // espera parece que la app se colgó.\n        let msg;\n        if (!desdeCodigo) {\n            msg = await diarsaba.get(\"modal input ƒ\")(\"hola desde diarsaba\");\n            if (msg == null || msg === \"\") return;\n        }\n\n        const stream = diarsaba.get(\"p2p stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n        if (desdeCodigo) {\n            out(\"OpenStream\", `stream ${stream.id} abierto hacia ${peer.slice(-8)}`);\n            return stream;\n        }\n\n        await stream.write(msg);\n        await stream.done();\n        const reply = await stream.read();\n        await stream.close();\n        return out(\"OpenStream\", `→ ${msg}\\n← ${reply}`);\n    } catch (e) {\n        return out(\"OpenStream ✗\", e);\n    }\n}",
-  "SetStreamHandler ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // Del backend llega un aviso ({from, stream}), no el stream: esto\n        // suscribe una sola vez y deja que \"p2p on stream ƒ\" decida qué se\n        // responde. Pasa una función para cambiar el trato desde código.\n        if (typeof arg === \"function\") diarsaba.set(\"p2p on stream ƒ\", arg);\n        if (diarsaba.get(\"p2p handler ֎\")) return out(\"SetStreamHandler\", \"ya estaba escuchando\");\n\n        // La clave ֎ no se persiste: la suscripción vive solo en esta sesión.\n        diarsaba.set(\n            \"p2p handler ֎\",\n            window.EventsOn(\"p2p:stream\", async (ev) => {\n                const stream = diarsaba.get(\"p2p stream ƒ\")(ev.stream, ev.from);\n                try {\n                    const handler = diarsaba.get(\"p2p on stream ƒ\");\n                    if (typeof handler === \"function\") await handler(stream);\n                    else await stream.close();\n                } catch (e) {\n                    console.error(\"[p2p] el handler de stream falló\", e);\n                    await stream.close();\n                }\n            })\n        );\n\n        // Sin nodo arrancado nadie puede llamarnos.\n        const me = await window.p2p.Start();\n        return out(\"SetStreamHandler\", `escuchando streams entrantes como ${me.slice(-8)}`);\n    } catch (e) {\n        return out(\"SetStreamHandler ✗\", e);\n    }\n}",
-  "ID ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // La primera llamada arranca el nodo, así que puede tardar: está\n        // resolviendo las semillas y entrando a la red.\n        return out(\"ID\", await window.p2p.ID());\n    } catch (e) {\n        return out(\"ID ✗\", e);\n    }\n}",
-  "Addrs ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        return out(\"Addrs\", await window.p2p.Addrs());\n    } catch (e) {\n        return out(\"Addrs ✗\", e);\n    }\n}",
-  "FullAddrs ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        // Con /p2p/<id> pegado: son las que se pasan tal cual como semilla.\n        return out(\"FullAddrs\", await window.p2p.FullAddrs());\n    } catch (e) {\n        return out(\"FullAddrs ✗\", e);\n    }\n}",
-  "Peers ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const peers = await window.p2p.Peers();\n        return out(\"Peers\", peers.length ? peers : \"ningún peer conectado\");\n    } catch (e) {\n        return out(\"Peers ✗\", e);\n    }\n}",
-  "RoutingTableSize ƒ": "async () => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const n = await window.p2p.RoutingTableSize();\n        // Mientras sea 0 la DHT no es usable: ni anunciar ni buscar.\n        return out(\"RoutingTableSize\", n === 0 ? \"0 — la DHT todavía no está lista\" : `${n} peers en la tabla`);\n    } catch (e) {\n        return out(\"RoutingTableSize ✗\", e);\n    }\n}",
-  "ConnKind ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n        // direct | hole-punched | relayed | none. Un \"relayed\" estable significa\n        // que la perforación falló y esa conexión está a punto de morir.\n        return out(\"ConnKind\", `${peer.slice(-8)}: ${await window.p2p.ConnKind(peer)}`);\n    } catch (e) {\n        return out(\"ConnKind ✗\", e);\n    }\n}",
-  "ConnIP ƒ": "async (arg) => {\n    const out = diarsaba.get(\"p2p out ƒ\");\n    try {\n        const peer = await diarsaba.get(\"p2p peer ƒ\")(arg);\n        if (!peer) return;\n        const ip = await window.p2p.ConnIP(peer);\n        // Vacío = no hay conexión directa; en una relayed la IP es la del relay.\n        return out(\"ConnIP\", `${peer.slice(-8)}: ${ip || \"(sin conexión directa)\"}`);\n    } catch (e) {\n        return out(\"ConnIP ✗\", e);\n    }\n}",
-  "p2p arg ƒ": "async (arg, hint) => {\n    // Estos ƒ se llaman de dos maneras: desde código, con el valor ya en la\n    // mano, o con un clic en el chip — y entonces lo que llega es el dataset\n    // del DOM (cuyo parent es el nombre del propio ƒ), así que hay que preguntar.\n    if (typeof arg === \"string\" && arg !== \"\") return arg;\n    if (arg && typeof arg === \"object\" && typeof arg.parent === \"string\" && !arg.parent.endsWith(\"ƒ\")) {\n        return arg.parent;\n    }\n    return await diarsaba.get(\"modal input ƒ\")(hint || \"\");\n}",
-  "p2p peer ƒ": "async (arg) => {\n    // El peer se hereda: FindProviders deja el último proveedor en \"p2p peer §\",\n    // y desde ahí Connect/OpenStream/ConnKind funcionan con un solo clic.\n    if (typeof arg === \"string\" && arg !== \"\") return arg;\n    if (arg && typeof arg === \"object\" && typeof arg.parent === \"string\" && !arg.parent.endsWith(\"ƒ\")) {\n        return arg.parent;\n    }\n    const id = await diarsaba.get(\"modal input ƒ\")(diarsaba.get(\"p2p peer §\") || \"\");\n    if (id) diarsaba.set(\"p2p peer §\", id);\n    return id;\n}",
-  "p2p out ƒ": "(label, value) => {\n    // Un ƒ disparado con un clic no tiene dónde devolver: el resultado se deja\n    // en \"p2p result §\", que se abre como cualquier otro átomo. Los fallos\n    // además se gritan, que si no pasan desapercibidos.\n    const plain = value instanceof Error ? value.message : value;\n    const text = typeof plain === \"string\" ? plain : JSON.stringify(plain, null, 2);\n    diarsaba.set(\"p2p result §\", `${label}\\n${text}`);\n    console.log(`[p2p] ${label}`, value);\n    if (String(label).endsWith(\"✗\")) alert(`[p2p] ${label}\\n${text}`);\n    return value;\n}",
-  "p2p stream ƒ": "(id, from) => {\n    // Un Stream no es serializable, así que se queda en Go y aquí llega su\n    // identificador. Esto lo envuelve en algo con lo que se pueda hablar.\n    // Los bytes viajan en base64 porque para la librería son opacos; aquí se\n    // traducen a texto, que es lo que se teclea en el editor.\n    const toB64 = (text) => {\n        const bytes = new TextEncoder().encode(text);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const fromB64 = (b64) =>\n        new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        from: from || \"\",\n        write: async (text) => await window.p2p.StreamWrite(id, toB64(text)),\n        // Termina de hablar sin cerrar: el otro lado lee hasta EOF y contesta\n        // por el mismo stream.\n        done: async () => await window.p2p.StreamCloseWrite(id),\n        read: async (timeoutMs) => {\n            let text = \"\";\n            for (;;) {\n                const chunk = await window.p2p.StreamRead(id, 0, timeoutMs || 0);\n                if (chunk.data) text += fromB64(chunk.data);\n                if (chunk.eof) break;\n            }\n            return text;\n        },\n        close: async () => await window.p2p.StreamClose(id),\n    };\n}",
-  "p2p on stream ƒ": "async (stream) => {\n    // Qué se le contesta a quien nos llama. Es un átomo como cualquier otro:\n    // ábrelo en el editor y cambia el trato. Por defecto, el eco que prueba que\n    // la red funciona de punta a punta.\n    const msg = await stream.read();\n    const me = await window.p2p.ID();\n    await stream.write(`recibido por ${me.slice(-8)}: ${msg}`);\n    await stream.close();\n    diarsaba.set(\"p2p result §\", `entrante de ${stream.from.slice(-8)}\\n${msg}`);\n}",
-  "p2p peer §": "",
-  "p2p result §": "",
-  "p2p providers #": [],
-  "p2p announced #": [],
-  "p2p dice ƒ": "(texto) => {\n    // El place simple habla en voz alta a propósito: un § solo se ve si lo\n    // abres, y aquí el resultado no se puede perder. Queda además en\n    // \"p2p dice §\" para releerlo después.\n    diarsaba.set(\"p2p dice §\", texto);\n    console.log(\"[p2p]\", texto);\n    alert(texto);\n    return texto;\n}",
-  "hablar por ƒ": "(id, de) => {\n    // Un stream vive en Go; aquí llega su identificador. Esto lo envuelve en\n    // algo con lo que hablar. Los bytes van en base64 porque para la librería\n    // son opacos.\n    const aB64 = (t) => {\n        const bytes = new TextEncoder().encode(t);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b) => new TextDecoder().decode(Uint8Array.from(atob(b), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        de: de || \"\",\n        escribir: async (t) => await window.p2p.StreamWrite(id, aB64(t)),\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            let t = \"\";\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) t += deB64(c.data);\n                if (c.eof) break;\n            }\n            return t;\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
-  "mi id ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    try {\n        const id = await window.p2p.ID();\n        return dice(`MI ID:\\n${id}\\n\\nLa primera vez tarda unos segundos: está entrando a la red.`);\n    } catch (e) {\n        return dice(`NO PUDE ENTRAR A LA RED:\\n${e.message || e}`);\n    }\n}",
-  "escuchar ƒ": "async (callado) => {\n    // Deja la app lista para recibir. Lo que llegue se apila en \"entradas #\".\n    // Es idempotente: suscribirse dos veces duplicaría cada mensaje.\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    try {\n        if (!diarsaba.get(\"p2p escuchando ֎\")) {\n            diarsaba.set(\n                \"p2p escuchando ֎\",\n                window.EventsOn(\"p2p:stream\", async (ev) => {\n                    const s = diarsaba.get(\"hablar por ƒ\")(ev.stream, ev.from);\n                    try {\n                        const msg = await s.leer();\n                        const hora = new Date().toLocaleTimeString();\n                        const previas = diarsaba.get(\"entradas #\") || [];\n                        // Lo nuevo arriba, y con techo: esto crece solo y se guarda.\n                        diarsaba.set(\"entradas #\", [`[${hora}] ${ev.from.slice(-8)}: ${msg}`, ...previas].slice(0, 100));\n                        await s.escribir(`recibido: ${msg}`);\n                    } catch (e) {\n                        console.error(\"[p2p] una entrada falló\", e);\n                    }\n                    await s.cerrar();\n                })\n            );\n        }\n        await window.p2p.Start();\n        if (!callado) dice(\"ESCUCHANDO.\\n\\nLo que te llegue aparece en «entradas #».\");\n    } catch (e) {\n        if (!callado) dice(`NO PUDE ESCUCHAR:\\n${e.message || e}`);\n    }\n}",
-  "anunciar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    let clave = \"\";\n    try {\n        clave = await diarsaba.get(\"modal input ƒ\")(diarsaba.get(\"lo que anuncio §\") || \"hola\");\n        if (!clave) return;\n        // Anunciar sin escuchar no sirve de nada: te encontrarían y no\n        // contestarías. Van juntos a propósito.\n        await diarsaba.get(\"escuchar ƒ\")(true);\n        await window.p2p.Announce(clave);\n        diarsaba.set(\"lo que anuncio §\", clave);\n        return dice(\n            `ANUNCIADO: \"${clave}\"\\n\\nDEJA ESTA APP ABIERTA.\\nSi la cierras, te encontrarán pero nadie contestará.\\n\\nDel otro lado busca esa misma palabra, exacta.`\n        );\n    } catch (e) {\n        return dice(\n            `NO PUDE ANUNCIAR \"${clave}\":\\n${e.message || e}\\n\\nSi habla de la DHT, espera unos segundos y reintenta: la red todavía no estaba lista.`\n        );\n    }\n}",
-  "buscar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    let clave = \"\";\n    try {\n        clave = await diarsaba.get(\"modal input ƒ\")(diarsaba.get(\"lo que busco §\") || \"hola\");\n        if (!clave) return;\n        diarsaba.set(\"lo que busco §\", clave);\n        // Puede tardar hasta 30 s: no hay resultado parcial que mostrar.\n        const encontrados = await window.p2p.FindProviders(clave, 30000);\n        if (!encontrados.length) {\n            return dice(\n                `NADIE TIENE \"${clave}\".\\n\\n¿La otra app sigue abierta?\\n¿Anunció exactamente esa palabra?`\n            );\n        }\n        diarsaba.set(\"a quien le hablo §\", encontrados[0].id);\n        return dice(\n            `ENCONTRÉ ${encontrados.length}.\\n\\nHablaré con: ${encontrados[0].id.slice(-8)}\\n\\nAhora usa «enviar !».`\n        );\n    } catch (e) {\n        return dice(`NO PUDE BUSCAR:\\n${e.message || e}`);\n    }\n}",
-  "enviar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    let s = null;\n    try {\n        const peer = diarsaba.get(\"a quien le hablo §\");\n        if (!peer) return dice(\"PRIMERO BUSCA A ALGUIEN.\\n\\nUsa «buscar !» y luego vuelve aquí.\");\n\n        // El mensaje se pide ANTES de conectar: conectar puede tardar 30 s, y\n        // preguntar después de esa espera parece que la app se colgó.\n        const msg = await diarsaba.get(\"modal input ƒ\")(\"hola\");\n        if (!msg) return;\n\n        s = diarsaba.get(\"hablar por ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n        await s.escribir(msg);\n        await s.termine();\n        const respuesta = await s.leer();\n        await s.cerrar();\n        return dice(`ENVIÉ: ${msg}\\n\\nCONTESTÓ: ${respuesta}`);\n    } catch (e) {\n        if (s) {\n            try {\n                await s.cerrar();\n            } catch (_) {}\n        }\n        return dice(\n            `NO PUDE HABLAR CON ESE NODO:\\n${e.message || e}\\n\\nLo más probable: la otra app se cerró. Vuelve a «buscar !».`\n        );\n    }\n}",
-  "dejar de anunciar ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p dice ƒ\");\n    try {\n        const clave = diarsaba.get(\"lo que anuncio §\");\n        if (!clave) return dice(\"NO ESTÁS ANUNCIANDO NADA.\");\n        await window.p2p.StopAnnounce(clave);\n        diarsaba.set(\"lo que anuncio §\", \"\");\n        return dice(\n            `DEJASTE DE ANUNCIAR \"${clave}\".\\n\\nLa red lo olvidará cuando caduque: no existe el borrado inmediato.`\n        );\n    } catch (e) {\n        return dice(`NO PUDE PARAR:\\n${e.message || e}`);\n    }\n}",
-  "mi id !": [
-    "mi id ƒ"
-  ],
-  "anunciar !": [
-    "anunciar ƒ"
-  ],
-  "buscar !": [
-    "buscar ƒ"
-  ],
-  "enviar !": [
-    "enviar ƒ"
-  ],
-  "dejar de anunciar !": [
-    "dejar de anunciar ƒ"
-  ],
-  "p2p #": [
-    "mi id !",
-    "anunciar !",
-    "buscar !",
-    "enviar !",
-    "dejar de anunciar !",
-    "entradas #"
-  ],
-  "entradas #": [],
-  "p2p dice §": "",
-  "a quien le hablo §": "",
-  "lo que anuncio §": "",
-  "lo que busco §": "",
-  "simple p2p @": {
-    "p2p #": {
-      "x": 80,
-      "y": 90
-    },
-    "entradas #": {
-      "x": 80,
-      "y": 250
-    },
-    "p2p dice §": {
-      "x": 380,
-      "y": 90
-    },
-    "a quien le hablo §": {
-      "x": 380,
-      "y": 170
-    },
-    "lo que anuncio §": {
-      "x": 380,
-      "y": 250
-    }
-  },
   "p2p ƒ @ arg ƒ": "(v) => {\n    // Un ejecutor ! pasa los elementos del arreglo COMO STRINGS: threads hace\n    // a.apply(null, s.slice(1)), así que llega el NOMBRE del átomo, no su\n    // valor. Por eso cada ƒ resuelve aquí: si el string nombra un átomo, se\n    // usa su contenido; si no, se toma tal cual como literal.\n    //\n    // Es lo que permite [\"... Announce ƒ\", \"valor para anunciar §\"] sin que la\n    // ƒ tenga que saber de dónde viene el dato.\n    if (typeof v !== \"string\") return v;\n    return diarsaba.has(v) ? diarsaba.get(v) : v;\n}",
   "p2p ƒ @ dice ƒ": "(etiqueta, valor) => {\n    // Deja el resultado a la vista: un ! disparado con un clic no tiene dónde\n    // devolver. Los fallos además se gritan.\n    const plano = valor instanceof Error ? valor.message : valor;\n    diarsaba.set(\"p2p ƒ @ dice §\", `${etiqueta}\\n${typeof plano === \"string\" ? plano : JSON.stringify(plano, null, 2)}`);\n    console.log(`[p2p ƒ] ${etiqueta}`, valor);\n    if (String(etiqueta).endsWith(\"✗\")) alert(`${etiqueta}\\n${plano}`);\n    return valor;\n}",
   "p2p ƒ @ stream ƒ": "(id, peer) => {\n    // Un Stream vive en Go; aquí llega su identificador. Esto lo envuelve.\n    //\n    // Por el cable va JSON. Se eligió sobre msgpack por dos razones, y ninguna\n    // es el tamaño: (1) un átomo de carga JSON es un mapa \":\", que en diarsaba\n    // tiene tipo y por tanto editor —msgpack obligaba a un átomo sin sigilo,\n    // que no se puede abrir ni despachar—; y (2) cualquier peer puede hablarlo,\n    // incluida la CLI de p2plite. window.msgpack sigue disponible para cuando\n    // haga falta binario de verdad.\n    //\n    // El base64 de abajo NO es el formato: es el salto Go↔JS, que es JSON por\n    // definición de los bindings de Wails y codifica []byte en base64.\n    const aB64 = (texto) => {\n        const bytes = new TextEncoder().encode(texto);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b64) =>\n        new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        peer: peer || \"\",\n        escribir: async (valor) => {\n            // Un string se manda tal cual: así se puede hablar con un peer que\n            // espera texto plano sin envolverlo en comillas JSON.\n            const texto = typeof valor === \"string\" ? valor : JSON.stringify(valor);\n            return await window.p2p.StreamWrite(id, aB64(texto));\n        },\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            let texto = \"\";\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) texto += deB64(c.data);\n                if (c.eof) break;\n            }\n            if (texto === \"\") return null;\n            // Si no es JSON se devuelve el texto tal cual en vez de reventar:\n            // así el place entiende a la CLI de p2plite y a cualquier peer que\n            // mande texto plano.\n            try {\n                return JSON.parse(texto);\n            } catch (_) {\n                return texto;\n            }\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
