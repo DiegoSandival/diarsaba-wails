@@ -4,6 +4,10 @@ import {main} from '../models';
 
 export function AIChat(arg1:string):Promise<string>;
 
+export function DeleteAtom(arg1:string):Promise<void>;
+
+export function ExportAtoms():Promise<string>;
+
 export function GetAIConfig():Promise<string>;
 
 export function LoadPredefinedFunctions():Promise<string>;
@@ -47,3 +51,5 @@ export function P2PStreamWrite(arg1:string,arg2:string):Promise<void>;
 export function SavePredefinedFunctions(arg1:string):Promise<string>;
 
 export function SetAIConfig(arg1:string):Promise<void>;
+
+export function SetAtom(arg1:string,arg2:string):Promise<void>;

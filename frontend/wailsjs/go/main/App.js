@@ -6,6 +6,14 @@ export function AIChat(arg1) {
   return window['go']['main']['App']['AIChat'](arg1);
 }
 
+export function DeleteAtom(arg1) {
+  return window['go']['main']['App']['DeleteAtom'](arg1);
+}
+
+export function ExportAtoms() {
+  return window['go']['main']['App']['ExportAtoms']();
+}
+
 export function GetAIConfig() {
   return window['go']['main']['App']['GetAIConfig']();
 }
@@ -92,4 +100,8 @@ export function SavePredefinedFunctions(arg1) {
 
 export function SetAIConfig(arg1) {
   return window['go']['main']['App']['SetAIConfig'](arg1);
+}
+
+export function SetAtom(arg1, arg2) {
+  return window['go']['main']['App']['SetAtom'](arg1, arg2);
 }

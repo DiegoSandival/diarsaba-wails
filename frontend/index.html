@@ -84,12 +84,13 @@
     </style>
 
     <script type="module" >
-        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig, LoadPredefinedFunctions } from './wailsjs/go/main/App';
+        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig, LoadPredefinedFunctions, ExportAtoms } from './wailsjs/go/main/App';
         window.SavePredefinedFunctions = SavePredefinedFunctions;
         window.AIChat = AIChat;
         window.GetAIConfig = GetAIConfig;
         window.SetAIConfig = SetAIConfig;
         window.LoadPredefinedFunctions = LoadPredefinedFunctions;
+        window.ExportAtoms = ExportAtoms;
 
         // Puente hacia p2plite (ver p2p.go). Va agrupado en window.p2p en vez de
         // sueltas: son 18 y todas del mismo tema. Los ƒ del place "p2p @" son

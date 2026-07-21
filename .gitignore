@@ -11,3 +11,7 @@ frontend/public/fa
 
 # Backups rotativos de predefined_functions (dev)
 frontend/backups/
+
+# Base de átomos (bbolt). Es el almacén VIVO y local de cada máquina; lo que se
+# versiona es su export, frontend/predefined_functions.json. Ver store.go.
+atoms.db

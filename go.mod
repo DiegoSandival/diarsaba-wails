@@ -5,6 +5,7 @@ go 1.25.7
 require (
 	github.com/DiegoSandival/p2plite v0.1.1-0.20260718191710-d01f8a640828
 	github.com/wailsapp/wails/v2 v2.13.0
+	go.etcd.io/bbolt v1.5.0
 )
 
 require (

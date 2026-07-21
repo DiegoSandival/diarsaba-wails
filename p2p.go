@@ -159,6 +159,9 @@ func (a *App) P2PStop() error {
 // delante el apagado limpio (anuncios sin parar, caché de bootstrap sin volcar).
 func (a *App) shutdown(ctx context.Context) {
 	_ = a.P2PStop()
+	// Cerrar la base libera el lock del archivo: sin esto, reabrir la app
+	// enseguida se encontraría el .db tomado y esperaría el timeout.
+	_ = a.store.Close()
 }
 
 // ---- diagnóstico ----

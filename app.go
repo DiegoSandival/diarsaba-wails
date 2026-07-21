@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,12 @@ type App struct {
 	// p2p es el nodo de la red y sus streams vivos. Ver p2p.go: se construye
 	// vacío y el nodo real arranca la primera vez que el frontend lo usa.
 	p2p *p2pBridge
+
+	// store es la base de átomos (bbolt). Ver store.go. Se abre perezosamente
+	// con ensureStore().
+	store     *atomStore
+	storeErr  error
+	storeOnce sync.Once
 }
 
 // NewApp creates a new App application struct
@@ -66,56 +73,88 @@ func predefinedPath() (path string, isDev bool, err error) {
 	return filepath.Join(appDir, "predefined_functions.json"), false, nil
 }
 
-// LoadPredefinedFunctions devuelve el JSON con el que arranca el frontend.
+// storePath resuelve dónde vive la base de átomos.
 //
-// En producción la copia externa se REEMPLAZA con la embebida cuando difieren:
-// hoy el JSON es un recurso de desarrollo que viaja con el binario, así que lo
-// que trae el .exe es la verdad y una copia vieja solo esconde los arreglos.
-// (Cuando el programa del usuario y el del binario dejen de ser el mismo, esto
-// tendrá que volverse un merge que distinga lo editado de lo heredado.)
-//
-// Se compara antes de escribir a propósito. Sobrescribir en cada arranque
-// gastaría los maxBackups slots en tres aperturas, tirando justo el respaldo
-// que contiene lo que el usuario hubiera editado en producción.
-func (a *App) LoadPredefinedFunctions() (string, error) {
-	path, isDev, err := predefinedPath()
+// En dev va junto al repo (y fuera de git): experimentar con 'wails dev' no
+// debe tocar los átomos de la app que tengas instalada, y al revés.
+func storePath() (string, error) {
+	if _, isDev, err := predefinedPath(); err == nil && isDev {
+		if cwd, e := os.Getwd(); e == nil {
+			return filepath.Join(cwd, "atoms.db"), nil
+		}
+	}
+	dir, err := os.UserConfigDir()
 	if err != nil {
-		// Sin ruta escribible: al menos arrancamos con el embebido.
-		return string(defaultPredefined), nil
+		return "", fmt.Errorf("error obteniendo directorio de configuración: %w", err)
+	}
+	appDir := filepath.Join(dir, "diarsaba")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		return "", fmt.Errorf("error creando carpeta de datos: %w", err)
+	}
+	return filepath.Join(appDir, "atoms.db"), nil
+}
+
+// ensureStore abre la base la primera vez que hace falta, ya sembrada y
+// sincronizada. Perezoso y no en startup a propósito: así un fallo al abrir se
+// puede devolver al frontend como error visible en vez de reventar el arranque,
+// y las pruebas no necesitan un contexto de Wails.
+func (a *App) ensureStore() (*atomStore, error) {
+	a.storeOnce.Do(func() {
+		a.store, a.storeErr = prepareStore()
+	})
+	return a.store, a.storeErr
+}
+
+// prepareStore abre la base y la deja lista:
+//   - En dev, reimporta el JSON del repo si cambió por fuera (git pull, cambio
+//     de rama, edición a mano). Ver atomStore.syncFromFile.
+//   - Si tras eso sigue vacía (primer arranque), la siembra con el embebido.
+func prepareStore() (*atomStore, error) {
+	dbPath, err := storePath()
+	if err != nil {
+		return nil, err
+	}
+	s, err := openAtomStore(dbPath)
+	if err != nil {
+		return nil, err
 	}
 
-	// En dev el archivo del repo manda: es el que editas en vivo y el que se
-	// versiona en git. Pisarlo con el embebido borraría el trabajo en curso.
-	if isDev {
-		data, err := os.ReadFile(path)
-		if err == nil {
-			return string(data), nil
-		}
-		if !os.IsNotExist(err) {
-			return "", fmt.Errorf("error leyendo %s: %w", path, err)
-		}
-		return string(defaultPredefined), nil
+	fallo := func(err error) (*atomStore, error) {
+		s.Close()
+		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
-	switch {
-	case err == nil && bytes.Equal(data, defaultPredefined):
-		return string(data), nil // ya está al día: nada que hacer
-	case err != nil && !os.IsNotExist(err):
-		return "", fmt.Errorf("error leyendo %s: %w", path, err)
-	case err == nil:
-		// Difiere: respaldamos antes de pisar, para que lo que hubiera ahí sea
-		// recuperable desde <dir>/backups.
-		if e := backupPredefined(path); e != nil {
-			return "", fmt.Errorf("no se pudo respaldar antes de actualizar: %w", e)
+	if jsonPath, isDev, err := predefinedPath(); err == nil && isDev {
+		if _, err := s.syncFromFile(jsonPath); err != nil {
+			return fallo(fmt.Errorf("no se pudo importar %s: %w", jsonPath, err))
 		}
 	}
 
-	if e := os.WriteFile(path, defaultPredefined, 0644); e != nil {
-		// No es fatal: arrancamos igual con el embebido, solo que sin persistir.
-		fmt.Fprintf(os.Stderr, "aviso: no se pudo actualizar %s: %v\n", path, e)
+	vacia, err := s.isEmpty()
+	if err != nil {
+		return fallo(err)
 	}
-	return string(defaultPredefined), nil
+	if vacia {
+		if err := s.importJSON(defaultPredefined); err != nil {
+			return fallo(fmt.Errorf("no se pudo sembrar la base: %w", err))
+		}
+	}
+	return s, nil
+}
+
+// LoadPredefinedFunctions devuelve el JSON con el que arranca el frontend,
+// reconstruido desde la base de átomos. La firma no cambia: el frontend sigue
+// recibiendo el mapa completo y no se entera de que detrás hay una BD.
+func (a *App) LoadPredefinedFunctions() (string, error) {
+	s, err := a.ensureStore()
+	if err != nil {
+		return "", err
+	}
+	data, err := s.exportJSON()
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // SavePredefinedFunctions guarda el JSON en la ubicación resuelta (repo en dev,
@@ -174,28 +213,96 @@ func backupPredefined(targetPath string) error {
 	return nil
 }
 
+// SavePredefinedFunctions guarda el mapa completo en la base, en una sola
+// transacción y escribiendo solo los átomos que cambiaron (ver importJSON).
+//
+// En DEV, además, refresca el JSON del repo: es lo que se revisa en git, y
+// dejarlo desfasado respecto a lo que corre convertiría cada commit en una
+// sorpresa. En producción no hay repo que refrescar y la base es la verdad.
 func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
-	targetPath, _, err := predefinedPath()
+	s, err := a.ensureStore()
 	if err != nil {
 		return "", err
 	}
-
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-		return "", fmt.Errorf("error al verificar/crear carpeta: %w", err)
-	}
-
-	// Respaldar el archivo anterior en <dir>/backups, rotando: _v1 es siempre el
-	// más reciente y solo se conservan maxBackups (los más viejos se descartan).
-	if err := backupPredefined(targetPath); err != nil {
+	if err := s.importJSON([]byte(jsonData)); err != nil {
 		return "", err
 	}
 
-	if err := os.WriteFile(targetPath, []byte(jsonData), 0644); err != nil {
-		return "", fmt.Errorf("error guardando archivo: %w", err)
+	if jsonPath, isDev, err := predefinedPath(); err == nil && isDev {
+		if err := s.exportToFile(jsonPath); err != nil {
+			return "", err
+		}
+		abs, _ := filepath.Abs(jsonPath)
+		return abs, nil
 	}
 
-	absPath, _ := filepath.Abs(targetPath)
-	return absPath, nil
+	dbPath, _ := storePath()
+	abs, _ := filepath.Abs(dbPath)
+	return abs, nil
+}
+
+// SetAtom escribe UN átomo. valueJSON es el valor ya serializado a JSON.
+// Es la operación granular que justifica la BD: no reescribe el resto.
+func (a *App) SetAtom(name string, valueJSON string) error {
+	s, err := a.ensureStore()
+	if err != nil {
+		return err
+	}
+	return s.putAtom(name, json.RawMessage(valueJSON))
+}
+
+// DeleteAtom borra un átomo de la base.
+func (a *App) DeleteAtom(name string) error {
+	s, err := a.ensureStore()
+	if err != nil {
+		return err
+	}
+	return s.deleteAtom(name)
+}
+
+// ExportAtoms vuelca la base a predefined_functions.json y devuelve la ruta.
+// Es el puente con git: la BD es la verdad viva, el JSON es la versión que se
+// revisa, se commitea y viaja a otra instancia. Respalda el anterior antes de
+// pisarlo, rotando en <dir>/backups.
+//
+// Si el archivo ya tiene exactamente ese contenido no se toca. En dev el
+// guardado normal ya refresca el JSON, así que sin esta comparación cada
+// export haría un respaldo de un archivo idéntico y en tres exports habría
+// tirado los maxBackups slots — justo el respaldo que sí valía la pena.
+func (a *App) ExportAtoms() (string, error) {
+	s, err := a.ensureStore()
+	if err != nil {
+		return "", err
+	}
+	target, _, err := predefinedPath()
+	if err != nil {
+		return "", err
+	}
+	abs, _ := filepath.Abs(target)
+
+	nuevo, err := s.exportJSON()
+	if err != nil {
+		return "", err
+	}
+	if actual, err := os.ReadFile(target); err == nil && bytes.Equal(actual, nuevo) {
+		// Ya coincide: registrar el hash igual, por si se llegó aquí sin pasar
+		// por exportToFile (p. ej. un archivo puesto a mano que ya cuadraba).
+		if err := s.setFileHash(hashBytes(nuevo)); err != nil {
+			return "", err
+		}
+		return abs, nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		return "", fmt.Errorf("error al verificar/crear carpeta: %w", err)
+	}
+	if err := backupPredefined(target); err != nil {
+		return "", err
+	}
+	if err := s.exportToFile(target); err != nil {
+		return "", err
+	}
+	return abs, nil
 }
 
 /*
