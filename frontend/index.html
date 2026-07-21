@@ -10,14 +10,16 @@
     <script src="/vs/loader.js"></script>
 
     <style>
-        /* --- UI del asistente de IA --- */
+        /* --- UI del asistente de IA ---
+           Monocromo, igual que el resto: hereda las variables de
+           «todo el estilo {». Aquí no se declaran colores propios. */
         .editor-modal { position: relative; }
 
         .ai-button {
-            border: none;
+            border: 1px solid var(--graph-border);
             border-radius: 6px;
-            background: rgba(168, 85, 247, 0.22);
-            color: #f5e8ff;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--graph-text);
             padding: 6px 12px;
             font-size: 12px;
             cursor: pointer;
@@ -25,9 +27,13 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            font-family: inherit;
         }
 
-        .ai-button:hover { background: rgba(168, 85, 247, 0.38); }
+        .ai-button:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: var(--graph-border-active);
+        }
         .ai-button:disabled { opacity: 0.6; cursor: default; }
 
         .ai-prompt {
@@ -41,8 +47,8 @@
             width: min(560px, 82%);
             padding: 8px;
             border-radius: 12px;
-            background: rgba(18, 18, 22, 0.94);
-            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: var(--graph-bg-strong);
+            border: 1px solid var(--graph-border);
             box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
@@ -55,25 +61,26 @@
             outline: none;
             padding: 8px 10px;
             border-radius: 8px;
-            color: #f8fafc;
+            color: var(--graph-text);
             background: rgba(255, 255, 255, 0.06);
             font-family: inherit;
             font-size: 0.95rem;
         }
 
-        .ai-prompt-input:focus { border-color: rgba(168, 85, 247, 0.55); }
+        .ai-prompt-input:focus { border-color: rgba(255, 255, 255, 0.55); }
 
         .ai-prompt-send {
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.38);
             border-radius: 8px;
-            background: rgba(168, 85, 247, 0.4);
-            color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--graph-text);
             padding: 8px 12px;
             cursor: pointer;
             transition: background 0.2s ease;
+            font-family: inherit;
         }
 
-        .ai-prompt-send:hover { background: rgba(168, 85, 247, 0.55); }
+        .ai-prompt-send:hover { background: rgba(255, 255, 255, 0.3); }
     </style>
 
     <script type="module" >
@@ -127,17 +134,20 @@
 
         const MONACO_BASE_URL = window.location.origin;
         const MONACO_THEME_NAME = "glass-dark";
+        // Sin 'color': los iconos heredan currentColor (blanco). El lenguaje ya
+        // se distingue por su glifo y por el nombre de al lado; el color de
+        // marca era el único punto de color fuera del editor.
         const LANGUAGE_OPTIONS = [
-            { id: "html", name: "HTML", icon: "fab fa-html5", color: "#e34f26" },
-            { id: "javascript", name: "JavaScript", icon: "fab fa-js-square", color: "#f7df1e" },
-            { id: "css", name: "CSS", icon: "fab fa-css3-alt", color: "#1572b6" },
-            { id: "python", name: "Python", icon: "fab fa-python", color: "#3776ab" },
-            { id: "go", name: "Go", icon: "fab fa-golang", color: "#00add8" },
+            { id: "html", name: "HTML", icon: "fab fa-html5" },
+            { id: "javascript", name: "JavaScript", icon: "fab fa-js-square" },
+            { id: "css", name: "CSS", icon: "fab fa-css3-alt" },
+            { id: "python", name: "Python", icon: "fab fa-python" },
+            { id: "go", name: "Go", icon: "fab fa-golang" },
             // JSON es el lenguaje de los átomos ":" (· : editor ƒ lo pide por
             // nombre). Sin esta entrada Monaco sí resaltaba, pero el selector
             // no lo encontraba y mostraba "JavaScript" en la cabecera.
-            { id: "json", name: "JSON", icon: "fas fa-file-code", color: "#22c55e" },
-            { id: "plaintext", name: "Texto", icon: "fas fa-file-alt", color: "#666666" },
+            { id: "json", name: "JSON", icon: "fas fa-file-code" },
+            { id: "plaintext", name: "Texto", icon: "fas fa-file-alt" },
         ];
         const LANGUAGE_ALIAS_MAP = {
             html: "html",
@@ -247,13 +257,13 @@
                 <div class="editor-title">
                     <div class="language-selector">
                         <button class="language-button" type="button" title="Seleccionar lenguaje">
-                            <i class="${initialLanguage.icon}" style="color: ${initialLanguage.color};"></i>
+                            <i class="${initialLanguage.icon}"></i>
                             <span class="language-name">${initialLanguage.name}</span>
                         </button>
                         <div class="language-dropdown">
                             ${LANGUAGE_OPTIONS.map((language) => `
                                 <button class="dropdown-item" data-lang="${language.id}">
-                                    <i class="${language.icon}" style="color: ${language.color};"></i>
+                                    <i class="${language.icon}"></i>
                                     <span>${language.name}</span>
                                 </button>
                             `).join("")}
@@ -296,7 +306,6 @@
 
             updateLanguageButton(elements, language) {
                 elements.languageIcon.className = language.icon;
-                elements.languageIcon.style.color = language.color;
                 elements.languageName.textContent = language.name;
             }
 
