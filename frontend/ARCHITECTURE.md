@@ -74,6 +74,33 @@ Un place es un objeto `{ "atom": {x, y} }`. `current place §` indica el activo.
 Doble-tap sobre un chip `@` (`on double tap place ƒ`) carga los chips de ese place.
 `add to place ƒ` registra la posición de lo que creas en el place actual.
 
+### La clasificación
+
+Todo átomo vive en algún place temático — no hay sueltos. `diarsaba @`, que es lo primero
+que se ve, dejó de ser un cajón de sastre y es solo el **índice**: la lista `places #` y los
+chips de los places.
+
+| Place | Qué guarda |
+|---|---|
+| `arranque @` | `on start ƒ`, pintado de places, instaladores, `current place §` |
+| `interacción @` | clics, menús, despacho, estado del puntero |
+| `dibujo @` | `create chip/list/list menu ƒ`, `clamp to viewport ƒ`, modal, estilos |
+| `tipos @` | `create <tipo> ƒ` y las listas de tipos |
+| `menú @` | las opciones `· …` y sus `list option … #` |
+| `editores @` | un `· <tipo> editor ƒ` por tipo, más `open general editor ƒ` |
+| `guardado @`, `ia @`, `notas @` | persistencia, asistente, apuntes |
+| `p2p ƒ @`, `p2p ! @` | la red |
+| `ws viejo @` | la capa WebSocket + DB por celdas, anterior al p2p |
+| `develop @`, `examples @` | borradores; duplican chips a propósito |
+
+Para entrar: clic derecho en `places #` → `· # abrir`, y **un clic** en cualquier place lo
+abre — `dispatch item ƒ` trata el sigilo `@` como los demás. Ojo con un detalle al tocar esa
+rama: el texto de un ítem de lista lleva el prefijo `[n] `, así que hay que pasarle a
+`on double tap place ƒ` el nombre ya limpio y no el elemento pulsado.
+
+> El chip `places #` en el lienzo **no** abre la lista con un clic: los `#` del lienzo
+> reservan el doble clic para su editor, y el submenú directo solo aplica dentro de un menú.
+
 > ⚠️ **Los pintores DEBEN registrar `"<nombre> ֎"`.** `create chip ƒ` devuelve el div y hay
 > que guardarlo en el Map: todo lo que ancla a un chip (`· # abrir`, `· § abrir`, `· * ocultar`,
 > `· ֎* padre`) lo busca ahí. Durante un tiempo los dos pintores lo tiraban, así que los chips

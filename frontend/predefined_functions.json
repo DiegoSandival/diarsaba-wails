@@ -187,7 +187,7 @@
   "· { editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"css\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n}",
   "· ֎{ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
   "clear menus ƒ": "() => {\n    // Guard: los defaults serializados pueden ser {} (truthy sin .remove)\n    const menu = diarsaba.get(\"current menu\");\n    if (menu && typeof menu.remove === \"function\") menu.remove();\n\n    const chipMenu = diarsaba.get(\"current chip menu\");\n    if (chipMenu && typeof chipMenu.remove === \"function\") chipMenu.remove();\n\n    // Los submenús se abren en cadena, así que no hay una sola\n    // referencia que valga: se barren por su marca.\n    document.querySelectorAll(\".context-menu.submenu\").forEach((el) => el.remove());\n}",
-  "dispatch item ƒ": "(name, dataset, target) => {\n    // Un ítem de lista \"cobra vida\" según su sigilo. Devuelve true si lo\n    // manejó (y así handle click ƒ no aplica el fallback anterior).\n    const type = name.slice(-1);\n\n    // Acciones y threads: ejecutar\n    if (type === \"!\" || type === \"~\") {\n        threads(name);\n        return true;\n    }\n\n    // Listas: abrir su contenido como sublista efímera (con scroll) junto al ítem\n    if (type === \"#\") {\n        const list = diarsaba.get(name);\n        if (!Array.isArray(list)) return false;\n        const prev = diarsaba.get(`${name} # ֎`);\n        if (prev && typeof prev.remove === \"function\") prev.remove();\n        const rect = target.getBoundingClientRect();\n        const sub = diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name);\n        diarsaba.set(`${name} # ֎`, sub);\n        return true;\n    }\n\n    // Funciones: ejecutar\n    if (type === \"ƒ\") {\n        const f = diarsaba.get(name);\n        if (typeof f === \"function\") {\n            f(dataset);\n            return true;\n        }\n        return false;\n    }\n\n    return false;\n}",
+  "dispatch item ƒ": "(name, dataset, target) => {\n    // Un ítem de lista \"cobra vida\" según su sigilo. Devuelve true si lo\n    // manejó (y así handle click ƒ no aplica el fallback anterior).\n    const type = name.slice(-1);\n\n    // Acciones y threads: ejecutar\n    if (type === \"!\" || type === \"~\") {\n        threads(name);\n        return true;\n    }\n\n    // Listas: abrir su contenido como sublista efímera (con scroll) junto al ítem\n    if (type === \"#\") {\n        const list = diarsaba.get(name);\n        if (!Array.isArray(list)) return false;\n        const prev = diarsaba.get(`${name} # ֎`);\n        if (prev && typeof prev.remove === \"function\") prev.remove();\n        const rect = target.getBoundingClientRect();\n        const sub = diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name);\n        diarsaba.set(`${name} # ֎`, sub);\n        return true;\n    }\n\n    // Places: abrirlos. Es lo que hace utilizable el índice \"places #\":\n    // sin esto habría que hacer doble clic sobre el nombre, que es la\n    // regla de los chips del lienzo pero no la de un ítem de menú.\n    if (type === \"@\") {\n        const abrir = diarsaba.get(\"on double tap place ƒ\");\n        if (typeof abrir !== \"function\") return false;\n        // on double tap place ƒ lee el evento del puntero para saber QUÉ\n        // place abrir, así que se le deja el ítem pulsado como objetivo.\n        // OJO: no vale el elemento pulsado. En una lista su texto es\n        // \"[10] menú @\" —con el índice delante— y on double tap place ƒ\n        // buscaría un place con ese nombre. \"name\" ya viene limpio.\n        diarsaba.set(\"pointer up event\", { target: { textContent: name, nodeName: \"SPAN\" } });\n        diarsaba.get(\"clear menus ƒ\")();\n        abrir();\n        return true;\n    }\n\n    // Funciones: ejecutar\n    if (type === \"ƒ\") {\n        const f = diarsaba.get(name);\n        if (typeof f === \"function\") {\n            f(dataset);\n            return true;\n        }\n        return false;\n    }\n\n    return false;\n}",
   "modal input ƒ": "async (pre) => {\n    const createEl = (tag, props = {}) =>\n        Object.assign(document.createElement(tag), props);\n\n    const div = createEl(\"div\", { className: \"modal-content\" });\n    const input = createEl(\"input\", {\n        type: \"text\",\n        value: pre || \"\",\n        spellcheck: false,\n    });\n\n    const buttonContainer = createEl(\"div\", { className: \"modal-buttons\" });\n\n    [\"Cancel\", \"Continue\"].forEach((text) => {\n        const btn = createEl(\"button\", { textContent: text });\n        btn.dataset.modal = text.toLowerCase();\n        btn.onclick = () => {\n            div.remove();\n            this.nombreInputPromise?.(\n                text === \"Cancel\" ? null : input.value.trim()\n            );\n        };\n        buttonContainer.append(btn);\n    });\n\n    div.append(input, buttonContainer);\n    document.body.append(div);\n    input.focus();\n\n    return await new Promise((resolve) => (this.nombreInputPromise = resolve));\n}",
   "clamp to viewport ƒ": "(el) => {\n    // Reposiciona el elemento para que no se salga de la ventana (clamp).\n    // Se mide el tamaño natural en (0,0): si se coloca desbordando, el ancho\n    // shrink-to-fit del .context-menu se comprime y daría una medida errónea.\n    const margin = 8;\n    const vw = window.innerWidth;\n    const vh = window.innerHeight;\n\n    const desiredLeft = parseFloat(el.style.left) || 0;\n    const desiredTop = parseFloat(el.style.top) || 0;\n\n    el.style.left = \"0px\";\n    el.style.top = \"0px\";\n    const w = el.offsetWidth;\n    const h = el.offsetHeight;\n\n    let left = desiredLeft;\n    let top = desiredTop;\n\n    if (left + w > vw - margin) left = vw - margin - w;\n    if (top + h > vh - margin) top = vh - margin - h;\n    if (left < margin) left = margin;\n    if (top < margin) top = margin;\n\n    el.style.left = `${left}px`;\n    el.style.top = `${top}px`;\n}",
   "create list ƒ": "(x, y, list, parent) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    if (list.length == 0) {\n        div.innerHTML += `<span class=\"menu-item\">[0]</span>`;\n    } else {\n        for (const key in list) {\n            div.innerHTML += `<span class=\"menu-item\">[${key}] ${list[key]}</span>`;\n        }\n    }\n\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.dataset.parent = parent;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
@@ -364,45 +364,65 @@
     }
   },
   "diarsaba @": {
-    "on start ƒ": {
-      "x": 249,
-      "y": 159
+    "places #": {
+      "x": 40,
+      "y": 40
     },
-    "on start place ƒ": {
-      "x": 103,
-      "y": 130
-    },
-    "click handle ƒ": {
-      "x": 597,
-      "y": 95
-    },
-    "handle click ƒ": {
-      "x": 591,
-      "y": 159
-    },
-    "add to place ƒ": {
-      "x": 254,
-      "y": 144
-    },
-    "on double tap ƒ": {
-      "x": 235,
-      "y": 223
-    },
-    "on double tap place ƒ": {
-      "x": 224,
-      "y": 283
+    "arranque @": {
+      "x": 40,
+      "y": 120
     },
     "develop @": {
-      "x": 809,
-      "y": 43
+      "x": 300,
+      "y": 120
     },
-    "editables list #": {
-      "x": 474,
-      "y": 238
+    "dibujo @": {
+      "x": 820,
+      "y": 120
     },
-    "ai config !": {
-      "x": 20,
-      "y": 460
+    "editores @": {
+      "x": 40,
+      "y": 176
+    },
+    "examples @": {
+      "x": 300,
+      "y": 176
+    },
+    "guardado @": {
+      "x": 560,
+      "y": 176
+    },
+    "ia @": {
+      "x": 820,
+      "y": 176
+    },
+    "interacción @": {
+      "x": 40,
+      "y": 232
+    },
+    "menú @": {
+      "x": 300,
+      "y": 232
+    },
+    "notas @": {
+      "x": 560,
+      "y": 232
+    },
+    "p2p ! @": {
+      "x": 820,
+      "y": 232
+    },
+    "p2p ƒ @": {
+      "x": 40,
+      "y": 288
+    },
+    "tipos @": {
+      "x": 300,
+      "y": 288
+    },
+    "ws viejo @": {
+      "x": 560,
+      "y": 288
     }
   },
   "on start place ƒ": "() => {\n    diarsaba.set(\"current place §\", \"diarsaba @\")\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        20,\n        20,\n        \"diarsaba @\",\n        \"\",\n        \"@\"\n    );\n    diarsaba.set(\"diarsaba @ ֎\", chip);\n\n    const diarsabaplace = diarsaba.get(\"diarsaba @\")\n\n    Object.entries(diarsabaplace).forEach(([clave, valor]) => {\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            valor.x,\n            valor.y,\n            clave,\n            \"\",\n            clave.slice(-1)\n        );\n\n        // Sin esta referencia, abrir/ocultar/padre no encuentran el\n        // chip y anclan al puntero: el hijo sale desplazado.\n        diarsaba.set(`${clave} ֎`, chip);\n    });\n\n}",
@@ -552,6 +572,10 @@
     "p2p ƒ @ stream ƒ": {
       "x": 480,
       "y": 210
+    },
+    "p2p ƒ @ devolver ƒ": {
+      "x": 40,
+      "y": 90
     }
   },
   "p2p ! @": {
@@ -650,5 +674,682 @@
   "p2p ƒ @ auto responder §": "si",
   "p2p ƒ @ devolver ƒ": "(peer) => {\n    // Programa el envío de \"enviar :\" a ese peer. Es lo que mantiene vivo el\n    // ida y vuelta: cada lado contesta al otro una vez por ronda.\n    const segundos = Number(diarsaba.get(\"p2p ƒ @ devolver en $\")) || 0;\n    if (!segundos || !peer) return; // 0 = apagado\n\n    // UN SOLO temporizador por peer. Sin esto, dos mensajes seguidos\n    // programarían dos envíos, cada uno provocaría otro del otro lado, y el\n    // tráfico se doblaría en cada vuelta hasta ahogar a los dos nodos.\n    const pendientes = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n    if (pendientes[peer]) return;\n\n    pendientes[peer] = setTimeout(async () => {\n        const p = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n        delete p[peer];\n        diarsaba.set(\"p2p ƒ @ pendientes ֎\", p);\n\n        try {\n            const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n            await s.escribir(diarsaba.get(\"p2p ƒ @ enviar :\"));\n            await s.termine();\n            // El acuse del otro lado, si lo tiene puesto. Que no llegue no\n            // importa: lo que cuenta es que el mensaje salió.\n            try {\n                await s.leer();\n            } catch (_) {}\n            await s.cerrar();\n            console.log(\"[p2p ƒ] devuelto a\", peer.slice(-8));\n        } catch (e) {\n            // Si el otro lado se fue, el ida y vuelta se corta AQUÍ y no se\n            // reanuda solo: volverá a arrancar cuando alguien mande algo a\n            // mano con OpenStream !.\n            console.error(\"[p2p ƒ] no se pudo devolver a\", peer.slice(-8), e.message || e);\n        }\n    }, segundos * 1000);\n\n    diarsaba.set(\"p2p ƒ @ pendientes ֎\", pendientes);\n}",
   "p2p ƒ @ devolver en $": 60,
-  "p2p ƒ @ historial $": 50
+  "p2p ƒ @ historial $": 50,
+  "arranque @": {
+    "add to place ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "current place §": {
+      "x": 340,
+      "y": 90
+    },
+    "install mover ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "install style manager ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "moviendo chips §": {
+      "x": 340,
+      "y": 142
+    },
+    "new place ƒ": {
+      "x": 640,
+      "y": 142
+    },
+    "on double tap place ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "on start place ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "on start ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "places #": {
+      "x": 940,
+      "y": 90
+    }
+  },
+  "interacción @": {
+    "clear menus ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "dispatch item ƒ": {
+      "x": 340,
+      "y": 90
+    },
+    "eliminar elemento del dom ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "handle click !": {
+      "x": 40,
+      "y": 142
+    },
+    "handle click ƒ": {
+      "x": 340,
+      "y": 142
+    },
+    "last click on §": {
+      "x": 640,
+      "y": 142
+    },
+    "obtener index [0] ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "open submenu ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "open x $": {
+      "x": 640,
+      "y": 194
+    },
+    "open y $": {
+      "x": 40,
+      "y": 246
+    },
+    "pointer down 0 ~": {
+      "x": 340,
+      "y": 246
+    },
+    "pointer down 2 ~": {
+      "x": 640,
+      "y": 246
+    },
+    "pointer up 0 ~": {
+      "x": 40,
+      "y": 298
+    },
+    "pointer up 2 ~": {
+      "x": 340,
+      "y": 298
+    },
+    "pointer x": {
+      "x": 640,
+      "y": 298
+    },
+    "pointer y": {
+      "x": 40,
+      "y": 350
+    },
+    "show context menu !": {
+      "x": 340,
+      "y": 350
+    },
+    "show context menu ƒ": {
+      "x": 640,
+      "y": 350
+    },
+    "show options list ƒ": {
+      "x": 40,
+      "y": 402
+    }
+  },
+  "tipos @": {
+    "atom name list": {
+      "x": 40,
+      "y": 90
+    },
+    "atom name list #": {
+      "x": 340,
+      "y": 90
+    },
+    "create ! action ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "create # list ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "create $ num ƒ": {
+      "x": 340,
+      "y": 142
+    },
+    "create : map ƒ": {
+      "x": 640,
+      "y": 142
+    },
+    "create < view ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "create { style ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "create ~ thread ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "create § text ƒ": {
+      "x": 40,
+      "y": 246
+    },
+    "create ƒ func ƒ": {
+      "x": 340,
+      "y": 246
+    },
+    "editables list #": {
+      "x": 640,
+      "y": 246
+    },
+    "types list #": {
+      "x": 40,
+      "y": 298
+    }
+  },
+  "menú @": {
+    "list option ! #": {
+      "x": 40,
+      "y": 90
+    },
+    "list option # #": {
+      "x": 340,
+      "y": 90
+    },
+    "list option $ #": {
+      "x": 640,
+      "y": 90
+    },
+    "list option : #": {
+      "x": 940,
+      "y": 90
+    },
+    "list option < #": {
+      "x": 40,
+      "y": 142
+    },
+    "list option @ #": {
+      "x": 340,
+      "y": 142
+    },
+    "list option [] #": {
+      "x": 640,
+      "y": 142
+    },
+    "list option { #": {
+      "x": 940,
+      "y": 142
+    },
+    "list option ~ #": {
+      "x": 40,
+      "y": 194
+    },
+    "list option § #": {
+      "x": 340,
+      "y": 194
+    },
+    "list option ƒ #": {
+      "x": 640,
+      "y": 194
+    },
+    "list option ֎ #": {
+      "x": 940,
+      "y": 194
+    },
+    "list option ֎ $ #": {
+      "x": 40,
+      "y": 246
+    },
+    "list option ֎ : #": {
+      "x": 340,
+      "y": 246
+    },
+    "list option ֎ < #": {
+      "x": 640,
+      "y": 246
+    },
+    "list option ֎ { #": {
+      "x": 940,
+      "y": 246
+    },
+    "list option ֎ § #": {
+      "x": 40,
+      "y": 298
+    },
+    "list option ֎ ƒ #": {
+      "x": 340,
+      "y": 298
+    },
+    "· ! abrir ƒ": {
+      "x": 640,
+      "y": 298
+    },
+    "· ! action ƒ": {
+      "x": 940,
+      "y": 298
+    },
+    "· # abrir ƒ": {
+      "x": 40,
+      "y": 350
+    },
+    "· # antes ƒ": {
+      "x": 340,
+      "y": 350
+    },
+    "· # despues ƒ": {
+      "x": 640,
+      "y": 350
+    },
+    "· # eliminar ƒ": {
+      "x": 940,
+      "y": 350
+    },
+    "· #* padre ƒ": {
+      "x": 40,
+      "y": 402
+    },
+    "· #* tomar ƒ": {
+      "x": 340,
+      "y": 402
+    },
+    "· $ abrir ƒ": {
+      "x": 640,
+      "y": 402
+    },
+    "· * eliminar ƒ": {
+      "x": 940,
+      "y": 402
+    },
+    "· * ocultar ƒ": {
+      "x": 40,
+      "y": 454
+    },
+    "· * quitar ƒ": {
+      "x": 340,
+      "y": 454
+    },
+    "· * tomar §": {
+      "x": 640,
+      "y": 454
+    },
+    "· * tomar ƒ": {
+      "x": 940,
+      "y": 454
+    },
+    "· []* ocultar ƒ": {
+      "x": 40,
+      "y": 506
+    },
+    "· ~ abrir ƒ": {
+      "x": 340,
+      "y": 506
+    },
+    "· ~ action ƒ": {
+      "x": 640,
+      "y": 506
+    },
+    "· § abrir ƒ": {
+      "x": 940,
+      "y": 506
+    },
+    "· ƒ abrir ƒ": {
+      "x": 40,
+      "y": 558
+    },
+    "· ֎ editar ƒ": {
+      "x": 340,
+      "y": 558
+    },
+    "· ֎$ guardar ƒ": {
+      "x": 640,
+      "y": 558
+    },
+    "· ֎* ocultar ƒ": {
+      "x": 940,
+      "y": 558
+    },
+    "· ֎* padre ƒ": {
+      "x": 40,
+      "y": 610
+    },
+    "· ֎< guardar ƒ": {
+      "x": 340,
+      "y": 610
+    },
+    "· ֎{ guardar ƒ": {
+      "x": 640,
+      "y": 610
+    },
+    "· ֎§ guardar ƒ": {
+      "x": 940,
+      "y": 610
+    },
+    "· ֎ƒ guardar ƒ": {
+      "x": 40,
+      "y": 662
+    }
+  },
+  "guardado @": {
+    "guardar ! ƒ": {
+      "x": 40,
+      "y": 90
+    }
+  },
+  "editores @": {
+    "open general editor ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "· ! editor ƒ": {
+      "x": 340,
+      "y": 90
+    },
+    "· # editor ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "· $ editor ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "· : editor ƒ": {
+      "x": 340,
+      "y": 142
+    },
+    "· < editor ƒ": {
+      "x": 640,
+      "y": 142
+    },
+    "· @ editor ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "· { editor ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "· ~ editor ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "· § editor ƒ": {
+      "x": 40,
+      "y": 246
+    },
+    "· ƒ editor ƒ": {
+      "x": 340,
+      "y": 246
+    },
+    "· ֎ editor ƒ": {
+      "x": 640,
+      "y": 246
+    }
+  },
+  "dibujo @": {
+    "clamp to viewport ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "create chip ƒ": {
+      "x": 340,
+      "y": 90
+    },
+    "create list menu ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "create list ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "modal input ƒ": {
+      "x": 340,
+      "y": 142
+    },
+    "todo el estilo {": {
+      "x": 640,
+      "y": 142
+    }
+  },
+  "ws viejo @": {
+    "announce ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "compose and sign ƒ": {
+      "x": 340,
+      "y": 90
+    },
+    "connect !": {
+      "x": 640,
+      "y": 90
+    },
+    "connect ws ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "crea !": {
+      "x": 340,
+      "y": 142
+    },
+    "crear ƒ": {
+      "x": 640,
+      "y": 142
+    },
+    "create db ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "create key pair ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "cruzar ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "delete db ƒ": {
+      "x": 40,
+      "y": 246
+    },
+    "delete ƒ": {
+      "x": 340,
+      "y": 246
+    },
+    "derive key ƒ": {
+      "x": 640,
+      "y": 246
+    },
+    "dial ƒ": {
+      "x": 40,
+      "y": 298
+    },
+    "diferir ƒ": {
+      "x": 340,
+      "y": 298
+    },
+    "direct msg ƒ": {
+      "x": 640,
+      "y": 298
+    },
+    "disconnect ƒ": {
+      "x": 40,
+      "y": 350
+    },
+    "encode frame ƒ": {
+      "x": 340,
+      "y": 350
+    },
+    "find providers ƒ": {
+      "x": 640,
+      "y": 350
+    },
+    "generate cid ƒ": {
+      "x": 40,
+      "y": 402
+    },
+    "get public key ƒ": {
+      "x": 340,
+      "y": 402
+    },
+    "handle entry ws ƒ": {
+      "x": 640,
+      "y": 402
+    },
+    "is ticket fresh ƒ": {
+      "x": 40,
+      "y": 454
+    },
+    "peers ƒ": {
+      "x": 340,
+      "y": 454
+    },
+    "pub ƒ": {
+      "x": 640,
+      "y": 454
+    },
+    "read cell ƒ": {
+      "x": 40,
+      "y": 506
+    },
+    "read free ƒ": {
+      "x": 340,
+      "y": 506
+    },
+    "read ƒ": {
+      "x": 640,
+      "y": 506
+    },
+    "relay ƒ": {
+      "x": 40,
+      "y": 558
+    },
+    "send ws ƒ": {
+      "x": 340,
+      "y": 558
+    },
+    "sign payload ƒ": {
+      "x": 640,
+      "y": 558
+    },
+    "sub ƒ": {
+      "x": 40,
+      "y": 610
+    },
+    "unannounce ƒ": {
+      "x": 340,
+      "y": 610
+    },
+    "unsub ƒ": {
+      "x": 640,
+      "y": 610
+    },
+    "use ƒ": {
+      "x": 40,
+      "y": 662
+    },
+    "validate ticket ƒ": {
+      "x": 340,
+      "y": 662
+    },
+    "verify user ƒ": {
+      "x": 640,
+      "y": 662
+    },
+    "verify ƒ": {
+      "x": 40,
+      "y": 714
+    },
+    "write ƒ": {
+      "x": 340,
+      "y": 714
+    },
+    "ws concat ƒ": {
+      "x": 640,
+      "y": 714
+    },
+    "ws hex ƒ": {
+      "x": 40,
+      "y": 766
+    },
+    "ws opcode name ƒ": {
+      "x": 340,
+      "y": 766
+    },
+    "ws opcodes :": {
+      "x": 640,
+      "y": 766
+    },
+    "ws pending :": {
+      "x": 40,
+      "y": 818
+    },
+    "ws random bytes ƒ": {
+      "x": 340,
+      "y": 818
+    },
+    "ws short hex ƒ": {
+      "x": 640,
+      "y": 818
+    },
+    "ws state §": {
+      "x": 40,
+      "y": 870
+    },
+    "ws text bytes ƒ": {
+      "x": 340,
+      "y": 870
+    },
+    "ws u16 ƒ": {
+      "x": 640,
+      "y": 870
+    },
+    "ws u32 ƒ": {
+      "x": 40,
+      "y": 922
+    }
+  },
+  "notas @": {
+    "TODO #": {
+      "x": 40,
+      "y": 90
+    },
+    "TODO §": {
+      "x": 340,
+      "y": 90
+    },
+    "nuevo ejemplo §": {
+      "x": 640,
+      "y": 90
+    }
+  },
+  "ia @": {
+    "ai config !": {
+      "x": 40,
+      "y": 90
+    },
+    "ai config ƒ": {
+      "x": 340,
+      "y": 90
+    }
+  },
+  "places #": [
+    "arranque @",
+    "develop @",
+    "diarsaba @",
+    "dibujo @",
+    "editores @",
+    "examples @",
+    "guardado @",
+    "ia @",
+    "interacción @",
+    "menú @",
+    "notas @",
+    "p2p ! @",
+    "p2p ƒ @",
+    "tipos @",
+    "ws viejo @"
+  ]
 }
