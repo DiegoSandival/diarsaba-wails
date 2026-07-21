@@ -192,8 +192,22 @@ reventar: así el place entiende también a un peer que hable texto plano.
 
 **Streams entrantes.** `StreamHandle ƒ` se registra desde `on start ƒ` — al abrir la app ya
 se escucha. Cada stream se lee hasta el final y se apila en `Streams #` como
-`{id, peer, data}`, **dejándolo abierto** para contestarlo con `Reply !`. Detalles que
-importan:
+`{id, peer, data}`. Qué pasa luego lo decide **`p2p ƒ @ auto responder §`**:
+
+- **Con valor (por defecto)**: se acusa recibo con `{ok, recibido}` y se cierra. Es lo que
+  permite dejar la app sola en otra máquina, que es el caso normal al probar entre casa y
+  trabajo. La entrada queda marcada `contestada: true` y se dibuja con un `✓`.
+- **Vacío**: el stream se queda **abierto** para contestarlo a mano con `Reply !`. Quien
+  envía esperará hasta que alguien conteste ahí.
+
+> ⚠️ No se puede tener las dos: un stream acusado ya está cerrado. Con el acuse apagado y
+> nadie delante, quien envía agota su plazo de lectura — antes eso salía como
+> `OpenStream ✗ lectura fallida: deadline exceeded` y parecía que el envío había fallado,
+> cuando el mensaje sí había llegado. Ahora `OpenStream ƒ` trata "no contestó" como
+> información, no como error, y dice dónde mirar. `Reply !` sobre una entrada ya acusada
+> avisa en vez de fallar con un "stream desconocido".
+
+Detalles que importan:
 
 - Los objetos llevan un `toString()` propio: sin él, `create list ƒ` interpola y la lista
   dibujaría `[object Object]`. Con él se ve `s2 ← 3ftfsSDa: {...}` y el objeto conserva sus
