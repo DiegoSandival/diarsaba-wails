@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AIChat(arg1:string):Promise<string>;
 
+export function AtomHistory(arg1:string):Promise<string>;
+
 export function DeleteAtom(arg1:string):Promise<void>;
 
 export function ExportAtoms():Promise<string>;
@@ -47,6 +49,8 @@ export function P2PStreamCloseWrite(arg1:string):Promise<void>;
 export function P2PStreamRead(arg1:string,arg2:number,arg3:number):Promise<main.P2PChunk>;
 
 export function P2PStreamWrite(arg1:string,arg2:string):Promise<void>;
+
+export function RestoreAtomVersion(arg1:string,arg2:number):Promise<void>;
 
 export function SavePredefinedFunctions(arg1:string):Promise<string>;
 

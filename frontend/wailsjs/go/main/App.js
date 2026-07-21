@@ -6,6 +6,10 @@ export function AIChat(arg1) {
   return window['go']['main']['App']['AIChat'](arg1);
 }
 
+export function AtomHistory(arg1) {
+  return window['go']['main']['App']['AtomHistory'](arg1);
+}
+
 export function DeleteAtom(arg1) {
   return window['go']['main']['App']['DeleteAtom'](arg1);
 }
@@ -92,6 +96,10 @@ export function P2PStreamRead(arg1, arg2, arg3) {
 
 export function P2PStreamWrite(arg1, arg2) {
   return window['go']['main']['App']['P2PStreamWrite'](arg1, arg2);
+}
+
+export function RestoreAtomVersion(arg1, arg2) {
+  return window['go']['main']['App']['RestoreAtomVersion'](arg1, arg2);
 }
 
 export function SavePredefinedFunctions(arg1) {

@@ -260,6 +260,40 @@ func (a *App) DeleteAtom(name string) error {
 	return s.deleteAtom(name)
 }
 
+// AtomHistory devuelve el JSON de las versiones anteriores de un átomo, de la
+// más reciente a la más antigua: [{"seq":N,"value":...}, ...]. Es la red de
+// seguridad del autosave — con esto se puede recuperar lo que había antes de
+// que al cerrar el editor se persistiera algo roto.
+func (a *App) AtomHistory(name string) (string, error) {
+	s, err := a.ensureStore()
+	if err != nil {
+		return "", err
+	}
+	versiones, err := s.history(name)
+	if err != nil {
+		return "", err
+	}
+	if versiones == nil {
+		versiones = []atomVersion{}
+	}
+	out, err := json.Marshal(versiones)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+// RestoreAtomVersion devuelve un átomo al valor de una de sus versiones
+// históricas (por su seq). El valor actual se versiona antes, así que
+// restaurar también se puede deshacer.
+func (a *App) RestoreAtomVersion(name string, seq uint64) error {
+	s, err := a.ensureStore()
+	if err != nil {
+		return err
+	}
+	return s.restoreVersion(name, seq)
+}
+
 // ExportAtoms vuelca la base a predefined_functions.json y devuelve la ruta.
 // Es el puente con git: la BD es la verdad viva, el JSON es la versión que se
 // revisa, se commitea y viaja a otra instancia. Respalda el anterior antes de

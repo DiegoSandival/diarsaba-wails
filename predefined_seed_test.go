@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -379,6 +380,136 @@ func TestRoundTripDelProgramaReal(t *testing.T) {
 				t.Errorf("apareció un átomo que no estaba: %q", k)
 			}
 		}
+	}
+}
+
+// TestHistorialVersionaAlSobrescribir: cada edición guarda la versión anterior,
+// de la más reciente a la más antigua. Es la red de seguridad del autosave.
+func TestHistorialVersionaAlSobrescribir(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+
+	if err := app.SetAtom("f ƒ", `"v1"`); err != nil {
+		t.Fatalf("SetAtom v1: %v", err)
+	}
+	if err := app.SetAtom("f ƒ", `"v2"`); err != nil {
+		t.Fatalf("SetAtom v2: %v", err)
+	}
+	if err := app.SetAtom("f ƒ", `"v3"`); err != nil {
+		t.Fatalf("SetAtom v3: %v", err)
+	}
+
+	raw, err := app.AtomHistory("f ƒ")
+	if err != nil {
+		t.Fatalf("AtomHistory: %v", err)
+	}
+	var vs []struct {
+		Seq   uint64          `json:"seq"`
+		Value json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal([]byte(raw), &vs); err != nil {
+		t.Fatalf("historial no parsea: %v", err)
+	}
+	// Dos versiones anteriores (v1 y v2); v3 es el valor actual, no historial.
+	if len(vs) != 2 {
+		t.Fatalf("esperaba 2 versiones, hay %d", len(vs))
+	}
+	if string(vs[0].Value) != `"v2"` || string(vs[1].Value) != `"v1"` {
+		t.Errorf("orden/valores inesperados: %s, %s", vs[0].Value, vs[1].Value)
+	}
+}
+
+// TestHistorialNoVersionaSiNoCambia: reguardar el mismo valor no debe llenar el
+// historial de copias idénticas.
+func TestHistorialNoVersionaSiNoCambia(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+
+	for i := 0; i < 3; i++ {
+		if err := app.SetAtom("f ƒ", `"igual"`); err != nil {
+			t.Fatalf("SetAtom: %v", err)
+		}
+	}
+	raw, _ := app.AtomHistory("f ƒ")
+	if raw != "[]" {
+		t.Errorf("versionó cambios inexistentes: %s", raw)
+	}
+}
+
+// TestHistorialSeRecorta: no crece sin límite.
+func TestHistorialSeRecorta(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+
+	total := maxHistoryPerAtom + 10
+	for i := 0; i <= total; i++ {
+		if err := app.SetAtom("f ƒ", fmt.Sprintf(`"v%d"`, i)); err != nil {
+			t.Fatalf("SetAtom: %v", err)
+		}
+	}
+	raw, _ := app.AtomHistory("f ƒ")
+	var vs []atomVersion
+	json.Unmarshal([]byte(raw), &vs)
+	if len(vs) != maxHistoryPerAtom {
+		t.Errorf("historial no recortado: %d versiones", len(vs))
+	}
+	// La más reciente del historial debe ser el penúltimo valor escrito.
+	if string(vs[0].Value) != fmt.Sprintf(`"v%d"`, total-1) {
+		t.Errorf("la cima del historial no es la esperada: %s", vs[0].Value)
+	}
+}
+
+// TestRestaurarVersion: recuperar una versión anterior, y que restaurar sea a su
+// vez reversible (el valor que se pisa queda en el historial).
+func TestRestaurarVersion(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+
+	app.SetAtom("f ƒ", `"bueno"`)
+	app.SetAtom("f ƒ", `"roto"`)
+
+	raw, _ := app.AtomHistory("f ƒ")
+	var vs []atomVersion
+	json.Unmarshal([]byte(raw), &vs)
+	if len(vs) != 1 || string(vs[0].Value) != `"bueno"` {
+		t.Fatalf("historial inesperado: %s", raw)
+	}
+
+	if err := app.RestoreAtomVersion("f ƒ", vs[0].Seq); err != nil {
+		t.Fatalf("RestoreAtomVersion: %v", err)
+	}
+	m := atomos(t, mustLoad(t, app))
+	if m["f ƒ"] != "bueno" {
+		t.Errorf("no restauró: %v", m["f ƒ"])
+	}
+	// "roto" (lo que estaba al restaurar) debe haber quedado en el historial.
+	raw2, _ := app.AtomHistory("f ƒ")
+	var vs2 []atomVersion
+	json.Unmarshal([]byte(raw2), &vs2)
+	if string(vs2[0].Value) != `"roto"` {
+		t.Errorf("restaurar no versionó el valor pisado: %s", raw2)
+	}
+}
+
+// TestBorrarVersiona: un borrado también se puede deshacer.
+func TestBorrarVersiona(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+
+	app.SetAtom("f ƒ", `"existo"`)
+	if err := app.DeleteAtom("f ƒ"); err != nil {
+		t.Fatalf("DeleteAtom: %v", err)
+	}
+	raw, _ := app.AtomHistory("f ƒ")
+	var vs []atomVersion
+	json.Unmarshal([]byte(raw), &vs)
+	if len(vs) != 1 || string(vs[0].Value) != `"existo"` {
+		t.Errorf("el borrado no dejó rastro recuperable: %s", raw)
 	}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -36,12 +37,23 @@ var (
 	bucketAtoms = []byte("atoms")
 	bucketMeta  = []byte("meta")
 
+	// bucketHistory guarda versiones anteriores de cada átomo. Dentro hay un
+	// sub-bucket por nombre de átomo, y en él las versiones antiguas indexadas
+	// por una secuencia creciente. Es la red de seguridad del autosave: si al
+	// cerrar el editor se persistió algo roto, aquí está lo de antes.
+	bucketHistory = []byte("history")
+
 	// metaFileHash guarda el hash del JSON del repo tal como se leyó o escribió
 	// por última vez. Es lo que permite detectar que el archivo cambió POR FUERA
 	// (un git pull, un checkout de rama, una edición a mano) y reimportarlo sin
 	// que tengas que acordarte de hacerlo.
 	metaFileHash = []byte("file_hash")
 )
+
+// maxHistoryPerAtom es cuántas versiones anteriores se conservan por átomo. El
+// autosave dispara al cerrar cada editor, así que unas pocas decenas cubren una
+// sesión de trabajo sin dejar crecer la base sin límite.
+const maxHistoryPerAtom = 25
 
 func hashBytes(b []byte) string {
 	sum := sha256.Sum256(b)
@@ -59,7 +71,7 @@ func openAtomStore(path string) (*atomStore, error) {
 		return nil, fmt.Errorf("no se pudo abrir la base de átomos (%s): %w", path, err)
 	}
 	err = db.Update(func(tx *bolt.Tx) error {
-		for _, name := range [][]byte{bucketAtoms, bucketMeta} {
+		for _, name := range [][]byte{bucketAtoms, bucketMeta, bucketHistory} {
 			if _, err := tx.CreateBucketIfNotExists(name); err != nil {
 				return err
 			}
@@ -175,8 +187,58 @@ func (s *atomStore) exportJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// putAtom escribe UN átomo. Es la operación que justifica todo el cambio:
-// guardar un átomo ya no reescribe el programa entero.
+// recordHistory guarda el valor ANTERIOR de un átomo antes de sobrescribirlo o
+// borrarlo. Se conservan las últimas maxHistoryPerAtom versiones por átomo; las
+// más viejas se descartan. Si no había valor previo no hay nada que versionar.
+//
+// La clave dentro del sub-bucket es la secuencia (creciente) en 8 bytes
+// big-endian, así que el cursor las recorre de la más vieja a la más nueva y
+// recortar es borrar desde el principio.
+func recordHistory(tx *bolt.Tx, name string, old []byte) error {
+	if old == nil {
+		return nil
+	}
+	sub, err := tx.Bucket(bucketHistory).CreateBucketIfNotExists([]byte(name))
+	if err != nil {
+		return err
+	}
+	seq, err := sub.NextSequence()
+	if err != nil {
+		return err
+	}
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, seq)
+	// El valor viene de la memoria mmap del bucket de átomos; hay que copiarlo
+	// antes de guardarlo en otro bucket dentro de la misma transacción.
+	cp := append([]byte(nil), old...)
+	if err := sub.Put(key, cp); err != nil {
+		return err
+	}
+
+	// Recortar por umbral de secuencia: las seq son crecientes y nunca se
+	// reutilizan, así que quedarse con las últimas maxHistoryPerAtom es borrar
+	// todo lo que tenga seq <= seq_actual - maxHistoryPerAtom. (No se usa
+	// Stats().KeyN: no cuenta lo recién puesto dentro de esta transacción.)
+	if seq <= maxHistoryPerAtom {
+		return nil
+	}
+	cutoff := make([]byte, 8)
+	binary.BigEndian.PutUint64(cutoff, seq-maxHistoryPerAtom)
+	c := sub.Cursor()
+	var viejas [][]byte
+	for k, _ := c.First(); k != nil && bytes.Compare(k, cutoff) <= 0; k, _ = c.Next() {
+		viejas = append(viejas, append([]byte(nil), k...))
+	}
+	for _, k := range viejas {
+		if err := sub.Delete(k); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// putAtom escribe UN átomo, versionando antes el valor anterior. Es la
+// operación del autosave: guardar un átomo ya no reescribe el programa entero.
 func (s *atomStore) putAtom(name string, value json.RawMessage) error {
 	if name == "" {
 		return errors.New("el nombre del átomo no puede estar vacío")
@@ -185,14 +247,83 @@ func (s *atomStore) putAtom(name string, value json.RawMessage) error {
 		return fmt.Errorf("el valor de %q no es JSON válido", name)
 	}
 	return s.db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(bucketAtoms).Put([]byte(name), value)
+		b := tx.Bucket(bucketAtoms)
+		old := b.Get([]byte(name))
+		if bytes.Equal(old, value) {
+			return nil // sin cambios: ni se versiona ni se reescribe
+		}
+		if err := recordHistory(tx, name, old); err != nil {
+			return err
+		}
+		return b.Put([]byte(name), value)
 	})
 }
 
-// deleteAtom borra un átomo. Borrar algo que no existe no es un error.
+// deleteAtom borra un átomo, versionando antes su valor por si el borrado hay
+// que deshacerlo. Borrar algo que no existe no es un error.
 func (s *atomStore) deleteAtom(name string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(bucketAtoms).Delete([]byte(name))
+		b := tx.Bucket(bucketAtoms)
+		old := b.Get([]byte(name))
+		if old == nil {
+			return nil
+		}
+		if err := recordHistory(tx, name, old); err != nil {
+			return err
+		}
+		return b.Delete([]byte(name))
+	})
+}
+
+// atomVersion es una versión histórica de un átomo, tal como la ve el frontend.
+type atomVersion struct {
+	Seq   uint64          `json:"seq"`
+	Value json.RawMessage `json:"value"`
+}
+
+// history devuelve las versiones anteriores de un átomo, de la más reciente a
+// la más antigua. Lista vacía si no hay historial.
+func (s *atomStore) history(name string) ([]atomVersion, error) {
+	var out []atomVersion
+	err := s.db.View(func(tx *bolt.Tx) error {
+		sub := tx.Bucket(bucketHistory).Bucket([]byte(name))
+		if sub == nil {
+			return nil
+		}
+		c := sub.Cursor()
+		// De la más nueva a la más vieja: recorrido inverso.
+		for k, v := c.Last(); k != nil; k, v = c.Prev() {
+			out = append(out, atomVersion{
+				Seq:   binary.BigEndian.Uint64(k),
+				Value: append(json.RawMessage(nil), v...),
+			})
+		}
+		return nil
+	})
+	return out, err
+}
+
+// restoreVersion vuelve a poner un átomo en el valor de una versión histórica.
+// El valor actual se versiona antes, así que restaurar es en sí reversible.
+func (s *atomStore) restoreVersion(name string, seq uint64) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		sub := tx.Bucket(bucketHistory).Bucket([]byte(name))
+		if sub == nil {
+			return fmt.Errorf("%q no tiene historial", name)
+		}
+		key := make([]byte, 8)
+		binary.BigEndian.PutUint64(key, seq)
+		valor := sub.Get(key)
+		if valor == nil {
+			return fmt.Errorf("la versión %d de %q ya no existe", seq, name)
+		}
+		restaurado := append([]byte(nil), valor...)
+
+		b := tx.Bucket(bucketAtoms)
+		if err := recordHistory(tx, name, b.Get([]byte(name))); err != nil {
+			return err
+		}
+		return b.Put([]byte(name), restaurado)
 	})
 }
 
