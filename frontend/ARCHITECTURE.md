@@ -207,6 +207,30 @@ se escucha. Cada stream se lee hasta el final y se apila en `Streams #` como
 > información, no como error, y dice dónde mirar. `Reply !` sobre una entrada ya acusada
 > avisa en vez de fallar con un "stream desconocido".
 
+### Ida y vuelta automático
+
+`p2p ƒ @ devolver en $` (segundos, 0 lo apaga) hace que al recibir algo se le devuelva a ese
+peer el contenido de **`enviar :`** pasado ese rato. Los dos lados se contestan, así que el
+flujo se mantiene solo: **editas `enviar :` y en la siguiente vuelta lo tiene el otro**, sin
+pulsar nada. La pelota es siempre ese átomo.
+
+Dos cosas que lo sostienen:
+
+- **Un solo temporizador por peer** (`p2p ƒ @ pendientes ֎`). Sin eso, dos mensajes seguidos
+  programarían dos envíos, cada uno provocaría otro del otro lado, y el tráfico se doblaría
+  en cada vuelta hasta ahogar a los dos nodos.
+- **Deduplicación por peer.** Llega un mensaje por ronda, casi siempre idéntico al anterior;
+  si se apilaran todos, `Streams #` sería una pared de repeticiones. Un repetido solo
+  actualiza su hora y su cuenta (`×3`). El historial se recorta a `p2p ƒ @ historial $` (50).
+
+Si el otro lado se cae, la cadena se corta ahí y **no se reanuda sola**: vuelve a arrancar
+con un `OpenStream !` manual.
+
+> Al probar con `wails dev` hay **dos frontends** contra el mismo backend Go —la ventana de
+> Wails y el navegador en `localhost:34115`—, y ambos reciben `p2p:stream`. Compiten por leer
+> el mismo stream: uno lo lee y el otro se encuentra el `id` ya cerrado. Es un artefacto del
+> montaje de pruebas (en el `.exe` hay un solo frontend), pero desconcierta si no se sabe.
+
 Detalles que importan:
 
 - Los objetos llevan un `toString()` propio: sin él, `create list ƒ` interpola y la lista
