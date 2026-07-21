@@ -84,13 +84,21 @@
     </style>
 
     <script type="module" >
-        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig, LoadPredefinedFunctions, ExportAtoms } from './wailsjs/go/main/App';
+        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig, LoadPredefinedFunctions, ExportAtoms, SetAtom, DeleteAtom, AtomHistory, RestoreAtomVersion } from './wailsjs/go/main/App';
         window.SavePredefinedFunctions = SavePredefinedFunctions;
         window.AIChat = AIChat;
         window.GetAIConfig = GetAIConfig;
         window.SetAIConfig = SetAIConfig;
         window.LoadPredefinedFunctions = LoadPredefinedFunctions;
         window.ExportAtoms = ExportAtoms;
+        // Autosave granular + historial (ver "persistir atomo ƒ" y "· * restaurar
+        // ƒ"). AtomHistory/RestoreAtomVersion quedan en window a propósito: son la
+        // vía de recuperación por consola cuando un autosave roto deja la UI sin
+        // responder y ya no se puede usar ningún átomo.
+        window.SetAtom = SetAtom;
+        window.DeleteAtom = DeleteAtom;
+        window.AtomHistory = AtomHistory;
+        window.RestoreAtomVersion = RestoreAtomVersion;
 
         // Puente hacia p2plite (ver p2p.go). Va agrupado en window.p2p en vez de
         // sueltas: son 18 y todas del mismo tema. Los ƒ del place "p2p @" son
