@@ -53,9 +53,32 @@ Tres formas de "quitar" un chip (menú contextual), de menos a más destructiva:
 - `· * quitar` — quita del place actual y del DOM; **el átomo permanece** en `diarsaba`.
 - `· * eliminar` — **definitivo**: borra el átomo de `diarsaba`, sus refs y de *todos* los places.
 
-Listas "vivas": al hacer click en un ítem de una lista abierta, `dispatch item ƒ` lo despacha
-por su sigilo — `!`/`~` ejecutan (`threads`), `#` abre esa lista como sublista, `ƒ` corre la
-función. Los `.context-menu` tienen `max-height` + scroll, así que sirven como widget de lista
+### La regla del sigilo: de qué lado está
+
+En un **menú o lista**, dónde cae el sigilo decide qué pasa al pulsar:
+
+- **A la derecha** (`diarsaba @`, `guardar !`, `places #`) el ítem **nombra un átomo**, y
+  `dispatch item ƒ` lo despacha por su tipo: `!`/`~` ejecutan (`threads`), `@` abre el place,
+  `ƒ` corre la función, `#` se abre — como sublista si venías de una lista, como **submenú**
+  si venías de un menú, para que un menú siga siendo un menú.
+- **A la izquierda** (`ƒ func`, `@ place`) el ítem **no nombra nada**: pide *crear* un átomo de
+  ese tipo.
+
+Esa distinción ya estaba en los datos —ninguno de los ítems con sigilo a la izquierda existe
+como átomo, y los de la derecha sí—, así que el código solo la aplica. Gracias a eso puedes
+meter en `atom name list #` cualquier átomo y funcionará solo: un place te lleva allí, una
+acción se ejecuta, una lista se despliega.
+
+> Antes `guardar !`, `reload !` y `mover !` eran casos especiales cableados en
+> `handle click ƒ` comparando el texto. Ahora son átomos de verdad (`guardar !` =
+> `["guardar ! ƒ"]`) y los cubre la regla. Solo queda especial `@ place`, que crea con
+> `new place ƒ` en vez de con el `create <tipo> ƒ` genérico.
+
+⚠️ Todo esto vale **dentro de un menú o lista**. En el **lienzo** un chip no se ejecuta al
+pulsarlo: un clic no hace nada y el doble clic abre su editor (o cambia de place, si es `@`).
+Son dos contextos con reglas distintas a propósito.
+
+Los `.context-menu` tienen `max-height` + scroll, así que sirven como widget de lista
 reutilizable. Al crearse, `clamp to viewport ƒ` los reposiciona para que no se salgan de la
 ventana (mide el tamaño natural en 0,0 porque el `.context-menu` es shrink-to-fit).
 
@@ -96,9 +119,6 @@ Para entrar: clic derecho en `places #` → `· # abrir`, y **un clic** en cualq
 abre — `dispatch item ƒ` trata el sigilo `@` como los demás. Ojo con un detalle al tocar esa
 rama: el texto de un ítem de lista lleva el prefijo `[n] `, así que hay que pasarle a
 `on double tap place ƒ` el nombre ya limpio y no el elemento pulsado.
-
-> El chip `places #` en el lienzo **no** abre la lista con un clic: los `#` del lienzo
-> reservan el doble clic para su editor, y el submenú directo solo aplica dentro de un menú.
 
 > ⚠️ **Los pintores DEBEN registrar `"<nombre> ֎"`.** `create chip ƒ` devuelve el div y hay
 > que guardarlo en el Map: todo lo que ancla a un chip (`· # abrir`, `· § abrir`, `· * ocultar`,
