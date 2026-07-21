@@ -90,7 +90,6 @@ chips de los places.
 | `editores @` | un `· <tipo> editor ƒ` por tipo, más `open general editor ƒ` |
 | `guardado @`, `ia @`, `notas @` | persistencia, asistente, apuntes |
 | `p2p ƒ @`, `p2p ! @` | la red |
-| `ws viejo @` | la capa WebSocket + DB por celdas, anterior al p2p |
 | `develop @`, `examples @` | borradores; duplican chips a propósito |
 
 Para entrar: clic derecho en `places #` → `· # abrir`, y **un clic** en cualquier place lo
@@ -113,26 +112,37 @@ rama: el texto de un ítem de lista lleva el prefijo `[n] `, así que hay que pa
 
 ### Mover chips
 
-Botón `✥` (abajo a la derecha, `install mover ƒ`) que activa un **modo**: mientras está
-encendido, arrastrar mueve el chip y guarda su nueva posición en el place actual. Es un modo y
-no un arrastre siempre-activo para no pelearse con el clic, que abre y edita.
+**`mover !`** en el menú principal activa un **modo**: mientras está encendido, arrastrar mueve
+el chip y guarda su nueva posición en el place actual. Es un modo y no un arrastre
+siempre-activo para no pelearse con el clic, que abre y edita. `install mover ƒ` registra los
+listeners una vez (marca `mover instalado ֎`).
+
+Estuvo como botón flotante `✥` y se movió al menú, que es donde se buscan las acciones —
+y de paso dejó de haber un elemento en el `body` que reinstalar en cada cambio de place.
+
+> ⚠️ Ese cambio destapó un encierro: `handle click ƒ` y `show context menu ƒ` empezaban con
+> `if (moviendo chips §) return;`, así que con el modo activo **no se abría el menú ni se podía
+> pulsar el propio interruptor** — la única salida era recargar. El botón flotante no lo sufría
+> porque vivía fuera de `handle click ƒ`. Ahora la guarda de `handle click ƒ` solo tapa los
+> clics **sobre chips**, que son los que compiten con el arrastre, y `show context menu ƒ` no
+> tiene guarda: el clic derecho no arrastra nada y es el camino de vuelta.
+
+El arrastre responde **solo al botón primario** (`e.button !== 0` sale): si no, el clic derecho
+sobre un chip empezaría a moverlo en vez de abrir su menú.
 
 El clic se corta por partida doble, a propósito: los listeners van en **fase de captura** sobre
 `window` (llegan antes que los de `on start ƒ`, que están en burbuja, y hacen `stopPropagation`),
-y además `handle click ƒ` y `show context menu ƒ` empiezan con una guarda explícita. Lo segundo
-es porque lo primero depende de un detalle sutil del orden de eventos que se rompería en
-silencio si algún día reescribes `on start ƒ`.
+y además está la guarda explícita. Lo segundo es porque lo primero depende de un detalle sutil
+del orden de eventos que se rompería en silencio si algún día reescribes `on start ƒ`.
 
-El botón vive en el `body`, así que `replaceChildren()` lo borra al cambiar de place: por eso
-`on double tap place ƒ` lo reinstala. `install mover ƒ` es idempotente en sus dos mitades (el
-botón se recrea; los listeners de `window` solo se registran una vez, marcado con
-`mover instalado ֎`).
+Sin botón a la vista, la señal de que el modo está activo es un borde en el lienzo
+(`body.moviendo-chips::after`) más el cursor `grab` sobre los chips.
 
 ## Capa WebSocket / p2p (backend Go)
 
-Protocolo binario hacia un backend Go: `ws opcodes :` (mapa de opcodes),
-`encode frame ƒ` / `decode frame ƒ`, y funciones como `create db ƒ`, `write ƒ`, `read ƒ`,
-`relay ƒ`, `dial ƒ`, `sub/pub ƒ`, firma de llaves, etc. (libp2p + una capa de DB por celdas).
+**Borrada** (2026-07). Fue un protocolo binario hacia un backend Go —`ws opcodes :`, framing,
+firma de llaves y una DB por celdas— que el p2p reemplazó por completo. Vivía agrupada en el
+place `ws viejo @`; se fue entera con sus 49 átomos.
 
 ## Red P2P — p2plite (añadida 2026-07)
 
