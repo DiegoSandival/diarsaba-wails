@@ -10,21 +10,12 @@
   "ID !": [
     "p2p ƒ @ ID ƒ"
   ],
-  "OpenStream !": [
-    "p2p ƒ @ OpenStream ƒ",
-    "p2p ƒ @ peer §",
-    "p2p ƒ @ enviar :"
-  ],
-  "Reply !": [
-    "p2p ƒ @ Reply ƒ",
-    "p2p ƒ @ responder id §",
-    "p2p ƒ @ responder :"
-  ],
   "StopAnnounce !": [
     "p2p ƒ @ StopAnnounce ƒ",
     "p2p ƒ @ anunciar §"
   ],
-  "Streams #": [],
+  "Streams data #": [],
+  "Streams info #": [],
   "TODO #": [],
   "TODO §": "ARREGLAR EL EDIT\r\n\r\nARREGLAR EL DELETE\r\n\r\nHACER LAS LISTAS\r\n\r\nLISTAS DINAMICAS\r\n\r\n\r\n\r\n",
   "add to place ƒ": "(name) => {\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        // unicamente si es un place\n\n        if (name.slice(-1) == \"@\") {\n            diarsaba.set(\"current place §\", name)\n        }else{\n            alert(\"todos los movimientos que hagas no seran registrados\")\n        }\n\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n        // Autosave: el place cambió (un chip nuevo con su posición).\n        diarsaba.get(\"persistir atomo ƒ\")(current_place_name);\n    }\n}",
@@ -126,8 +117,8 @@
   "create : map ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, {});\n}",
   "create < view ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
   "create chip ƒ": "(x, y, text, parent = \"\", type = \"\") => {\n    const div = document.createElement(\"div\");\n    div.classList = \"object-name\";\n    div.textContent = text;\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.spellcheck = false;\n    div.dataset.parent = parent;\n    div.dataset.type = type;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
-  "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n    for (const key of list) {\n        div.innerHTML += `<span class=\"menu-item\">${key}</span>`;\n    }\n    // Sin x/y explícitos, donde está el puntero: el menú principal se abre así.\n    div.style.left = `${x === null ? diarsaba.get(\"pointer x\") : x}px`;\n    div.style.top = `${y === null ? diarsaba.get(\"pointer y\") : y}px`;\n\n    div.dataset.parent = parent;\n    div.dataset.current = current;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
-  "create list ƒ": "(x, y, list, parent) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    if (list.length == 0) {\n        div.innerHTML += `<span class=\"menu-item\">[0]</span>`;\n    } else {\n        for (const key in list) {\n            div.innerHTML += `<span class=\"menu-item\">[${key}] ${list[key]}</span>`;\n        }\n    }\n\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.dataset.parent = parent;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
+  "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    // Un elemento que no es string (p. ej. el payload de \"Streams data #\")\n    // se muestra como JSON en vez de \"[object Object]\"; y se escapan & < >\n    // para que un dato de un peer no inyecte HTML en el menú. Los strings\n    // normales se ven igual que siempre.\n    const render = (v) => {\n        const t = typeof v === \"string\" ? v : (() => { try { return JSON.stringify(v); } catch (_) { return String(v); } })();\n        return t.replace(/[&<>]/g, (c) => ({ \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\" }[c]));\n    };\n\n    for (const key of list) {\n        div.innerHTML += `<span class=\"menu-item\">${render(key)}</span>`;\n    }\n    // Sin x/y explícitos, donde está el puntero: el menú principal se abre así.\n    div.style.left = `${x === null ? diarsaba.get(\"pointer x\") : x}px`;\n    div.style.top = `${y === null ? diarsaba.get(\"pointer y\") : y}px`;\n\n    div.dataset.parent = parent;\n    div.dataset.current = current;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
+  "create list ƒ": "(x, y, list, parent) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    // Un elemento que no es string (p. ej. el payload de \"Streams data #\")\n    // se muestra como JSON en vez de \"[object Object]\"; y se escapan & < >\n    // para que un dato de un peer no inyecte HTML en el menú. Los strings\n    // normales se ven igual que siempre.\n    const render = (v) => {\n        const t = typeof v === \"string\" ? v : (() => { try { return JSON.stringify(v); } catch (_) { return String(v); } })();\n        return t.replace(/[&<>]/g, (c) => ({ \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\" }[c]));\n    };\n\n    if (list.length == 0) {\n        div.innerHTML += `<span class=\"menu-item\">[0]</span>`;\n    } else {\n        for (const key in list) {\n            div.innerHTML += `<span class=\"menu-item\">[${key}] ${render(list[key])}</span>`;\n        }\n    }\n\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.dataset.parent = parent;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
   "create { style ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
   "create ~ thread ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
   "create § text ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
@@ -263,6 +254,10 @@
       "y": 142
     }
   },
+  "difundir !": [
+    "p2p ƒ @ difundir ƒ",
+    "p2p ƒ @ enviar :"
+  ],
   "dispatch item ƒ": "(name, dataset, target) => {\n    // Un ítem de lista \"cobra vida\" según su sigilo. Devuelve true si lo\n    // manejó (y así handle click ƒ no aplica el fallback anterior).\n    const type = name.slice(-1);\n\n    // Acciones y threads: ejecutar\n    if (type === \"!\" || type === \"~\") {\n        threads(name);\n        return true;\n    }\n\n    // Listas: abrir su contenido como sublista efímera (con scroll) junto al ítem\n    if (type === \"#\") {\n        const list = diarsaba.get(name);\n        if (!Array.isArray(list)) return false;\n        const prev = diarsaba.get(`${name} # ֎`);\n        if (prev && typeof prev.remove === \"function\") prev.remove();\n        const rect = target.getBoundingClientRect();\n        const sub = diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name);\n        diarsaba.set(`${name} # ֎`, sub);\n        return true;\n    }\n\n    // Places: abrirlos. Es lo que hace utilizable el índice \"places #\":\n    // sin esto habría que hacer doble clic sobre el nombre, que es la\n    // regla de los chips del lienzo pero no la de un ítem de menú.\n    if (type === \"@\") {\n        const abrir = diarsaba.get(\"on double tap place ƒ\");\n        if (typeof abrir !== \"function\") return false;\n        // on double tap place ƒ lee el evento del puntero para saber QUÉ\n        // place abrir, así que se le deja el ítem pulsado como objetivo.\n        // OJO: no vale el elemento pulsado. En una lista su texto es\n        // \"[10] menú @\" —con el índice delante— y on double tap place ƒ\n        // buscaría un place con ese nombre. \"name\" ya viene limpio.\n        diarsaba.set(\"pointer up event\", { target: { textContent: name, nodeName: \"SPAN\" } });\n        diarsaba.get(\"clear menus ƒ\")();\n        abrir();\n        return true;\n    }\n\n    // Funciones: ejecutar\n    if (type === \"ƒ\") {\n        const f = diarsaba.get(name);\n        if (typeof f === \"function\") {\n            f(dataset);\n            return true;\n        }\n        return false;\n    }\n\n    return false;\n}",
   "editables list #": [
     "~",
@@ -328,6 +323,11 @@
     }
   },
   "eliminar elemento del dom ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎`).remove();\n}",
+  "enviar !": [
+    "p2p ƒ @ enviar a ƒ",
+    "p2p ƒ @ peer §",
+    "p2p ƒ @ enviar :"
+  ],
   "examples @": {
     "TODO §": {
       "x": 180,
@@ -375,7 +375,7 @@
   "guardar !": [
     "guardar ! ƒ"
   ],
-  "guardar ! ƒ": "async () => {\n    // No persistir refs DOM (claves terminadas en ֎) ni objetos vivos de\n    // runtime: se regeneran solos y solo ensucian el archivo (y provocan\n    // entradas {} que rompen código que espera un elemento).\n    const skipKeys = new Set([\n        \"ws socket\",\n        \"Streams #\",\n        \"current menu\",\n        \"current chip menu\",\n        \"pointer up event\",\n        \"pointer down event\",\n        \"pointer move event\"\n    ]);\n\n    const dataToSave = {};\n    for (const [key, value] of diarsaba.entries()) {\n        if (key.endsWith(\"֎\") || skipKeys.has(key)) continue;\n\n        if (key.endsWith(\"ƒ\")) {\n            dataToSave[key] = String(value).replace(/\\r\\n/g, \"\\n\").trim();\n        } else {\n            dataToSave[key] = value;\n        }\n    }\n    const jsonString = JSON.stringify(dataToSave, null, 2);\n\n    try {\n        const savedPath = await SavePredefinedFunctions(jsonString);\n        console.log(\"Archivo guardado exitosamente en:\", savedPath);\n    } catch (error) {\n        console.error(\"Error al guardar el archivo:\", error);\n    }\n}",
+  "guardar ! ƒ": "async () => {\n    // No persistir refs DOM (claves terminadas en ֎) ni objetos vivos de\n    // runtime: se regeneran solos y solo ensucian el archivo (y provocan\n    // entradas {} que rompen código que espera un elemento).\n    const skipKeys = new Set([\n        \"ws socket\",\n        \"Streams info #\",\n        \"Streams data #\",\n        \"current menu\",\n        \"current chip menu\",\n        \"pointer up event\",\n        \"pointer down event\",\n        \"pointer move event\"\n    ]);\n\n    const dataToSave = {};\n    for (const [key, value] of diarsaba.entries()) {\n        if (key.endsWith(\"֎\") || skipKeys.has(key)) continue;\n\n        if (key.endsWith(\"ƒ\")) {\n            dataToSave[key] = String(value).replace(/\\r\\n/g, \"\\n\").trim();\n        } else {\n            dataToSave[key] = value;\n        }\n    }\n    const jsonString = JSON.stringify(dataToSave, null, 2);\n\n    try {\n        const savedPath = await SavePredefinedFunctions(jsonString);\n        console.log(\"Archivo guardado exitosamente en:\", savedPath);\n    } catch (error) {\n        console.error(\"Error al guardar el archivo:\", error);\n    }\n}",
   "handle click !": [
     "handle click ƒ"
   ],
@@ -845,61 +845,49 @@
       "x": 80,
       "y": 270
     },
-    "OpenStream !": {
+    "enviar !": {
       "x": 80,
       "y": 330
     },
-    "Reply !": {
+    "difundir !": {
       "x": 80,
       "y": 390
     },
-    "Streams #": {
+    "Streams info #": {
       "x": 400,
       "y": 90
     },
-    "p2p ƒ @ dice §": {
+    "Streams data #": {
       "x": 400,
       "y": 150
     },
-    "p2p ƒ @ peer §": {
+    "p2p ƒ @ dice §": {
       "x": 400,
       "y": 210
     },
-    "p2p ƒ @ anunciar §": {
+    "p2p ƒ @ peer §": {
       "x": 400,
       "y": 270
     },
-    "p2p ƒ @ buscar §": {
+    "p2p ƒ @ anunciar §": {
       "x": 400,
       "y": 330
     },
-    "p2p ƒ @ responder id §": {
+    "p2p ƒ @ buscar §": {
       "x": 400,
-      "y": 510
+      "y": 390
+    },
+    "p2p ƒ @ enviar :": {
+      "x": 400,
+      "y": 450
     },
     "p2p ƒ @ providers #": {
       "x": 700,
       "y": 90
     },
-    "p2p ƒ @ enviar :": {
-      "x": 400,
-      "y": 390
-    },
-    "p2p ƒ @ responder :": {
-      "x": 400,
-      "y": 450
-    },
-    "p2p ƒ @ auto responder §": {
-      "x": 400,
-      "y": 570
-    },
-    "p2p ƒ @ devolver en $": {
-      "x": 700,
-      "y": 170
-    },
     "p2p ƒ @ historial $": {
       "x": 700,
-      "y": 240
+      "y": 170
     }
   },
   "p2p ƒ @": {
@@ -919,17 +907,9 @@
       "x": 80,
       "y": 270
     },
-    "p2p ƒ @ OpenStream ƒ": {
-      "x": 80,
-      "y": 330
-    },
     "p2p ƒ @ StreamHandle ƒ": {
       "x": 80,
-      "y": 390
-    },
-    "p2p ƒ @ Reply ƒ": {
-      "x": 80,
-      "y": 450
+      "y": 330
     },
     "p2p ƒ @ arg ƒ": {
       "x": 480,
@@ -943,39 +923,45 @@
       "x": 480,
       "y": 210
     },
-    "p2p ƒ @ devolver ƒ": {
-      "x": 40,
-      "y": 90
+    "p2p ƒ @ abrir o reusar ƒ": {
+      "x": 480,
+      "y": 270
+    },
+    "p2p ƒ @ enviar a ƒ": {
+      "x": 480,
+      "y": 330
+    },
+    "p2p ƒ @ difundir ƒ": {
+      "x": 480,
+      "y": 390
+    },
+    "p2p ƒ @ recibir ƒ": {
+      "x": 480,
+      "y": 450
     }
   },
   "p2p ƒ @ Announce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"Announce ✗\", \"sin clave: pásale un § con el valor a anunciar\");\n        // Anunciar sin escuchar no sirve: te encontrarían y no contestarías.\n        // StreamHandle ya corre desde el arranque, así que solo se comprueba.\n        await window.p2p.Announce(k);\n        return dice(\"Announce\", `anunciado \"${k}\" — sirviendo mientras la app siga abierta`);\n    } catch (e) {\n        return dice(\"Announce ✗\", e);\n    }\n}",
   "p2p ƒ @ FindProviders ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"FindProviders ✗\", \"sin clave que buscar\");\n        // No hay límite de resultados: lo que acota es el plazo.\n        const hallados = await window.p2p.FindProviders(k, 30000);\n        diarsaba.set(\"p2p ƒ @ providers #\", hallados.map((p) => p.id));\n        if (hallados.length) diarsaba.set(\"p2p ƒ @ peer §\", hallados[0].id);\n        // Cero proveedores no es un fallo: es que nadie lo tiene.\n        return dice(`FindProviders \"${k}\"`, hallados.length ? hallados.map((p) => p.id) : \"nadie lo tiene\");\n    } catch (e) {\n        return dice(\"FindProviders ✗\", e);\n    }\n}",
   "p2p ƒ @ ID ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        return dice(\"ID\", await window.p2p.ID());\n    } catch (e) {\n        return dice(\"ID ✗\", e);\n    }\n}",
-  "p2p ƒ @ OpenStream ƒ": "async (peer, datos) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    let s = null;\n    try {\n        // Sin peer explícito se usa el último que dejó FindProviders.\n        const p = arg(peer) || diarsaba.get(\"p2p ƒ @ peer §\");\n        if (!p) return dice(\"OpenStream ✗\", \"sin peer: corre FindProviders antes, o pásale uno\");\n\n        // La carga por defecto es un mapa \":\": editable con · : editor ƒ (Monaco\n        // en modo json, que valida al guardar).\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(datos);\n        s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(p, 30000), p);\n\n        await s.escribir(carga === undefined ? null : carga);\n        await s.termine(); // le decimos que terminamos: ahora puede contestar\n\n        // Que no conteste NO es un fallo: el mensaje ya está entregado. Pasa\n        // siempre que el otro lado tenga la respuesta automática apagada y no\n        // haya nadie para pulsar Reply !. Antes esto salía como error y parecía\n        // que el envío no había funcionado.\n        let respuesta;\n        let hubo = true;\n        try {\n            respuesta = await s.leer();\n        } catch (e) {\n            hubo = false;\n        }\n        await s.cerrar();\n\n        if (!hubo) {\n            return dice(\"OpenStream\", {\n                a: p.slice(-8),\n                envié: carga,\n                nota: \"entregado, pero no contestó. Si esperabas respuesta, mira «p2p ƒ @ auto responder §» en el OTRO nodo: vacío = alguien tiene que pulsar Reply ! allí.\",\n            });\n        }\n\n        diarsaba.set(\"p2p ƒ @ respuesta\", respuesta);\n        return dice(\"OpenStream\", { a: p.slice(-8), envié: carga, contestó: respuesta });\n    } catch (e) {\n        if (s) {\n            try {\n                await s.cerrar();\n            } catch (_) {}\n        }\n        return dice(\"OpenStream ✗\", e);\n    }\n}",
-  "p2p ƒ @ Reply ƒ": "async (id, datos) => {\n    // Contesta un stream de \"Streams #\" y lo cierra. El id puede venir como\n    // string, como nombre de un átomo, o como la entrada entera (si le pasas\n    // el objeto de la lista).\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        let sid = arg(id);\n        if (sid && typeof sid === \"object\" && sid.id) sid = sid.id;\n        // Sin id: se contesta el más reciente, que es lo que se querrá el 90%.\n        if (!sid) {\n            const pendientes = diarsaba.get(\"Streams #\") || [];\n            if (!pendientes.length) return dice(\"Reply ✗\", \"no hay streams entrantes que contestar\");\n            sid = pendientes[0].id;\n        }\n\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ responder :\") : arg(datos);\n        // Un stream ya acusado está cerrado en Go: contestar ahí falla\n        // con un \"stream desconocido\" que no explica nada.\n        const entrada = (diarsaba.get(\"Streams #\") || []).find((e) => e.id === sid);\n        if (entrada && entrada.contestada) {\n            return dice(\"Reply ✗\", `${sid} ya se contestó sola (auto responder está activo).\\n\\nPara contestar a mano, vacía \"p2p ƒ @ auto responder §\" y pide que te lo manden otra vez.`);\n        }\n\n        const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(sid, \"\");\n        await s.escribir(carga === undefined ? null : carga);\n        await s.cerrar();\n\n        // Fuera de la lista: ya está contestado y cerrado.\n        diarsaba.set(\"Streams #\", (diarsaba.get(\"Streams #\") || []).filter((e) => e.id !== sid));\n        return dice(\"Reply\", `contestado ${sid}`);\n    } catch (e) {\n        return dice(\"Reply ✗\", e);\n    }\n}",
   "p2p ƒ @ StopAnnounce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"StopAnnounce ✗\", \"sin clave que parar\");\n        await window.p2p.StopAnnounce(k);\n        // No existe el borrado: el registro sigue en la red hasta que caduca.\n        return dice(\"StopAnnounce\", `dejado de publicar \"${k}\" (la red lo olvidará al caducar)`);\n    } catch (e) {\n        return dice(\"StopAnnounce ✗\", e);\n    }\n}",
-  "p2p ƒ @ StreamHandle ƒ": "async () => {\n    // Deja la app lista para RECIBIR. La llama \"on start ƒ\", así que no hace\n    // falta tocarla: al abrir la app ya se escucha.\n    //\n    // Lo entrante se apila en \"Streams #\". Qué pasa después lo deciden dos\n    // átomos:\n    //   - \"p2p ƒ @ auto responder §\": con valor, se acusa recibo y se cierra\n    //     (permite dejar la app sola); vacío, el stream queda abierto para\n    //     Reply !.\n    //   - \"p2p ƒ @ devolver en $\": segundos tras los cuales se le manda a ese\n    //     peer el contenido de \"enviar :\". 0 lo apaga.\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        // Idempotente: suscribirse dos veces duplicaría cada entrada.\n        if (diarsaba.get(\"p2p ƒ @ escuchando ֎\")) return \"ya escuchaba\";\n\n        diarsaba.set(\n            \"p2p ƒ @ escuchando ֎\",\n            window.EventsOn(\"p2p:stream\", async (ev) => {\n                try {\n                    const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(ev.stream, ev.from);\n                    // Se lee hasta el final ANTES de decidir: así \"data\" ya\n                    // trae el mensaje, se conteste o no.\n                    const data = await s.leer();\n                    const auto = diarsaba.get(\"p2p ƒ @ auto responder §\");\n                    const hora = new Date().toLocaleTimeString();\n\n                    // Con el ida y vuelta puesto llega un mensaje por ronda,\n                    // casi siempre idéntico al anterior. Si se apilaran todos,\n                    // \"Streams #\" sería una pared de repeticiones donde no se\n                    // ve lo que de verdad cambió. Un repetido solo actualiza su\n                    // hora y su cuenta.\n                    const previas = diarsaba.get(\"Streams #\") || [];\n                    const ultima = previas.find((e) => e.peer === ev.from);\n                    const repetido =\n                        ultima && JSON.stringify(ultima.data) === JSON.stringify(data);\n\n                    if (repetido) {\n                        ultima.hora = hora;\n                        ultima.veces = (ultima.veces || 1) + 1;\n                        ultima.id = ev.stream;\n                        ultima.contestada = !!auto;\n                        diarsaba.set(\"Streams #\", [...previas]);\n                    } else {\n                        const tope = Number(diarsaba.get(\"p2p ƒ @ historial $\")) || 50;\n                        const entrada = {\n                            id: ev.stream,\n                            peer: ev.from,\n                            data,\n                            hora,\n                            veces: 1,\n                            // Con acuse automático el stream ya está cerrado,\n                            // así que Reply ! no puede usarlo: queda marcada.\n                            contestada: !!auto,\n                            // Sin esto la lista dibuja \"[object Object]\":\n                            // create list ƒ interpola el elemento.\n                            toString() {\n                                const d =\n                                    typeof this.data === \"string\" ? this.data : JSON.stringify(this.data);\n                                const n = this.veces > 1 ? ` ×${this.veces}` : \"\";\n                                return `${this.contestada ? \"✓\" : this.id} ${this.hora} ← ${this.peer.slice(-8)}${n}: ${d}`;\n                            },\n                        };\n                        diarsaba.set(\"Streams #\", [entrada, ...previas].slice(0, tope));\n                    }\n\n                    if (auto) {\n                        // El acuse devuelve lo recibido: confirma la entrega y\n                        // de paso que el viaje de ida no deformó nada.\n                        await s.escribir({ ok: true, recibido: data });\n                        await s.cerrar();\n                    }\n\n                    // Y se programa la vuelta, que es lo que mantiene el flujo.\n                    diarsaba.get(\"p2p ƒ @ devolver ƒ\")(ev.from);\n\n                    console.log(\n                        \"[p2p ƒ] entrante de\",\n                        ev.from.slice(-8),\n                        repetido ? \"(repetido)\" : data,\n                        auto ? \"(acusado)\" : \"(abierto)\"\n                    );\n                } catch (e) {\n                    console.error(\"[p2p ƒ] entrante falló\", e);\n                }\n            })\n        );\n\n        await window.p2p.Start();\n        return dice(\"StreamHandle\", \"escuchando: lo entrante aparece en «Streams #»\");\n    } catch (e) {\n        // Sin alert: esto corre al arrancar y un modal dejaría la app\n        // inservible. El fallo queda en la consola y en \"p2p ƒ @ dice §\".\n        diarsaba.set(\"p2p ƒ @ dice §\", `StreamHandle ✗\\n${e.message || e}`);\n        console.error(\"[p2p ƒ] no se pudo escuchar:\", e);\n        return e;\n    }\n}",
+  "p2p ƒ @ StreamHandle ƒ": "async () => {\n    // Deja la app lista para RECIBIR. La llama \"on start ƒ\", así que no hace\n    // falta tocarla: al abrir la app ya se escucha.\n    //\n    // Modelo persistente: cada peer abre UN stream y por él manda muchos\n    // mensajes enmarcados por \"\\n\". Aquí se registra ese stream en \"conns ֎\" y\n    // se arranca su lector continuo; cada mensaje completo va a \"recibir ƒ\".\n    // Con N peers hay N streams, cada uno con su lector y su buffer, en paralelo.\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        // Idempotente: suscribirse dos veces duplicaría cada entrada.\n        if (diarsaba.get(\"p2p ƒ @ escuchando ֎\")) return \"ya escuchaba\";\n\n        diarsaba.set(\n            \"p2p ƒ @ escuchando ֎\",\n            window.EventsOn(\"p2p:stream\", (ev) => {\n                try {\n                    let conns = diarsaba.get(\"p2p ƒ @ conns ֎\");\n                    if (!conns) { conns = new Map(); diarsaba.set(\"p2p ƒ @ conns ֎\", conns); }\n                    const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(ev.stream, ev.from);\n                    // (Glare: si ya había un stream con ese peer —porque yo se lo\n                    // abrí—, este entrante lo reemplaza. Poco frecuente; se\n                    // resolvería con una convención de quién abre.)\n                    conns.set(ev.from, s);\n                    // Fire-and-forget: escuchar es un bucle que vive hasta el EOF.\n                    s.escuchar((msg) => diarsaba.get(\"p2p ƒ @ recibir ƒ\")(ev.from, msg));\n                } catch (e) {\n                    console.error(\"[p2p ƒ] no se pudo registrar el stream entrante\", e);\n                }\n            })\n        );\n\n        await window.p2p.Start();\n        return dice(\"StreamHandle\", \"escuchando: lo entrante aparece en «Streams info #» / «Streams data #»\");\n    } catch (e) {\n        // Sin alert: esto corre al arrancar y un modal dejaría la app\n        // inservible. El fallo queda en la consola y en \"p2p ƒ @ dice §\".\n        diarsaba.set(\"p2p ƒ @ dice §\", `StreamHandle ✗\\n${e.message || e}`);\n        console.error(\"[p2p ƒ] no se pudo escuchar:\", e);\n        return e;\n    }\n}",
+  "p2p ƒ @ abrir o reusar ƒ": "async (peer) => {\n    // Devuelve el stream persistente hacia ese peer, abriéndolo solo si no\n    // había. El stream es bidireccional: lo que YO abro también lo escucho, así\n    // que por el mismo canal puedo recibir sus mensajes.\n    let conns = diarsaba.get(\"p2p ƒ @ conns ֎\");\n    if (!conns) { conns = new Map(); diarsaba.set(\"p2p ƒ @ conns ֎\", conns); }\n    if (conns.has(peer)) return conns.get(peer);\n\n    const id = await window.p2p.OpenStream(peer, 30000);\n    const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(id, peer);\n    conns.set(peer, s);\n    s.escuchar((msg) => diarsaba.get(\"p2p ƒ @ recibir ƒ\")(peer, msg));\n    return s;\n}",
   "p2p ƒ @ anunciar §": "hola",
   "p2p ƒ @ arg ƒ": "(v) => {\n    // Un ejecutor ! pasa los elementos del arreglo COMO STRINGS: threads hace\n    // a.apply(null, s.slice(1)), así que llega el NOMBRE del átomo, no su\n    // valor. Por eso cada ƒ resuelve aquí: si el string nombra un átomo, se\n    // usa su contenido; si no, se toma tal cual como literal.\n    //\n    // Es lo que permite [\"... Announce ƒ\", \"valor para anunciar §\"] sin que la\n    // ƒ tenga que saber de dónde viene el dato.\n    if (typeof v !== \"string\") return v;\n    return diarsaba.has(v) ? diarsaba.get(v) : v;\n}",
-  "p2p ƒ @ auto responder §": "si",
   "p2p ƒ @ buscar §": "hola",
-  "p2p ƒ @ devolver en $": 60,
-  "p2p ƒ @ devolver ƒ": "(peer) => {\n    // Programa el envío de \"enviar :\" a ese peer. Es lo que mantiene vivo el\n    // ida y vuelta: cada lado contesta al otro una vez por ronda.\n    const segundos = Number(diarsaba.get(\"p2p ƒ @ devolver en $\")) || 0;\n    if (!segundos || !peer) return; // 0 = apagado\n\n    // UN SOLO temporizador por peer. Sin esto, dos mensajes seguidos\n    // programarían dos envíos, cada uno provocaría otro del otro lado, y el\n    // tráfico se doblaría en cada vuelta hasta ahogar a los dos nodos.\n    const pendientes = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n    if (pendientes[peer]) return;\n\n    pendientes[peer] = setTimeout(async () => {\n        const p = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n        delete p[peer];\n        diarsaba.set(\"p2p ƒ @ pendientes ֎\", p);\n\n        try {\n            const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n            await s.escribir(diarsaba.get(\"p2p ƒ @ enviar :\"));\n            await s.termine();\n            // El acuse del otro lado, si lo tiene puesto. Que no llegue no\n            // importa: lo que cuenta es que el mensaje salió.\n            try {\n                await s.leer();\n            } catch (_) {}\n            await s.cerrar();\n            console.log(\"[p2p ƒ] devuelto a\", peer.slice(-8));\n        } catch (e) {\n            // Si el otro lado se fue, el ida y vuelta se corta AQUÍ y no se\n            // reanuda solo: volverá a arrancar cuando alguien mande algo a\n            // mano con OpenStream !.\n            console.error(\"[p2p ƒ] no se pudo devolver a\", peer.slice(-8), e.message || e);\n        }\n    }, segundos * 1000);\n\n    diarsaba.set(\"p2p ƒ @ pendientes ֎\", pendientes);\n}",
   "p2p ƒ @ dice §": "",
   "p2p ƒ @ dice ƒ": "(etiqueta, valor) => {\n    // Deja el resultado a la vista: un ! disparado con un clic no tiene dónde\n    // devolver. Los fallos además se gritan.\n    const plano = valor instanceof Error ? valor.message : valor;\n    diarsaba.set(\"p2p ƒ @ dice §\", `${etiqueta}\\n${typeof plano === \"string\" ? plano : JSON.stringify(plano, null, 2)}`);\n    console.log(`[p2p ƒ] ${etiqueta}`, valor);\n    if (String(etiqueta).endsWith(\"✗\")) alert(`${etiqueta}\\n${plano}`);\n    return valor;\n}",
+  "p2p ƒ @ difundir ƒ": "async (valor) => {\n    // Manda a TODOS los peers conectados por sus streams persistentes. arg ƒ\n    // resuelve el nombre del átomo (un ! pasa \"p2p ƒ @ enviar :\" como string).\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    const conns = diarsaba.get(\"p2p ƒ @ conns ֎\");\n    if (!conns || conns.size === 0) return dice(\"difundir\", \"no hay peers conectados\");\n    const carga = valor === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(valor);\n    let ok = 0;\n    for (const s of conns.values()) {\n        try { await s.escribir(carga === undefined ? null : carga); ok++; } catch (_) {}\n    }\n    return dice(\"difundir\", { a: `${ok} peers`, envié: carga });\n}",
   "p2p ƒ @ enviar :": {
     "orden": "saludar",
     "de": "diarsaba"
   },
+  "p2p ƒ @ enviar a ƒ": "async (peer, valor) => {\n    // Manda UN objeto a un peer por su stream persistente (lo reusa; no cierra).\n    // arg ƒ resuelve nombres de átomo: un ! pasa \"p2p ƒ @ peer §\" como string,\n    // así que aquí se convierte en su valor. Sin peer explícito, el último de\n    // \"p2p ƒ @ peer §\".\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const p = arg(peer) || diarsaba.get(\"p2p ƒ @ peer §\");\n        if (!p) return dice(\"enviar ✗\", \"sin peer: corre FindProviders antes, o pásale uno\");\n        const carga = valor === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(valor);\n        const s = await diarsaba.get(\"p2p ƒ @ abrir o reusar ƒ\")(p);\n        await s.escribir(carga === undefined ? null : carga);\n        return dice(\"enviar\", { a: p.slice(-8), envié: carga });\n    } catch (e) {\n        return dice(\"enviar ✗\", e);\n    }\n}",
   "p2p ƒ @ historial $": 50,
   "p2p ƒ @ peer §": "",
   "p2p ƒ @ providers #": [],
-  "p2p ƒ @ responder :": {
-    "ok": true,
-    "resultado": "recibido"
-  },
-  "p2p ƒ @ responder id §": "",
-  "p2p ƒ @ stream ƒ": "(id, peer) => {\n    // Un Stream vive en Go; aquí llega su identificador. Esto lo envuelve.\n    //\n    // Por el cable va JSON. Se eligió sobre msgpack por dos razones, y ninguna\n    // es el tamaño: (1) un átomo de carga JSON es un mapa \":\", que en diarsaba\n    // tiene tipo y por tanto editor —msgpack obligaba a un átomo sin sigilo,\n    // que no se puede abrir ni despachar—; y (2) cualquier peer puede hablarlo,\n    // incluida la CLI de p2plite. window.msgpack sigue disponible para cuando\n    // haga falta binario de verdad.\n    //\n    // El base64 de abajo NO es el formato: es el salto Go↔JS, que es JSON por\n    // definición de los bindings de Wails y codifica []byte en base64.\n    const aB64 = (texto) => {\n        const bytes = new TextEncoder().encode(texto);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b64) =>\n        new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        peer: peer || \"\",\n        escribir: async (valor) => {\n            // Un string se manda tal cual: así se puede hablar con un peer que\n            // espera texto plano sin envolverlo en comillas JSON.\n            const texto = typeof valor === \"string\" ? valor : JSON.stringify(valor);\n            return await window.p2p.StreamWrite(id, aB64(texto));\n        },\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            let texto = \"\";\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) texto += deB64(c.data);\n                if (c.eof) break;\n            }\n            if (texto === \"\") return null;\n            // Si no es JSON se devuelve el texto tal cual en vez de reventar:\n            // así el place entiende a la CLI de p2plite y a cualquier peer que\n            // mande texto plano.\n            try {\n                return JSON.parse(texto);\n            } catch (_) {\n                return texto;\n            }\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
+  "p2p ƒ @ recibir ƒ": "(peer, msg) => {\n    // Corre por CADA mensaje entrante, en cuanto llega. Dos cosas:\n    //   1. Traza para el ojo: el log rodante info/data (últimos \"historial $\").\n    //      \"Streams data #\"[0] es siempre el último dato, crudo y fácil de tomar.\n    //   2. Despacho: si el mensaje trae una \"orden\", se ejecuta el átomo que la\n    //      maneja (\"al recibir <orden> ƒ\") — así se ACTÚA al llegar, sin\n    //      depender de alcanzar a leer el log antes de que se recorte.\n    const hora = new Date().toLocaleTimeString();\n    const tope = Number(diarsaba.get(\"p2p ƒ @ historial $\")) || 50;\n    diarsaba.set(\"Streams info #\", [`${hora} ← ${peer.slice(-8)}`, ...(diarsaba.get(\"Streams info #\") || [])].slice(0, tope));\n    diarsaba.set(\"Streams data #\", [msg, ...(diarsaba.get(\"Streams data #\") || [])].slice(0, tope));\n\n    if (msg && typeof msg === \"object\" && msg.orden) {\n        const handler = diarsaba.get(`al recibir ${msg.orden} ƒ`);\n        if (handler) {\n            try { handler(msg, peer); }\n            catch (e) { console.error(\"[p2p ƒ] al recibir\", msg.orden, e); }\n        }\n    }\n    console.log(\"[p2p ƒ] ←\", peer.slice(-8), msg);\n}",
+  "p2p ƒ @ stream ƒ": "(id, peer) => {\n    // Un Stream vive en Go; aquí llega su identificador. Esto lo envuelve para\n    // un stream PERSISTENTE con framing por \"\\n\": se abre una vez por peer y por\n    // él van muchos mensajes, cada uno terminado en salto de línea.\n    //\n    // El base64 de abajo NO es el formato: es el salto Go↔JS, que es JSON por\n    // definición de los bindings de Wails y codifica []byte en base64.\n    const aB64 = (t) => { const b = new TextEncoder().encode(t); let s = \"\"; for (const x of b) s += String.fromCharCode(x); return btoa(s); };\n    const deB64 = (b) => new TextDecoder().decode(Uint8Array.from(atob(b), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        peer: peer || \"\",\n\n        // Cada mensaje termina en \"\\n\". JSON.stringify nunca emite un salto de\n        // línea crudo (los escapa como \\n, dos caracteres), así que el\n        // delimitador jamás choca con el contenido. Un string se manda tal cual\n        // (+ \\n) para poder hablar con un peer que espera texto plano.\n        escribir: async (valor) => {\n            const texto = typeof valor === \"string\" ? valor : JSON.stringify(valor);\n            return await window.p2p.StreamWrite(id, aB64(texto + \"\\n\"));\n        },\n\n        // Bucle continuo: acumula bytes, corta por \"\\n\" y despacha cada línea.\n        // Lo que quede a medias se guarda en buf para la próxima lectura. Corre\n        // hasta que el peer cierra (EOF) o se cae la conexión.\n        escuchar: async (onMensaje) => {\n            let buf = \"\";\n            try {\n                for (;;) {\n                    const c = await window.p2p.StreamRead(id, 0, 0);\n                    if (c.data) {\n                        buf += deB64(c.data);\n                        let i;\n                        while ((i = buf.indexOf(\"\\n\")) >= 0) {\n                            const linea = buf.slice(0, i);\n                            buf = buf.slice(i + 1);\n                            if (linea === \"\") continue;\n                            let msg;\n                            try { msg = JSON.parse(linea); } catch (_) { msg = linea; }\n                            onMensaje(msg);\n                        }\n                    }\n                    if (c.eof) break;\n                }\n            } catch (e) {\n                console.error(\"[p2p ƒ] lector de\", (peer || \"\").slice(-8), \"cayó:\", e.message || e);\n            } finally {\n                // Al caerse, saca este peer del registro para que un envío\n                // futuro reabra en vez de escribir en un stream muerto.\n                const conns = diarsaba.get(\"p2p ƒ @ conns ֎\");\n                if (conns && conns.get(peer) && conns.get(peer).id === id) conns.delete(peer);\n            }\n        },\n\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
   "persistir atomo ƒ": "async (name) => {\n    // Autosave granular: persiste UN átomo en la base (bbolt) al terminar de\n    // editarlo en Monaco. NO pasa por \"guardar !\" (que vuelca el mapa entero)\n    // ni toca el JSON del repo — exportar a git sigue siendo manual (\"exportar\n    // !\"). Cada guardado versiona el valor anterior; para deshacer, \"· *\n    // restaurar\" o, desde consola, window.AtomHistory / RestoreAtomVersion.\n    if (typeof window.SetAtom !== \"function\") return; // frontend suelto: no-op\n    if (typeof name !== \"string\" || name.endsWith(\"֎\")) return; // refs DOM no\n\n    const value = diarsaba.get(name);\n    // Mismo criterio que \"guardar ! ƒ\": una ƒ se persiste como su código fuente.\n    const serial = name.endsWith(\"ƒ\")\n        ? String(value).replace(/\\r\\n/g, \"\\n\").trim()\n        : value;\n\n    try {\n        await window.SetAtom(name, JSON.stringify(serial));\n    } catch (e) {\n        // El autosave no debe romper la edición: si falla, se avisa y ya.\n        console.error(`autosave de \"${name}\" falló:`, e);\n    }\n}",
   "places #": [
     "arranque @",
