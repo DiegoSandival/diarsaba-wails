@@ -1,17 +1,95 @@
 {
-  "on start ƒ": "() => {\n    // instalar manejador de estilos desde predefined_functions.json\n    const installer = diarsaba.get(\"install style manager ƒ\");\n    if (installer) try { installer(); } catch (e) { console.error('install style manager failed', e); }\n\n    window.addEventListener(\"contextmenu\", (e) => {\n        e.preventDefault();\n    });\n    window.addEventListener(\"pointerup\", (e) => {\n        diarsaba.set(\"pointer up event\", e);\n        threads(`pointer up ${e.button} ~`);\n    });\n    window.addEventListener(\"wheel\", (e) => {\n        //diarsaba.set(\"wheel event\", e)\n        //threads(`wheel ~`)\n    });\n    window.addEventListener(\"pointerdown\", (e) => {\n        diarsaba.set(\"pointer down event\", e);\n        threads(`pointer down ${e.button} ~`);\n    });\n    window.addEventListener(\"pointermove\", (e) => {\n        diarsaba.set(\"pointer move event\", e);\n        diarsaba.set(\"pointer x\", e.clientX);\n        diarsaba.set(\"pointer y\", e.clientY);\n        //threads(`pointer move ~`)\n    });\n\n    window.addEventListener(\"keydown\", (e) => {\n        // if is input no prevent default\n        if (\n            e.target.tagName === \"INPUT\" ||\n            e.target.tagName === \"TEXTAREA\" ||\n            e.target.isContentEditable\n        ) {\n        } else {\n            //e.preventDefault()\n        }\n\n        //threads(`key down ~`)\n        //threads(`key down ${e.key} ~`)\n    });\n\n    diarsaba.get(\"on start place ƒ\")()\n\n    diarsaba.get(\"install mover ƒ\")();\n\n    // Escuchar streams entrantes desde el arranque: si el handler se\n    // registrara más tarde, un stream podría llegar antes que él.\n    const p2pEscuchar = diarsaba.get(\"p2p ƒ @ StreamHandle ƒ\");\n    if (p2pEscuchar) Promise.resolve()\n        .then(() => p2pEscuchar())\n        .catch((e) => console.error('[p2p ƒ] no se pudo escuchar al arrancar', e));\n\n\n}",
-  "install style manager ƒ": "() => {\n    const styleIdFromKey = (k) => {\n        const base = String(k).replace(/\\s*\\{$/, \"\").trim();\n        return 'diarsaba-style-' + base.replace(/[^\\w-]/g, '_').replace(/^_+|_+$/g, '');\n    };\n\n    // crear inicialmente las etiquetas <style> para claves que terminen en '{'\n    for (const [k, v] of diarsaba.entries()) {\n        if (typeof k === 'string' && k.endsWith('{')) {\n            const id = styleIdFromKey(k);\n            if (!document.getElementById(id)) {\n                const el = document.createElement('style');\n                el.id = id;\n                el.textContent = typeof v === 'string' ? v : '';\n                document.head.appendChild(el);\n            }\n        }\n    }\n\n    // override diarsaba.set para mantener sincronizados los estilos\n    const originalSet = diarsaba.set.bind(diarsaba);\n    diarsaba.set = (key, value) => {\n        originalSet(key, value);\n        try {\n            if (typeof key === 'string' && key.endsWith('{')) {\n                const id = styleIdFromKey(key);\n                let el = document.getElementById(id);\n                if (el) el.textContent = typeof value === 'string' ? value : '';\n                else {\n                    el = document.createElement('style');\n                    el.id = id;\n                    el.textContent = typeof value === 'string' ? value : '';\n                    document.head.appendChild(el);\n                }\n            }\n        } catch (e) { console.error('install style manager error', e); }\n        return diarsaba;\n    };\n}",
-  "pointer down 0 ~": [],
-  "pointer down 2 ~": [],
-  "pointer up 0 ~": [
-    "handle click !"
+  "Announce !": [
+    "p2p ƒ @ Announce ƒ",
+    "p2p ƒ @ anunciar §"
   ],
-  "pointer up 2 ~": [
-    "show context menu !"
+  "FindProviders !": [
+    "p2p ƒ @ FindProviders ƒ",
+    "p2p ƒ @ buscar §"
   ],
-  "show context menu !": [
-    "show context menu ƒ"
+  "ID !": [
+    "p2p ƒ @ ID ƒ"
   ],
+  "OpenStream !": [
+    "p2p ƒ @ OpenStream ƒ",
+    "p2p ƒ @ peer §",
+    "p2p ƒ @ enviar :"
+  ],
+  "Reply !": [
+    "p2p ƒ @ Reply ƒ",
+    "p2p ƒ @ responder id §",
+    "p2p ƒ @ responder :"
+  ],
+  "StopAnnounce !": [
+    "p2p ƒ @ StopAnnounce ƒ",
+    "p2p ƒ @ anunciar §"
+  ],
+  "Streams #": [],
+  "TODO #": [],
+  "TODO §": "ARREGLAR EL EDIT\r\n\r\nARREGLAR EL DELETE\r\n\r\nHACER LAS LISTAS\r\n\r\nLISTAS DINAMICAS\r\n\r\n\r\n\r\n",
+  "add to place ƒ": "(name) => {\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        // unicamente si es un place\n\n        if (name.slice(-1) == \"@\") {\n            diarsaba.set(\"current place §\", name)\n        }else{\n            alert(\"todos los movimientos que hagas no seran registrados\")\n        }\n\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n        // Autosave: el place cambió (un chip nuevo con su posición).\n        diarsaba.get(\"persistir atomo ƒ\")(current_place_name);\n    }\n}",
+  "ai config !": [
+    "ai config ƒ"
+  ],
+  "ai config ƒ": "() => {\n    window.openAIConfig();\n}",
+  "arranque @": {
+    "add to place ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "current place §": {
+      "x": 340,
+      "y": 90
+    },
+    "install mover ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "install style manager ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "moviendo chips §": {
+      "x": 340,
+      "y": 142
+    },
+    "new place ƒ": {
+      "x": 640,
+      "y": 142
+    },
+    "on double tap place ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "on start place ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "on start ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "places #": {
+      "x": 940,
+      "y": 90
+    },
+    "mover ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "mover !": {
+      "x": 640,
+      "y": 142
+    },
+    "reload ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "reload !": {
+      "x": 640,
+      "y": 246
+    }
+  },
   "atom name list": [
     "~ thread",
     "ƒ func",
@@ -40,255 +118,65 @@
     "reload !",
     "mover !"
   ],
-  "list option ƒ #": [
-    "· * tomar",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· ƒ editor",
-    "· * ocultar"
-  ],
-  "list option § #": [
-    "· * tomar",
-    "· § abrir",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· § editor",
-    "· § guardar",
-    "· * ocultar"
-  ],
-  "list option [] #": [
-    "· []* ocultar",
-    "· #* tomar",
-    "· #* padre",
-    "· # despues",
-    "· # antes",
-    "· # eliminar"
-  ],
-  "list option ֎ #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎ guardar",
-    "· ֎ editor"
-  ],
-  "list option ֎ $ #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎$ guardar",
-    "· ֎ editor"
-  ],
-  "list option ֎ ƒ #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎ƒ guardar",
-    "· ֎ editor"
-  ],
-  "list option ֎ § #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎§ guardar",
-    "· ֎ editor"
-  ],
-  "list option < #": [
-    "· * tomar",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· < editor",
-    "· * ocultar"
-  ],
-  "list option ֎ < #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎< guardar",
-    "· ֎ editor"
-  ],
-  "list option { #": [
-    "· * tomar",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· { editor",
-    "· * ocultar"
-  ],
-  "list option ֎ { #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎{ guardar",
-    "· ֎ editor"
-  ],
-  "list option ֎ : #": [
-    "· ֎* ocultar",
-    "· ֎* padre",
-    "· ֎ editar",
-    "· ֎ editor"
-  ],
-  "types list #": [
-    "~",
-    "ƒ",
-    "!",
-    "$",
-    "§",
-    "#",
-    "[]",
-    "֎",
-    "<",
-    "{",
-    ":",
-    "@"
-  ],
-  "handle click !": [
-    "handle click ƒ"
-  ],
-  "guardar ! ƒ": "async () => {\n    // No persistir refs DOM (claves terminadas en ֎) ni objetos vivos de\n    // runtime: se regeneran solos y solo ensucian el archivo (y provocan\n    // entradas {} que rompen código que espera un elemento).\n    const skipKeys = new Set([\n        \"ws socket\",\n        \"Streams #\",\n        \"current menu\",\n        \"current chip menu\",\n        \"pointer up event\",\n        \"pointer down event\",\n        \"pointer move event\"\n    ]);\n\n    const dataToSave = {};\n    for (const [key, value] of diarsaba.entries()) {\n        if (key.endsWith(\"֎\") || skipKeys.has(key)) continue;\n\n        if (key.endsWith(\"ƒ\")) {\n            dataToSave[key] = String(value).replace(/\\r\\n/g, \"\\n\").trim();\n        } else {\n            dataToSave[key] = value;\n        }\n    }\n    const jsonString = JSON.stringify(dataToSave, null, 2);\n\n    try {\n        const savedPath = await SavePredefinedFunctions(jsonString);\n        console.log(\"Archivo guardado exitosamente en:\", savedPath);\n    } catch (error) {\n        console.error(\"Error al guardar el archivo:\", error);\n    }\n}",
-  "persistir atomo ƒ": "async (name) => {\n    // Autosave granular: persiste UN átomo en la base (bbolt) al terminar de\n    // editarlo en Monaco. NO pasa por \"guardar !\" (que vuelca el mapa entero)\n    // ni toca el JSON del repo — exportar a git sigue siendo manual (\"exportar\n    // !\"). Cada guardado versiona el valor anterior; para deshacer, \"· *\n    // restaurar\" o, desde consola, window.AtomHistory / RestoreAtomVersion.\n    if (typeof window.SetAtom !== \"function\") return; // frontend suelto: no-op\n    if (typeof name !== \"string\" || name.endsWith(\"֎\")) return; // refs DOM no\n\n    const value = diarsaba.get(name);\n    // Mismo criterio que \"guardar ! ƒ\": una ƒ se persiste como su código fuente.\n    const serial = name.endsWith(\"ƒ\")\n        ? String(value).replace(/\\r\\n/g, \"\\n\").trim()\n        : value;\n\n    try {\n        await window.SetAtom(name, JSON.stringify(serial));\n    } catch (e) {\n        // El autosave no debe romper la edición: si falla, se avisa y ya.\n        console.error(`autosave de \"${name}\" falló:`, e);\n    }\n}",
-  "· * restaurar ƒ": "async (dataset) => {\n    // Deshace el autosave de un átomo: lo devuelve a su versión anterior. Por\n    // defecto restaura la MÁS reciente del historial (el \"deshacer lo último\");\n    // para elegir otra o inspeccionarlas, desde consola:\n    //   await window.AtomHistory(\"nombre del átomo\")   → lista [{seq,value}]\n    //   await window.RestoreAtomVersion(\"nombre\", seq)\n    // Ojo: la recuperación de un handler roto que dejó la UI inservible se hace\n    // por consola, no por aquí — si el clic no responde, este átomo tampoco.\n    const name = dataset && dataset.parent;\n    if (!name || typeof window.AtomHistory !== \"function\") return;\n\n    let versiones;\n    try {\n        versiones = JSON.parse(await window.AtomHistory(name));\n    } catch (e) {\n        alert(`no se pudo leer el historial de \"${name}\": ${e && e.message ? e.message : e}`);\n        return;\n    }\n    if (!versiones.length) {\n        alert(`\"${name}\" no tiene versiones anteriores.`);\n        return;\n    }\n\n    try {\n        await window.RestoreAtomVersion(name, versiones[0].seq);\n        alert(`\"${name}\" restaurado a su versión anterior.\\nRecarga para verlo reflejado en el lienzo.`);\n    } catch (e) {\n        alert(`no se pudo restaurar \"${name}\": ${e && e.message ? e.message : e}`);\n    }\n}",
-  "exportar ! ƒ": "async () => {\n    // Exportar es sacar el programa de la app a un JSON revisable (el que se\n    // commitea en git o viaja a otra instancia). Primero se persiste lo que\n    // está VIVO en el mapa —guardar ! ƒ lo vuelca a la base— y solo entonces\n    // se escribe el archivo: al revés se exportaría el estado anterior y el\n    // JSON no coincidiría con lo que tienes en pantalla.\n    const guardar = diarsaba.get(\"guardar ! ƒ\");\n    if (guardar) await guardar();\n\n    try {\n        const ruta = await ExportAtoms();\n        console.log(\"programa exportado en:\", ruta);\n        alert(`programa exportado en:\\n${ruta}`);\n    } catch (error) {\n        console.error(\"Error al exportar:\", error);\n        alert(`no se pudo exportar:\\n${error && error.message ? error.message : error}`);\n    }\n}",
-  "exportar !": [
-    "exportar ! ƒ"
-  ],
-  "protegidos #": [],
-  "show context menu ƒ": "() => {\n    const event = diarsaba.get(\"pointer up event\");\n\n    // Los modales (editor Monaco, modal de nombre, botón de mover) viven\n    // ENCIMA del lienzo, pero este manejador escucha toda la ventana. Sin\n    // esto, un doble clic dentro del editor se lee como doble clic en un\n    // chip: el título del modal ES el nombre del átomo, sigilo incluido.\n    if (event.target.closest && event.target.closest(\".editor-overlay, .modal-content\")) return;\n\n    if (event.target.nodeName === \"HTML\" || event.target.nodeName === \"BODY\") {\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu && typeof currentMenu.remove === \"function\") {\n                        currentMenu.remove();\n        }\n\n        diarsaba.set(\n            \"current menu\",\n            diarsaba.get(\"create list menu ƒ\")(diarsaba.get(\"atom name list #\"))\n        );\n\n        diarsaba.set(\"open x $\", event.clientX);\n        diarsaba.set(\"open y $\", event.clientY);\n    } else {\n        const type = event.target.textContent.slice(-1);\n        const name = event.target.textContent;\n\n        diarsaba.get(\"show options list ƒ\")(type, name);\n    }\n}",
-  "show options list ƒ": "(type, name) => {\n    // 1. Limpiar el menú anterior si existe\n    const currentMenu = diarsaba.get(\"current chip menu\");\n    if (currentMenu instanceof Element) {\n        currentMenu.remove();\n    }\n\n    // 2. Obtener los recursos compartidos que usan todas las ramas\n    const event = diarsaba.get(\"pointer up event\");\n    const createMenu = diarsaba.get(\"create list menu ƒ\");\n    const target = event.target;\n\n    // Variables que determinarán cómo se creará el menú\n    let menuOptions;\n    let menuArgs = [];\n\n    // 3. Determinar las opciones y argumentos según el caso\n    if (/^\\[\\d+\\]/.test(name)) {\n        menuOptions = diarsaba.get(\"list option [] #\");\n        menuArgs = [target.parentElement.dataset.parent, name];\n    } else if (diarsaba.get(\"types list #\").includes(type)) {\n        menuOptions = diarsaba.get(`list option ${type} #`);\n        menuArgs = [name];\n    } else {\n        const fallbackType = \"֎\";\n        const parentDataset = target.dataset.parent;\n        const lastChar = parentDataset.slice(-1);\n        \n        menuOptions = diarsaba.get(`list option ${fallbackType} ${lastChar} #`);\n        menuArgs = [parentDataset];\n    }\n\n    // 4. Crear y guardar el nuevo menú en un solo lugar\n    const newMenu = createMenu(menuOptions, ...menuArgs);\n    diarsaba.set(\"current chip menu\", newMenu);\n}",
-  "handle click ƒ": "async () => {\n    // Con el modo mover activo, un clic en un CHIP lo arrastra y no lo abre.\n    // Solo los chips: si tapara todo, el propio \"mover !\" del menú quedaría\n    // inalcanzable y no habría forma de salir del modo sin recargar.\n    if (diarsaba.get(\"moviendo chips §\")) {\n        const ev = diarsaba.get(\"pointer up event\");\n        if (ev && ev.target && ev.target.closest && ev.target.closest(\".object-name\")) return;\n    }\n\n    // 1. Obtener el evento y el elemento clickeado\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n\n    // Los modales (editor Monaco, modal de nombre, botón de mover) viven\n    // ENCIMA del lienzo, pero este manejador escucha toda la ventana. Sin\n    // esto, un doble clic dentro del editor se lee como doble clic en un\n    // chip: el título del modal ES el nombre del átomo, sigilo incluido.\n    if (event.target.closest && event.target.closest(\".editor-overlay, .modal-content\")) return;\n    const nodeName = target.nodeName;\n\n    // 2. Si se hizo clic en el fondo (HTML/BODY), solo limpiar menús\n    if (nodeName === \"HTML\" || nodeName === \"BODY\") {\n        diarsaba.get(\"clear menus ƒ\")();\n        return;\n    }\n\n    const content = target.textContent;\n    const clearMenus = () => diarsaba.get(\"clear menus ƒ\")(); // función auxiliar para limpiar\n\n    // 3. Caso especial: \"guardar !\"\n    if (content === \"@ place\") {\n        diarsaba.get(\"new place ƒ\")()\n        clearMenus();\n        return\n    }\n\n\n\n    // 3.5 Dentro de un menú manda el sigilo de la DERECHA: el ítem nombra\n    // un átomo concreto y se despacha por su tipo, igual que en las listas.\n    // Con el sigilo a la IZQUIERDA (\"ƒ func\") el ítem no nombra nada — pide\n    // crear uno de ese tipo—, y eso lo resuelve el bloque de más abajo.\n    //\n    // Solo dentro de un .context-menu: en el lienzo un chip responde al\n    // doble clic abriendo su editor, y eso no se toca.\n    if (target.closest && target.closest(\".context-menu\")) {\n        const tipo = content.slice(-1);\n        if (diarsaba.get(\"types list #\").includes(tipo)) {\n            // Una lista se abre como SUBmenú y no con create list ƒ: dentro\n            // de un menú, lo que se abre debe seguir siendo un menú.\n            // Sin clearMenus(): el padre se queda, como en cualquier submenú.\n            if (tipo === \"#\") {\n                if (diarsaba.get(\"open submenu ƒ\")(content, target)) return;\n            } else {\n                const despacho = diarsaba.get(\"dispatch item ƒ\");\n                if (despacho && despacho(content, target.parentElement.dataset, target)) {\n                    clearMenus();\n                    return;\n                }\n            }\n        }\n    }\n\n    // 4. Obtener referencias comunes\n    const parentDataset = target.parentElement.dataset;\n\n    // 5. Ítem creador de chip → pedir nombre y crear. Un creador es\n    // cualquier ítem con su \"create <ítem> ƒ\", NO uno que esté en\n    // \"atom name list #\": al agrupar los creadores dentro de una sublista\n    // (\"chips #\") salían de esa lista y dejaban de crear al pulsarlos desde\n    // el submenú. Además se exige estar DENTRO de un menú, porque un chip\n    // del lienzo cuyo nombre coincidiera con un creador (una lista\n    // \"chips #\", p.ej.) abría el modal de crear en vez de su editor al\n    // doble clic.\n    const enMenu = target.closest && target.closest(\".context-menu\");\n    const createFn = enMenu ? diarsaba.get(`create ${content} ƒ`) : null;\n    if (typeof createFn === \"function\") {\n        // Eliminar menú actual si existe\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu) currentMenu.remove();\n\n        // Pedir nombre mediante un modal (usa la primera letra como pista)\n        const name = await diarsaba.get(\"modal input ƒ\")(content.slice(0, 1));\n\n        // Solo proceder si se ingresó un nombre válido\n        if (name != null && name !== \"\") {\n            \n            \n            diarsaba.get(\"add to place ƒ\")(name)\n            // La función de creación ya se resolvió arriba (es el discriminador).\n            createFn(name);\n            // Autosave: el átomo nuevo (el place lo persiste add to place ƒ).\n            await diarsaba.get(\"persistir atomo ƒ\")(name);\n\n            // Crear el chip visual asociado\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                diarsaba.get(\"open x $\"),\n                diarsaba.get(\"open y $\"),\n                name,\n                \"\",\n                content.slice(0, 1) // letra inicial como categoría\n            );\n\n            // Guardar referencia del chip en el almacenamiento global\n            diarsaba.set(`${name} ֎`, chip);\n        }\n        clearMenus();\n        return;\n    }\n\n    // 6. Solo si es un ÍTEM de lista con formato \"[número] texto\".\n    // Ojo: no basta con que contenga corchetes — opciones como \"· []* ocultar\"\n    // los llevan en su etiqueta y caían aquí, donde el parseo fallaba en\n    // silencio y nunca se ejecutaban.\n    if (/^\\[\\d+\\]/.test(content)) {\n        try {\n            const parsed = diarsaba.get(\"obtener index [0] ƒ\")(content);\n            const label = parsed.texto;\n\n            // Despacho por sigilo: el ítem \"cobra vida\" según su tipo\n            // (! ~ ejecutan, # abre sublista, ƒ corre). Si no lo maneja,\n            // se cae al comportamiento anterior (función con ese nombre).\n            const dispatch = diarsaba.get(\"dispatch item ƒ\");\n            const handled = dispatch ? dispatch(label, parentDataset, target) : false;\n            if (!handled) {\n                const fn = diarsaba.get(`${label} ƒ`) || diarsaba.get(`${content} ƒ`);\n                if (fn) {\n                    fn(parentDataset);\n                }\n            }\n        } catch (err) {\n            // Si el parseo falla, simplemente se ignora\n        }\n        clearMenus();\n        return;\n    }\n\n    //otro caso\n    \n    let last_click = diarsaba.get(\"last click on §\")\n    if (last_click == undefined || last_click == null) {\n        diarsaba.set(\"last click on §\", content)\n    } else {\n        if (last_click == content) {\n            if(content.slice(-1) == \"@\"){\n                diarsaba.get(\"on double tap place ƒ\")()\n            }else{\n                const editables = diarsaba.get(\"editables list #\")\n                if (editables.includes(content.slice(-1))){\n                    \n                    diarsaba.get(\"open general editor ƒ\")(content)\n                }\n            }\n            diarsaba.set(\"last click on §\", null)\n        } else {\n            diarsaba.set(\"last click on §\", content)\n        }\n    }\n\n\n    // 7. Caso general: el contenido corresponde directamente a una función\n    //revisar por que se agrega ƒ o para que casos servia\n    const generalFn = diarsaba.get(`${content} ƒ`);\n    if (generalFn) {\n        generalFn(parentDataset);\n    }\n    clearMenus();\n}",
-  "· []* ocultar ƒ": "(dataset) => {\n    // Cierra la lista abierta y borra su referencia: dejarla apuntando a un\n    // nodo huérfano confunde a quien luego consulte `... # ֎`.\n    const key = `${dataset.parent} # ֎`;\n    const node = diarsaba.get(key);\n    if (node instanceof Element) node.remove();\n    diarsaba.delete(key);\n}",
-  "· #* padre ƒ": "(dataset) => {\n    const rect = diarsaba.get(`${dataset.parent} # ֎`).getBoundingClientRect();\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.right,\n        rect.top,\n        dataset.parent,\n        \"\",\n        dataset.parent.slice(0, 1)\n    );\n\n    const chip_rect = chip.getBoundingClientRect();\n\n    chip.style.left = `${rect.left - (chip_rect.width + 10)}px`;\n    diarsaba.set(`${dataset.parent} ֎`, chip);\n}",
-  "· ֎* padre ƒ": "(dataset) => {\n    const rect = diarsaba.get(`${dataset.parent} ֎ ֎`).getBoundingClientRect();\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.right,\n        rect.top,\n        dataset.parent,\n        \"\",\n        dataset.parent.slice(0, 1)\n    );\n\n    const chip_rect = chip.getBoundingClientRect();\n\n    chip.style.left = `${rect.left - (chip_rect.width + 10)}px`;\n    diarsaba.set(`${dataset.parent} ֎`, chip);\n}",
-  "· ! action ƒ": "async (dataset) => {\n    threads(`${dataset.parent}`);\n}",
-  "· ~ action ƒ": "async (dataset) => {\n    threads(`${dataset.parent}`);\n}",
-  "· ֎ editar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = true;\n    diarsaba.get(`${dataset.parent} ֎ ֎`).focus();\n}",
-  "· ƒ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent);\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        actual instanceof Function ? actual.toString() : \"()=>{}\",\n        \"js\"\n    );\n    if (res == null || res.trim() === \"\") return;\n\n    try {\n        const fn = createFunction(res);\n        diarsaba.set(dataset.parent, fn);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n    } catch (e) {\n        alert(`\"${dataset.parent}\" no se guardó: el código no compila.\\n\\n${e.message}`);\n    }\n}",
-  "· § editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"text\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· ֎$ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        Number(diarsaba.get(`${dataset.parent} ֎ ֎`).textContent)\n    );\n}",
-  "· ֎ƒ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        createFunction(diarsaba.get(`${dataset.parent} ֎ ֎`).textContent)\n    );\n}",
-  "· ֎§ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
-  "· #* tomar ƒ": "(dataset) => {\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.set(\"· * tomar §\", selection.texto);\n}",
-  "· # despues ƒ": "(dataset) => {\n    const tomado = diarsaba.get(\"· * tomar §\");\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice + 1, 0, tomado);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
-  "· # antes ƒ": "(dataset) => {\n    const tomado = diarsaba.get(\"· * tomar §\");\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice, 0, tomado);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
-  "· # eliminar ƒ": "(dataset) => {\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice, 1);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
-  "· * quitar ƒ": "async (dataset) => {\n    // Saca el chip del place actual y del DOM. El ÁTOMO permanece en diarsaba\n    // (puede volver a colocarse en otro place o seguir siendo referenciado).\n    const name = dataset.parent;\n\n    // 1. Quitar chips del DOM (principal e hijos abiertos) y sus referencias\n    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {\n        const el = diarsaba.get(k);\n        if (el && typeof el.remove === \"function\") el.remove();\n        diarsaba.delete(k);\n    });\n\n    // 2. Quitar la entrada del place actual (para que no reaparezca al recargar)\n    const placeName = diarsaba.get(\"current place §\");\n    const place = diarsaba.get(placeName);\n    if (place && typeof place === \"object\") {\n        const { [name]: _omit, ...rest } = place;\n        diarsaba.set(placeName, rest);\n        // Autosave: el átomo se queda, pero el place cambió — sin esto el\n        // chip reaparece aquí al recargar.\n        await diarsaba.get(\"persistir atomo ƒ\")(placeName);\n    }\n}",
-  "· * eliminar ƒ": "async (dataset) => {\n    // Borrado DEFINITIVO: elimina el átomo de diarsaba, sus chips del DOM y\n    // todas las referencias en cualquier place.\n    const name = dataset.parent;\n\n    // 1. Quitar chips del DOM (principal y posibles hijos abiertos) y sus refs\n    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {\n        const el = diarsaba.get(k);\n        if (el && typeof el.remove === \"function\") el.remove();\n        diarsaba.delete(k);\n    });\n\n    // 2. Quitar la referencia de TODOS los places que lo contengan\n    const placesTocados = [];\n    for (const [k, v] of diarsaba.entries()) {\n        if (typeof k === \"string\" && k.endsWith(\"@\") && v && typeof v === \"object\") {\n            if (Object.prototype.hasOwnProperty.call(v, name)) {\n                const { [name]: _omit, ...rest } = v;\n                diarsaba.set(k, rest);\n                placesTocados.push(k);\n            }\n        }\n    }\n\n    // 3. Borrar el átomo de diarsaba (definitivo)\n    diarsaba.delete(name);\n\n    // 4. Propagar a la base: sin esto el átomo RESUCITA al recargar\n    //    (LoadPredefinedFunctions rehace el mapa desde bbolt) y los places\n    //    quedarían apuntando a un fantasma. DeleteAtom versiona el valor,\n    //    así que el borrado sigue siendo recuperable.\n    const persist = diarsaba.get(\"persistir atomo ƒ\");\n    for (const k of placesTocados) await persist(k);\n    if (typeof window.DeleteAtom === \"function\") {\n        try { await window.DeleteAtom(name); }\n        catch (e) { console.error(`no se pudo borrar \"${name}\" de la base:`, e); }\n    }\n}",
-  "· < editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"html\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· ֎< guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
-  "obtener index [0] ƒ": "(texto) => {\n    const regex = /^\\[(\\d+)\\]\\s*(.*)$/;\n    const match = texto.match(regex);\n\n    if (!match) {\n        throw new Error('Formato inválido. Se esperaba: \"[número] texto\"');\n    }\n\n    return {\n        indice: parseInt(match[1], 10),\n        texto: match[2].trim(),\n    };\n}",
-  "· * tomar ƒ": "(dataset) => {\n    diarsaba.set(\"· * tomar §\", dataset.parent);\n}",
-  "· ~ abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const l_div = diarsaba.get(\"create list ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent\n    );\n\n    if (diarsaba.get(`${dataset.parent} # ֎`)) {\n        diarsaba.get(`${dataset.parent} # ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} # ֎`, l_div);\n}",
-  "· $ abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent,\n        \"$\"\n    );\n\n    if (diarsaba.get(`${dataset.parent} ֎ ֎`)) {\n        diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} ֎ ֎`, chip);\n}",
-  "· § abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent,\n        \"§\"\n    );\n\n    if (diarsaba.get(`${dataset.parent} ֎ ֎`)) {\n        diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} ֎ ֎`, chip);\n}",
-  "· # abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const l_div = diarsaba.get(\"create list ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent\n    );\n\n    if (diarsaba.get(`${dataset.parent} # ֎`)) {\n        diarsaba.get(`${dataset.parent} # ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} # ֎`, l_div);\n}",
-  "· ƒ abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent,\n        \"ƒ\"\n    );\n\n    if (diarsaba.get(`${dataset.parent} ֎ ֎`)) {\n        diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} ֎ ֎`, chip);\n}",
-  "· ! abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const l_div = diarsaba.get(\"create list ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent\n    );\n\n    if (diarsaba.get(`${dataset.parent} # ֎`)) {\n        diarsaba.get(`${dataset.parent} # ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} # ֎`, l_div);\n}",
-  "· * ocultar ƒ": "(dataset) => {\n    const chip = diarsaba.get(`${dataset.parent} ֎`);\n    if (chip && typeof chip.remove === \"function\") {\n        chip.remove();\n        diarsaba.delete(`${dataset.parent} ֎`);\n    } else {\n        const child = diarsaba.get(`${dataset.parent} ֎ ֎`);\n        if (child && typeof child.remove === \"function\") child.remove();\n        diarsaba.delete(`${dataset.parent} ֎ ֎`);\n    }\n}",
-  "· ֎* ocultar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    diarsaba.delete(`${dataset.parent} ֎ ֎`);\n}",
-  "eliminar elemento del dom ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎`).remove();\n}",
-  "create ~ thread ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
-  "create ƒ func ƒ": "(name) => {\n    // Nunca null: un ƒ nulo se guarda como el string \"null\" y al recargar\n    // createFunction lo rechaza, rompiendo la carga entera. Empezamos con\n    // una función vacía válida, que serializa y vuelve a cargar sin drama.\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, createFunction(\"()=>{}\"));\n}",
-  "create ! action ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
-  "create $ num ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, 0);\n}",
-  "create § text ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
-  "create # list ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
-  "create < view ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
-  "create { style ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
-  "create : map ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, {});\n}",
-  "· { editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"css\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· ֎{ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
-  "clear menus ƒ": "() => {\n    // Guard: los defaults serializados pueden ser {} (truthy sin .remove)\n    const menu = diarsaba.get(\"current menu\");\n    if (menu && typeof menu.remove === \"function\") menu.remove();\n\n    const chipMenu = diarsaba.get(\"current chip menu\");\n    if (chipMenu && typeof chipMenu.remove === \"function\") chipMenu.remove();\n\n    // Los submenús se abren en cadena, así que no hay una sola\n    // referencia que valga: se barren por su marca.\n    document.querySelectorAll(\".context-menu.submenu\").forEach((el) => el.remove());\n}",
-  "dispatch item ƒ": "(name, dataset, target) => {\n    // Un ítem de lista \"cobra vida\" según su sigilo. Devuelve true si lo\n    // manejó (y así handle click ƒ no aplica el fallback anterior).\n    const type = name.slice(-1);\n\n    // Acciones y threads: ejecutar\n    if (type === \"!\" || type === \"~\") {\n        threads(name);\n        return true;\n    }\n\n    // Listas: abrir su contenido como sublista efímera (con scroll) junto al ítem\n    if (type === \"#\") {\n        const list = diarsaba.get(name);\n        if (!Array.isArray(list)) return false;\n        const prev = diarsaba.get(`${name} # ֎`);\n        if (prev && typeof prev.remove === \"function\") prev.remove();\n        const rect = target.getBoundingClientRect();\n        const sub = diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name);\n        diarsaba.set(`${name} # ֎`, sub);\n        return true;\n    }\n\n    // Places: abrirlos. Es lo que hace utilizable el índice \"places #\":\n    // sin esto habría que hacer doble clic sobre el nombre, que es la\n    // regla de los chips del lienzo pero no la de un ítem de menú.\n    if (type === \"@\") {\n        const abrir = diarsaba.get(\"on double tap place ƒ\");\n        if (typeof abrir !== \"function\") return false;\n        // on double tap place ƒ lee el evento del puntero para saber QUÉ\n        // place abrir, así que se le deja el ítem pulsado como objetivo.\n        // OJO: no vale el elemento pulsado. En una lista su texto es\n        // \"[10] menú @\" —con el índice delante— y on double tap place ƒ\n        // buscaría un place con ese nombre. \"name\" ya viene limpio.\n        diarsaba.set(\"pointer up event\", { target: { textContent: name, nodeName: \"SPAN\" } });\n        diarsaba.get(\"clear menus ƒ\")();\n        abrir();\n        return true;\n    }\n\n    // Funciones: ejecutar\n    if (type === \"ƒ\") {\n        const f = diarsaba.get(name);\n        if (typeof f === \"function\") {\n            f(dataset);\n            return true;\n        }\n        return false;\n    }\n\n    return false;\n}",
-  "modal input ƒ": "async (pre) => {\n    const createEl = (tag, props = {}) =>\n        Object.assign(document.createElement(tag), props);\n\n    const div = createEl(\"div\", { className: \"modal-content\" });\n    const input = createEl(\"input\", {\n        type: \"text\",\n        value: pre || \"\",\n        spellcheck: false,\n    });\n\n    const buttonContainer = createEl(\"div\", { className: \"modal-buttons\" });\n\n    [\"Cancel\", \"Continue\"].forEach((text) => {\n        const btn = createEl(\"button\", { textContent: text });\n        btn.dataset.modal = text.toLowerCase();\n        btn.onclick = () => {\n            div.remove();\n            this.nombreInputPromise?.(\n                text === \"Cancel\" ? null : input.value.trim()\n            );\n        };\n        buttonContainer.append(btn);\n    });\n\n    div.append(input, buttonContainer);\n    document.body.append(div);\n    input.focus();\n\n    return await new Promise((resolve) => (this.nombreInputPromise = resolve));\n}",
   "clamp to viewport ƒ": "(el) => {\n    // Reposiciona el elemento para que no se salga de la ventana (clamp).\n    // Se mide el tamaño natural en (0,0): si se coloca desbordando, el ancho\n    // shrink-to-fit del .context-menu se comprime y daría una medida errónea.\n    const margin = 8;\n    const vw = window.innerWidth;\n    const vh = window.innerHeight;\n\n    const desiredLeft = parseFloat(el.style.left) || 0;\n    const desiredTop = parseFloat(el.style.top) || 0;\n\n    el.style.left = \"0px\";\n    el.style.top = \"0px\";\n    const w = el.offsetWidth;\n    const h = el.offsetHeight;\n\n    let left = desiredLeft;\n    let top = desiredTop;\n\n    if (left + w > vw - margin) left = vw - margin - w;\n    if (top + h > vh - margin) top = vh - margin - h;\n    if (left < margin) left = margin;\n    if (top < margin) top = margin;\n\n    el.style.left = `${left}px`;\n    el.style.top = `${top}px`;\n}",
-  "create list ƒ": "(x, y, list, parent) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    if (list.length == 0) {\n        div.innerHTML += `<span class=\"menu-item\">[0]</span>`;\n    } else {\n        for (const key in list) {\n            div.innerHTML += `<span class=\"menu-item\">[${key}] ${list[key]}</span>`;\n        }\n    }\n\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.dataset.parent = parent;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
-  "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n    for (const key of list) {\n        div.innerHTML += `<span class=\"menu-item\">${key}</span>`;\n    }\n    // Sin x/y explícitos, donde está el puntero: el menú principal se abre así.\n    div.style.left = `${x === null ? diarsaba.get(\"pointer x\") : x}px`;\n    div.style.top = `${y === null ? diarsaba.get(\"pointer y\") : y}px`;\n\n    div.dataset.parent = parent;\n    div.dataset.current = current;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
+  "clear menus ƒ": "() => {\n    // Guard: los defaults serializados pueden ser {} (truthy sin .remove)\n    const menu = diarsaba.get(\"current menu\");\n    if (menu && typeof menu.remove === \"function\") menu.remove();\n\n    const chipMenu = diarsaba.get(\"current chip menu\");\n    if (chipMenu && typeof chipMenu.remove === \"function\") chipMenu.remove();\n\n    // Los submenús se abren en cadena, así que no hay una sola\n    // referencia que valga: se barren por su marca.\n    document.querySelectorAll(\".context-menu.submenu\").forEach((el) => el.remove());\n}",
+  "create ! action ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
+  "create # list ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
+  "create $ num ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, 0);\n}",
+  "create : map ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, {});\n}",
+  "create < view ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
   "create chip ƒ": "(x, y, text, parent = \"\", type = \"\") => {\n    const div = document.createElement(\"div\");\n    div.classList = \"object-name\";\n    div.textContent = text;\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.spellcheck = false;\n    div.dataset.parent = parent;\n    div.dataset.type = type;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
-  "pointer x": 743,
-  "pointer y": 364,
-  "open x $": 700,
-  "open y $": 144,
-  "todo el estilo {": "  /* Paleta monocroma: negro, blanco y blancos translúcidos. La jerarquía\n     visual la da SOLO la opacidad — no hay matices de color en ningún lado.\n     Si algo necesita destacar, sube de nivel (0.08 → 0.18), no cambia de tono. */\n  :root {\n      --graph-bg: #000000;\n      --graph-bg-elevated: rgba(255, 255, 255, 0.08);\n      --graph-bg-strong: rgba(0, 0, 0, 0.92);\n      --graph-border: rgba(255, 255, 255, 0.14);\n      --graph-border-active: rgba(255, 255, 255, 0.24);\n      --graph-text: #ffffff;\n      --graph-text-muted: rgba(255, 255, 255, 0.62);\n      --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);\n      --graph-font: ui-monospace, \"Cascadia Mono\", Consolas, \"Courier New\", monospace;\n  }\n\n  * {\n      margin: 0;\n      padding: 0;\n      box-sizing: border-box;\n  }\n\n  /* La monoespaciada se declara una sola vez aquí y todo lo demás la hereda:\n     los chips SON el código, así que deben medir igual que el editor. */\n  body {\n      background: var(--graph-bg);\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      font-family: var(--graph-font);\n      color: var(--graph-text);\n      padding: 20px;\n  }\n\n  .object-name {\n      position: absolute;\n      font-size: 1rem;\n      color: var(--graph-text);\n      font-weight: 500;\n      cursor: pointer;\n      padding: 6px 12px;\n      border-radius: 999px;\n      transition: background-color 0.15s ease, border-color 0.15s ease,\n          transform 0.15s ease;\n      width: fit-content;\n      background: var(--graph-bg-elevated);\n      border: 1px solid var(--graph-border);\n      box-shadow: var(--graph-shadow);\n      backdrop-filter: blur(14px);\n      -webkit-backdrop-filter: blur(14px);\n      outline: none;\n      user-select: none;\n  }\n\n  .object-name:hover {\n      background: rgba(255, 255, 255, 0.12);\n      border-color: var(--graph-border-active);\n      transform: translateY(-1px);\n  }\n\n  .object-name:focus {\n      border: 1px solid rgba(255, 255, 255, 0.55);\n  }\n\n  .object-name:active {\n      background: rgba(255, 255, 255, 0.18);\n      transform: translateY(0);\n  }\n\n  .context-menu {\n      position: absolute;\n      background: var(--graph-bg-strong);\n      border-radius: 14px;\n      box-shadow: var(--graph-shadow);\n      border: 1px solid var(--graph-border);\n      z-index: 1000;\n      min-width: 140px;\n      max-height: min(360px, 60vh);\n      overflow-y: auto;\n      overflow-x: hidden;\n      transition: opacity 0.1s ease, transform 0.1s ease;\n      user-select: none;\n      backdrop-filter: blur(14px);\n      -webkit-backdrop-filter: blur(14px);\n  }\n\n  /* Barra de scroll discreta en los menús.\n     Se afina en vez de ocultarse: una lista larga sin ninguna señal de que hay\n     más abajo se siente rota.\n\n     Ojo con scrollbar-width: declararlo hace que Chromium —y WebView2 lo es—\n     IGNORE por completo ::-webkit-scrollbar y vuelva a su barra nativa. Por eso\n     aquí NO se declara: es lo que deja pasar el ancho de 6px de abajo. */\n  .context-menu::-webkit-scrollbar {\n      width: 6px;\n  }\n\n  .context-menu::-webkit-scrollbar-track {\n      background: transparent;\n  }\n\n  .context-menu::-webkit-scrollbar-thumb {\n      background: rgba(255, 255, 255, 0.14);\n      border-radius: 999px;\n  }\n\n  .context-menu::-webkit-scrollbar-thumb:hover {\n      background: rgba(255, 255, 255, 0.28);\n  }\n\n  .menu-item {\n      padding: 6px 12px;\n      font-size: 0.75rem;\n      color: var(--graph-text-muted);\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 6px;\n      user-select: none;\n      border-bottom: 1px solid rgba(255, 255, 255, 0.08);\n  }\n\n  .menu-item:last-child {\n      border-bottom: none;\n  }\n\n  .menu-item:hover {\n      background: rgba(255, 255, 255, 0.08);\n  }\n\n  .menu-item:active {\n      background: rgba(255, 255, 255, 0.12);\n  }\n\n  .modal-content {\n      position: absolute;\n      left: 50%;\n      top: 50%;\n      padding: 1rem;\n      border: 1px solid var(--graph-border);\n      border-radius: 18px;\n      background: rgba(0, 0, 0, 0.88);\n      box-shadow: var(--graph-shadow);\n      backdrop-filter: blur(18px);\n      -webkit-backdrop-filter: blur(18px);\n      transform: translate(-50%, -50%);\n      z-index: 2000;\n  }\n\n  .modal-content button {\n      font-size: 0.75rem;\n      color: var(--graph-text);\n      font-weight: 500;\n      cursor: pointer;\n      padding: 4px 12px;\n      border-radius: 10px;\n      transition: all 0.15s ease;\n      width: fit-content;\n      background: rgba(255, 255, 255, 0.08);\n      border: 1px solid var(--graph-border);\n      outline: none;\n      user-select: none;\n  }\n\n  .modal-content button:hover {\n      background: rgba(255, 255, 255, 0.12);\n      border-color: var(--graph-border-active);\n  }\n\n  .modal-content button:active {\n      background: rgba(255, 255, 255, 0.18);\n      transform: scale(0.98);\n  }\n\n  /* Sin color, la acción primaria se distingue por PESO: relleno más claro y\n     borde más marcado. Antes era el único azul de la interfaz. */\n  .modal-content button[data-modal=\"continue\"] {\n      background: rgba(255, 255, 255, 0.2);\n      color: var(--graph-text);\n      border: 1px solid rgba(255, 255, 255, 0.38);\n  }\n\n  .modal-content button[data-modal=\"continue\"]:hover {\n      background: rgba(255, 255, 255, 0.3);\n  }\n\n  .modal-content input {\n      border: 1px solid rgba(255, 255, 255, 0.1);\n      outline: none;\n      padding: 4px 8px;\n      border-radius: 8px;\n      color: var(--graph-text);\n      font-family: inherit;\n      font-size: 1rem;\n      flex: 1;\n      background: rgba(255, 255, 255, 0.06);\n  }\n\n  .modal-content span {\n      font-family: inherit;\n      color: var(--graph-text-muted);\n      font-weight: 100;\n      font-size: smaller;\n      font-style: italic;\n  }\n\n  .modal-buttons {\n      display: flex;\n      gap: 8px;\n      justify-content: space-around;\n      margin-top: 12px;\n  }\n\n  .editor-overlay {\n      position: fixed;\n      top: 0;\n      left: 0;\n      width: 100%;\n      height: 100%;\n      background: rgba(0, 0, 0, 0.22);\n      justify-content: center;\n      align-items: center;\n      z-index: 1000;\n      backdrop-filter: blur(1px) saturate(0.6%);\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n      display: flex;\n  }\n\n  .editor-modal {\n      width: 90%;\n      max-width: 900px;\n      height: 80%;\n      max-height: 700px;\n      border-radius: 18px;\n      background: rgba(0, 0, 0, 0.34);\n      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);\n      border: 1px solid var(--graph-border);\n      backdrop-filter: blur(1px) saturate(0.6%);\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n      display: flex;\n      flex-direction: column;\n      overflow: hidden;\n  }\n\n  .editor-header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      background: rgba(255, 255, 255, 0.06);\n      border-bottom: 1px solid rgba(255, 255, 255, 0.1);\n      padding: 12px 16px;\n      flex-shrink: 0;\n  }\n\n  .editor-title {\n      color: var(--graph-text);\n      font-size: 14px;\n      font-weight: 500;\n      display: flex;\n      align-items: center;\n      gap: 8px;\n  }\n\n  .editor-controls {\n      display: flex;\n      gap: 10px;\n  }\n\n  .close-button,\n  .save-button {\n      border: 1px solid var(--graph-border);\n      border-radius: 6px;\n      color: var(--graph-text);\n      padding: 6px 12px;\n      font-size: 12px;\n      cursor: pointer;\n      transition: all 0.2s;\n      display: flex;\n      align-items: center;\n      gap: 4px;\n      font-family: inherit;\n  }\n\n  /* Cerrar (descarta) va en contorno; guardar (confirma) va relleno. Sin el\n     rojo/gris de antes, el relleno es lo único que separa una de otra. */\n  .close-button {\n      background: transparent;\n  }\n\n  .close-button:hover {\n      background: rgba(255, 255, 255, 0.1);\n      border-color: var(--graph-border-active);\n  }\n\n  .save-button {\n      background: rgba(255, 255, 255, 0.14);\n  }\n\n  .save-button:hover {\n      background: rgba(255, 255, 255, 0.24);\n      border-color: var(--graph-border-active);\n  }\n\n  .monaco-container {\n      flex: 1;\n      width: 100%;\n      height: 100%;\n      background: rgba(255, 255, 255, 0.04);\n      backdrop-filter: blur(8px);\n      -webkit-backdrop-filter: blur(8px);\n  }\n\n  .monaco-container .monaco-editor,\n  .monaco-container .monaco-editor-background,\n  .monaco-container .margin,\n  .monaco-container .monaco-scrollable-element {\n      background: transparent !important;\n  }\n\n  .language-selector {\n      position: relative;\n      display: inline-block;\n  }\n\n  .language-button {\n      background: none;\n      border-radius: 10px;\n      border: none;\n      color: var(--graph-text);\n      padding: 6px 12px;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 8px;\n      font-size: 14px;\n      font-family: inherit;\n      transition: all 0.3s ease;\n  }\n\n  .language-button:hover {\n      background: rgba(255, 255, 255, 0.15);\n  }\n\n  .language-name {\n      flex-grow: 1;\n      text-align: left;\n  }\n\n  .language-dropdown {\n      display: none;\n      position: absolute;\n      top: 100%;\n      left: 0;\n      background: var(--graph-bg-strong);\n      border: 1px solid var(--graph-border-active);\n      border-radius: 4px;\n      min-width: 150px;\n      z-index: 1000;\n      margin-top: 5px;\n      box-shadow: var(--graph-shadow);\n  }\n\n  .language-dropdown.show {\n      display: block;\n  }\n\n  .dropdown-item {\n      width: 100%;\n      padding: 10px 15px;\n      background: none;\n      border: none;\n      color: var(--graph-text);\n      text-align: left;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 10px;\n      font-family: inherit;\n      transition: background 0.2s ease;\n  }\n\n  .dropdown-item:hover {\n      background: rgba(255, 255, 255, 0.1);\n  }\n\n  .dropdown-item i {\n      width: 20px;\n      text-align: center;\n  }\n\n  /* En modo mover el cursor anuncia que se puede arrastrar, y se desactiva la\n     selección de texto para que arrastrar no seleccione el nombre del chip. */\n  body.moviendo-chips::after {\n      content: \"moviendo chips — «mover !» para salir\";\n      position: fixed;\n      inset: 0;\n      border: 2px solid var(--graph-border-active);\n      border-radius: 6px;\n      pointer-events: none;\n      z-index: 1500;\n      color: var(--graph-text-muted);\n      font-size: 0.7rem;\n      padding: 6px 10px;\n      text-align: right;\n  }\n\n  body.moviendo-chips .object-name { cursor: grab; user-select: none; }\n  body.moviendo-chips .object-name.arrastrando {\n      cursor: grabbing;\n      border-color: rgba(255, 255, 255, 0.7);\n  }\n",
-  "· * tomar §": "delete db ƒ",
-  "new place ƒ": "async () => {\n    //preguntamos el nombre\n    //creamos un chip\n    // al dar click en el chip el toma control del contexto del bodi\n    // todo lo creado o eliminado se agencia al chip\n    // si se da click en otro place para ser avierto ahora ese chip pasa a tener la agencia\n\n    const name = await diarsaba.get(\"modal input ƒ\")(\"@\");\n\n    if (name == \"\" || name == null)\n        return\n\n\n    const place_exist = diarsaba.get(name)\n    //si no existe creamos su place\n    if (place_exist == null || place_exist == undefined) {\n        diarsaba.set(name, {})\n        // Autosave: el place nuevo (vacío) ya es un átomo persistible.\n        await diarsaba.get(\"persistir atomo ƒ\")(name);\n    } else {\n        //si ya existe no hacemos nada\n    }\n\n\n    //tenemos ahora el chip con el que interactuar\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        diarsaba.get(\"open x $\"),\n        diarsaba.get(\"open y $\"),\n        name,\n        \"\",\n        \"@\");\n\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        diarsaba.set(\"current place §\", name)\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n        // Autosave: el place actual ahora contiene el place nuevo.\n        await diarsaba.get(\"persistir atomo ƒ\")(current_place_name);\n    }\n\n}",
-  "· : editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || {};\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        JSON.stringify(actual, null, 2),\n        \"json\"\n    );\n    if (res == null || res.trim() === \"\") return;\n\n    let nuevo;\n    try {\n        nuevo = JSON.parse(res);\n    } catch (e) {\n        alert(`\"${dataset.parent}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        return;\n    }\n    // Un objeto no puede volver como número o texto: eso rompería a quien lo lee.\n    if (nuevo === null || typeof nuevo !== \"object\" || Array.isArray(nuevo)) {\n        alert(`\"${dataset.parent}\" no se guardó: tiene que ser un objeto {…}.`);\n        return;\n    }\n    diarsaba.set(dataset.parent, nuevo);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· # editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        Array.isArray(actual) ? actual.join(\",\\n\") : String(actual),\n        \"text\"\n    );\n\n    // null = cancelado. No se toca nada: es la diferencia entre cerrar y vaciar.\n    if (res == null) return;\n\n    // \"\" sí vacía, pero solo si se llegó aquí GUARDANDO.\n    if (res.trim() === \"\") {\n        diarsaba.set(dataset.parent, []);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n        return;\n    }\n\n    diarsaba.set(\n        dataset.parent,\n        res.split(\",\").map((x) => x.trim()).filter((x) => x !== \"\")\n    );\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· ! editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        Array.isArray(actual) ? actual.join(\",\\n\") : String(actual),\n        \"text\"\n    );\n\n    // null = cancelado. No se toca nada: es la diferencia entre cerrar y vaciar.\n    if (res == null) return;\n\n    // \"\" sí vacía, pero solo si se llegó aquí GUARDANDO.\n    if (res.trim() === \"\") {\n        diarsaba.set(dataset.parent, []);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n        return;\n    }\n\n    diarsaba.set(\n        dataset.parent,\n        res.split(\",\").map((x) => x.trim()).filter((x) => x !== \"\")\n    );\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· ~ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        Array.isArray(actual) ? actual.join(\",\\n\") : String(actual),\n        \"text\"\n    );\n\n    // null = cancelado. No se toca nada: es la diferencia entre cerrar y vaciar.\n    if (res == null) return;\n\n    // \"\" sí vacía, pero solo si se llegó aquí GUARDANDO.\n    if (res.trim() === \"\") {\n        diarsaba.set(dataset.parent, []);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n        return;\n    }\n\n    diarsaba.set(\n        dataset.parent,\n        res.split(\",\").map((x) => x.trim()).filter((x) => x !== \"\")\n    );\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "· $ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) ?? 0;\n    const res = await window.codeEditor.open(dataset.parent, String(actual), \"text\");\n    if (res == null) return;\n\n    const n = Number(res.trim());\n    // Un número que no es número no se guarda: el átomo conserva su valor.\n    if (res.trim() === \"\" || Number.isNaN(n)) {\n        alert(`\"${dataset.parent}\" es un número.\\n\\nNo se guardó: ${JSON.stringify(res.trim())} no lo es.`);\n        return;\n    }\n    diarsaba.set(dataset.parent, n);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "list option $ #": [
-    "· * tomar",
-    "· $ abrir",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· * ocultar",
-    "· $ editor"
-  ],
-  "list option # #": [
-    "· * tomar",
-    "· # abrir",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· * ocultar",
-    "· # editor"
-  ],
-  "list option : #": [
-    "· * tomar",
-    "· : abrir",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· * ocultar",
-    "· : editor"
-  ],
-  "list option ! #": [
-    "· * tomar",
-    "· ! abrir",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· * ocultar",
-    "· ! action",
-    "· ! editor"
-  ],
-  "list option ~ #": [
-    "· * tomar",
-    "· ~ abrir",
-    "· * ocultar",
-    "· ~ action",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· ~ editor"
-  ],
-  "· ֎ editor ƒ": "async (dataset) => {\n    const key = dataset.parent;\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor(dataset);\n        return;\n    }\n\n    // Sin editor específico. Un valor estructurado se edita como JSON:\n    // String(objeto) daría \"[object Object]\" y guardarlo lo destruiría.\n    const actual = diarsaba.get(key);\n    const esEstructura = actual !== null && typeof actual === \"object\";\n    const res = await window.codeEditor.open(\n        key,\n        esEstructura ? JSON.stringify(actual, null, 2) : String(actual ?? \"\"),\n        esEstructura ? \"json\" : \"text\"\n    );\n    if (res == null) return;\n\n    if (esEstructura) {\n        try {\n            diarsaba.set(key, JSON.parse(res));\n            await diarsaba.get(\"persistir atomo ƒ\")(key);\n        } catch (e) {\n            alert(`\"${key}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        }\n        return;\n    }\n    diarsaba.set(key, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(key);\n}",
-  "TODO #": [],
-  "TODO §": "ARREGLAR EL EDIT\r\n\r\nARREGLAR EL DELETE\r\n\r\nHACER LAS LISTAS\r\n\r\nLISTAS DINAMICAS\r\n\r\n\r\n\r\n",
+  "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n    for (const key of list) {\n        div.innerHTML += `<span class=\"menu-item\">${key}</span>`;\n    }\n    // Sin x/y explícitos, donde está el puntero: el menú principal se abre así.\n    div.style.left = `${x === null ? diarsaba.get(\"pointer x\") : x}px`;\n    div.style.top = `${y === null ? diarsaba.get(\"pointer y\") : y}px`;\n\n    div.dataset.parent = parent;\n    div.dataset.current = current;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
+  "create list ƒ": "(x, y, list, parent) => {\n    const div = document.createElement(\"div\");\n    div.classList = \"context-menu\";\n\n    if (list.length == 0) {\n        div.innerHTML += `<span class=\"menu-item\">[0]</span>`;\n    } else {\n        for (const key in list) {\n            div.innerHTML += `<span class=\"menu-item\">[${key}] ${list[key]}</span>`;\n        }\n    }\n\n    div.style.left = `${x}px`;\n    div.style.top = `${y}px`;\n    div.dataset.parent = parent;\n    document.body.appendChild(div);\n    diarsaba.get(\"clamp to viewport ƒ\")(div);\n    return div;\n}",
+  "create { style ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
+  "create ~ thread ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, []);\n}",
+  "create § text ƒ": "(name) => {\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, \"\");\n}",
+  "create ƒ func ƒ": "(name) => {\n    // Nunca null: un ƒ nulo se guarda como el string \"null\" y al recargar\n    // createFunction lo rechaza, rompiendo la carga entera. Empezamos con\n    // una función vacía válida, que serializa y vuelve a cargar sin drama.\n    if (!diarsaba.get(`${name}`)) diarsaba.set(`${name}`, createFunction(\"()=>{}\"));\n}",
   "current place §": "diarsaba @",
-  "last click on §": "Continue",
-  "on double tap place ƒ": "() => {\n\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n    const content = target.textContent;\n\n    if (content == \"diarsaba-map @\") {\n\n        // 1. Calculamos los límites de la ventana UNA VEZ fuera del bucle (mejor rendimiento)\n        // Añadimos un \"margen\" para que los chips no queden cortados en los bordes de la pantalla\n        const margen = 50;\n        const maximoX = window.innerWidth - margen;\n        const maximoY = window.innerHeight - margen;\n\n        diarsaba.forEach((valor, clave) => {\n            // 2. Generamos las coordenadas aleatorias\n            // Math.random() da un decimal entre 0 y 1. Lo multiplicamos por el máximo.\n            // Usamos Math.floor() para redondear a números enteros (los píxeles suelen ser enteros)\n            // Sumamos el margen para que empiece desde el margen y no desde el 0 absoluto.\n            const xAleatorio = Math.floor(Math.random() * maximoX) + margen;\n            const yAleatorio = Math.floor(Math.random() * maximoY) + margen;\n\n            // 3. Llamamos a la función con los nuevos valores\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                xAleatorio,\n                yAleatorio,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n        });\n\n        //en caso opuesto a esto, mejor crear una lista y que habra automaticamente en el editor\n    } else {\n        // Las referencias ֎ apuntan a nodos que están a punto de\n        // desaparecer: se limpian antes de repintar.\n        for (const k of [...diarsaba.keys()]) {\n            if (typeof k === \"string\" && k.endsWith(\"֎\") && diarsaba.get(k) instanceof Element) {\n                diarsaba.delete(k);\n            }\n        }\n        document.body.replaceChildren();\n\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            100,\n            50,\n            content,\n            \"\",\n            content.slice(-1)\n        );\n        diarsaba.set(`${content} ֎`, chip);\n\n        // Desestructuramos el array en [clave, valor]\n        let place = diarsaba.get(content)\n        Object.entries(place).forEach(([clave, valor]) => {\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                valor.x,\n                valor.y,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n\n            // Sin esta referencia, abrir/ocultar/padre no encuentran el\n            // chip y anclan al puntero: el hijo sale desplazado.\n            diarsaba.set(`${clave} ֎`, chip);\n        });\n\n        \n        diarsaba.set(\"current place §\", content)\n    }\n\n\n\n}",
-  "add to place ƒ": "(name) => {\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        // unicamente si es un place\n\n        if (name.slice(-1) == \"@\") {\n            diarsaba.set(\"current place §\", name)\n        }else{\n            alert(\"todos los movimientos que hagas no seran registrados\")\n        }\n\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n        // Autosave: el place cambió (un chip nuevo con su posición).\n        diarsaba.get(\"persistir atomo ƒ\")(current_place_name);\n    }\n}",
-  "nuevo ejemplo §": "",
-  "examples @": {
-    "TODO §": {
-      "x": 180,
-      "y": 66
+  "develop @": {
+    "diarsaba @": {
+      "x": 221,
+      "y": 60
     },
     "handle click ƒ": {
-      "x": 157,
-      "y": 137
+      "x": 78,
+      "y": 170
     },
-    "add to place ƒ": {
-      "x": 237,
-      "y": 89
+    "new place ƒ": {
+      "x": 85,
+      "y": 229
     },
-    "on start ƒ": {
-      "x": 33,
-      "y": 74
+    "TODO §": {
+      "x": 624,
+      "y": 47
+    },
+    "on double tap place ƒ": {
+      "x": 252,
+      "y": 167
+    },
+    "· ƒ editor ƒ": {
+      "x": 493,
+      "y": 96
+    },
+    "· § editor ƒ": {
+      "x": 497,
+      "y": 149
+    },
+    "open general editor ƒ": {
+      "x": 506,
+      "y": 195
+    },
+    "p2p ƒ @": {
+      "x": 300,
+      "y": 326
+    },
+    "p2p ! @": {
+      "x": 300,
+      "y": 400
+    },
+    "install mover ƒ": {
+      "x": 620,
+      "y": 326
     }
   },
   "diarsaba @": {
@@ -349,53 +237,33 @@
       "y": 288
     }
   },
-  "on start place ƒ": "() => {\n    diarsaba.set(\"current place §\", \"diarsaba @\")\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        20,\n        20,\n        \"diarsaba @\",\n        \"\",\n        \"@\"\n    );\n    diarsaba.set(\"diarsaba @ ֎\", chip);\n\n    const diarsabaplace = diarsaba.get(\"diarsaba @\")\n\n    Object.entries(diarsabaplace).forEach(([clave, valor]) => {\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            valor.x,\n            valor.y,\n            clave,\n            \"\",\n            clave.slice(-1)\n        );\n\n        // Sin esta referencia, abrir/ocultar/padre no encuentran el\n        // chip y anclan al puntero: el hijo sale desplazado.\n        diarsaba.set(`${clave} ֎`, chip);\n    });\n\n}",
-  "develop @": {
-    "diarsaba @": {
-      "x": 221,
-      "y": 60
+  "dibujo @": {
+    "clamp to viewport ƒ": {
+      "x": 40,
+      "y": 90
     },
-    "handle click ƒ": {
-      "x": 78,
-      "y": 170
+    "create chip ƒ": {
+      "x": 340,
+      "y": 90
     },
-    "new place ƒ": {
-      "x": 85,
-      "y": 229
+    "create list menu ƒ": {
+      "x": 640,
+      "y": 90
     },
-    "TODO §": {
-      "x": 624,
-      "y": 47
+    "create list ƒ": {
+      "x": 40,
+      "y": 142
     },
-    "on double tap place ƒ": {
-      "x": 252,
-      "y": 167
+    "modal input ƒ": {
+      "x": 340,
+      "y": 142
     },
-    "· ƒ editor ƒ": {
-      "x": 493,
-      "y": 96
-    },
-    "· § editor ƒ": {
-      "x": 497,
-      "y": 149
-    },
-    "open general editor ƒ": {
-      "x": 506,
-      "y": 195
-    },
-    "p2p ƒ @": {
-      "x": 300,
-      "y": 326
-    },
-    "p2p ! @": {
-      "x": 300,
-      "y": 400
-    },
-    "install mover ƒ": {
-      "x": 620,
-      "y": 326
+    "todo el estilo {": {
+      "x": 640,
+      "y": 142
     }
   },
+  "dispatch item ƒ": "(name, dataset, target) => {\n    // Un ítem de lista \"cobra vida\" según su sigilo. Devuelve true si lo\n    // manejó (y así handle click ƒ no aplica el fallback anterior).\n    const type = name.slice(-1);\n\n    // Acciones y threads: ejecutar\n    if (type === \"!\" || type === \"~\") {\n        threads(name);\n        return true;\n    }\n\n    // Listas: abrir su contenido como sublista efímera (con scroll) junto al ítem\n    if (type === \"#\") {\n        const list = diarsaba.get(name);\n        if (!Array.isArray(list)) return false;\n        const prev = diarsaba.get(`${name} # ֎`);\n        if (prev && typeof prev.remove === \"function\") prev.remove();\n        const rect = target.getBoundingClientRect();\n        const sub = diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name);\n        diarsaba.set(`${name} # ֎`, sub);\n        return true;\n    }\n\n    // Places: abrirlos. Es lo que hace utilizable el índice \"places #\":\n    // sin esto habría que hacer doble clic sobre el nombre, que es la\n    // regla de los chips del lienzo pero no la de un ítem de menú.\n    if (type === \"@\") {\n        const abrir = diarsaba.get(\"on double tap place ƒ\");\n        if (typeof abrir !== \"function\") return false;\n        // on double tap place ƒ lee el evento del puntero para saber QUÉ\n        // place abrir, así que se le deja el ítem pulsado como objetivo.\n        // OJO: no vale el elemento pulsado. En una lista su texto es\n        // \"[10] menú @\" —con el índice delante— y on double tap place ƒ\n        // buscaría un place con ese nombre. \"name\" ya viene limpio.\n        diarsaba.set(\"pointer up event\", { target: { textContent: name, nodeName: \"SPAN\" } });\n        diarsaba.get(\"clear menus ƒ\")();\n        abrir();\n        return true;\n    }\n\n    // Funciones: ejecutar\n    if (type === \"ƒ\") {\n        const f = diarsaba.get(name);\n        if (typeof f === \"function\") {\n            f(dataset);\n            return true;\n        }\n        return false;\n    }\n\n    return false;\n}",
   "editables list #": [
     "~",
     "ƒ",
@@ -409,255 +277,121 @@
     ":",
     "@"
   ],
-  "open general editor ƒ": "async (key) => {\n    // Delegamos en el editor específico del tipo, que serializa y reconstruye\n    // cada tipo según el sufijo de la clave. Así el átomo vuelve SIEMPRE a su\n    // tipo original: un # sigue siendo lista y un @ sigue siendo place.\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor({ parent: key });\n        return;\n    }\n\n    // Sin editor específico. Un valor estructurado se edita como JSON:\n    // String(objeto) daría \"[object Object]\" y guardarlo lo destruiría.\n    const actual = diarsaba.get(key);\n    const esEstructura = actual !== null && typeof actual === \"object\";\n    const res = await window.codeEditor.open(\n        key,\n        esEstructura ? JSON.stringify(actual, null, 2) : String(actual ?? \"\"),\n        esEstructura ? \"json\" : \"text\"\n    );\n    if (res == null) return;\n\n    if (esEstructura) {\n        try {\n            diarsaba.set(key, JSON.parse(res));\n            await diarsaba.get(\"persistir atomo ƒ\")(key);\n        } catch (e) {\n            alert(`\"${key}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        }\n        return;\n    }\n    diarsaba.set(key, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(key);\n}",
-  "ai config ƒ": "() => {\n    window.openAIConfig();\n}",
-  "ai config !": [
-    "ai config ƒ"
-  ],
-  "p2p ƒ @ arg ƒ": "(v) => {\n    // Un ejecutor ! pasa los elementos del arreglo COMO STRINGS: threads hace\n    // a.apply(null, s.slice(1)), así que llega el NOMBRE del átomo, no su\n    // valor. Por eso cada ƒ resuelve aquí: si el string nombra un átomo, se\n    // usa su contenido; si no, se toma tal cual como literal.\n    //\n    // Es lo que permite [\"... Announce ƒ\", \"valor para anunciar §\"] sin que la\n    // ƒ tenga que saber de dónde viene el dato.\n    if (typeof v !== \"string\") return v;\n    return diarsaba.has(v) ? diarsaba.get(v) : v;\n}",
-  "p2p ƒ @ dice ƒ": "(etiqueta, valor) => {\n    // Deja el resultado a la vista: un ! disparado con un clic no tiene dónde\n    // devolver. Los fallos además se gritan.\n    const plano = valor instanceof Error ? valor.message : valor;\n    diarsaba.set(\"p2p ƒ @ dice §\", `${etiqueta}\\n${typeof plano === \"string\" ? plano : JSON.stringify(plano, null, 2)}`);\n    console.log(`[p2p ƒ] ${etiqueta}`, valor);\n    if (String(etiqueta).endsWith(\"✗\")) alert(`${etiqueta}\\n${plano}`);\n    return valor;\n}",
-  "p2p ƒ @ stream ƒ": "(id, peer) => {\n    // Un Stream vive en Go; aquí llega su identificador. Esto lo envuelve.\n    //\n    // Por el cable va JSON. Se eligió sobre msgpack por dos razones, y ninguna\n    // es el tamaño: (1) un átomo de carga JSON es un mapa \":\", que en diarsaba\n    // tiene tipo y por tanto editor —msgpack obligaba a un átomo sin sigilo,\n    // que no se puede abrir ni despachar—; y (2) cualquier peer puede hablarlo,\n    // incluida la CLI de p2plite. window.msgpack sigue disponible para cuando\n    // haga falta binario de verdad.\n    //\n    // El base64 de abajo NO es el formato: es el salto Go↔JS, que es JSON por\n    // definición de los bindings de Wails y codifica []byte en base64.\n    const aB64 = (texto) => {\n        const bytes = new TextEncoder().encode(texto);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b64) =>\n        new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        peer: peer || \"\",\n        escribir: async (valor) => {\n            // Un string se manda tal cual: así se puede hablar con un peer que\n            // espera texto plano sin envolverlo en comillas JSON.\n            const texto = typeof valor === \"string\" ? valor : JSON.stringify(valor);\n            return await window.p2p.StreamWrite(id, aB64(texto));\n        },\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            let texto = \"\";\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) texto += deB64(c.data);\n                if (c.eof) break;\n            }\n            if (texto === \"\") return null;\n            // Si no es JSON se devuelve el texto tal cual en vez de reventar:\n            // así el place entiende a la CLI de p2plite y a cualquier peer que\n            // mande texto plano.\n            try {\n                return JSON.parse(texto);\n            } catch (_) {\n                return texto;\n            }\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
-  "p2p ƒ @ ID ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        return dice(\"ID\", await window.p2p.ID());\n    } catch (e) {\n        return dice(\"ID ✗\", e);\n    }\n}",
-  "p2p ƒ @ Announce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"Announce ✗\", \"sin clave: pásale un § con el valor a anunciar\");\n        // Anunciar sin escuchar no sirve: te encontrarían y no contestarías.\n        // StreamHandle ya corre desde el arranque, así que solo se comprueba.\n        await window.p2p.Announce(k);\n        return dice(\"Announce\", `anunciado \"${k}\" — sirviendo mientras la app siga abierta`);\n    } catch (e) {\n        return dice(\"Announce ✗\", e);\n    }\n}",
-  "p2p ƒ @ StopAnnounce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"StopAnnounce ✗\", \"sin clave que parar\");\n        await window.p2p.StopAnnounce(k);\n        // No existe el borrado: el registro sigue en la red hasta que caduca.\n        return dice(\"StopAnnounce\", `dejado de publicar \"${k}\" (la red lo olvidará al caducar)`);\n    } catch (e) {\n        return dice(\"StopAnnounce ✗\", e);\n    }\n}",
-  "p2p ƒ @ FindProviders ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"FindProviders ✗\", \"sin clave que buscar\");\n        // No hay límite de resultados: lo que acota es el plazo.\n        const hallados = await window.p2p.FindProviders(k, 30000);\n        diarsaba.set(\"p2p ƒ @ providers #\", hallados.map((p) => p.id));\n        if (hallados.length) diarsaba.set(\"p2p ƒ @ peer §\", hallados[0].id);\n        // Cero proveedores no es un fallo: es que nadie lo tiene.\n        return dice(`FindProviders \"${k}\"`, hallados.length ? hallados.map((p) => p.id) : \"nadie lo tiene\");\n    } catch (e) {\n        return dice(\"FindProviders ✗\", e);\n    }\n}",
-  "p2p ƒ @ OpenStream ƒ": "async (peer, datos) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    let s = null;\n    try {\n        // Sin peer explícito se usa el último que dejó FindProviders.\n        const p = arg(peer) || diarsaba.get(\"p2p ƒ @ peer §\");\n        if (!p) return dice(\"OpenStream ✗\", \"sin peer: corre FindProviders antes, o pásale uno\");\n\n        // La carga por defecto es un mapa \":\": editable con · : editor ƒ (Monaco\n        // en modo json, que valida al guardar).\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(datos);\n        s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(p, 30000), p);\n\n        await s.escribir(carga === undefined ? null : carga);\n        await s.termine(); // le decimos que terminamos: ahora puede contestar\n\n        // Que no conteste NO es un fallo: el mensaje ya está entregado. Pasa\n        // siempre que el otro lado tenga la respuesta automática apagada y no\n        // haya nadie para pulsar Reply !. Antes esto salía como error y parecía\n        // que el envío no había funcionado.\n        let respuesta;\n        let hubo = true;\n        try {\n            respuesta = await s.leer();\n        } catch (e) {\n            hubo = false;\n        }\n        await s.cerrar();\n\n        if (!hubo) {\n            return dice(\"OpenStream\", {\n                a: p.slice(-8),\n                envié: carga,\n                nota: \"entregado, pero no contestó. Si esperabas respuesta, mira «p2p ƒ @ auto responder §» en el OTRO nodo: vacío = alguien tiene que pulsar Reply ! allí.\",\n            });\n        }\n\n        diarsaba.set(\"p2p ƒ @ respuesta\", respuesta);\n        return dice(\"OpenStream\", { a: p.slice(-8), envié: carga, contestó: respuesta });\n    } catch (e) {\n        if (s) {\n            try {\n                await s.cerrar();\n            } catch (_) {}\n        }\n        return dice(\"OpenStream ✗\", e);\n    }\n}",
-  "p2p ƒ @ StreamHandle ƒ": "async () => {\n    // Deja la app lista para RECIBIR. La llama \"on start ƒ\", así que no hace\n    // falta tocarla: al abrir la app ya se escucha.\n    //\n    // Lo entrante se apila en \"Streams #\". Qué pasa después lo deciden dos\n    // átomos:\n    //   - \"p2p ƒ @ auto responder §\": con valor, se acusa recibo y se cierra\n    //     (permite dejar la app sola); vacío, el stream queda abierto para\n    //     Reply !.\n    //   - \"p2p ƒ @ devolver en $\": segundos tras los cuales se le manda a ese\n    //     peer el contenido de \"enviar :\". 0 lo apaga.\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        // Idempotente: suscribirse dos veces duplicaría cada entrada.\n        if (diarsaba.get(\"p2p ƒ @ escuchando ֎\")) return \"ya escuchaba\";\n\n        diarsaba.set(\n            \"p2p ƒ @ escuchando ֎\",\n            window.EventsOn(\"p2p:stream\", async (ev) => {\n                try {\n                    const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(ev.stream, ev.from);\n                    // Se lee hasta el final ANTES de decidir: así \"data\" ya\n                    // trae el mensaje, se conteste o no.\n                    const data = await s.leer();\n                    const auto = diarsaba.get(\"p2p ƒ @ auto responder §\");\n                    const hora = new Date().toLocaleTimeString();\n\n                    // Con el ida y vuelta puesto llega un mensaje por ronda,\n                    // casi siempre idéntico al anterior. Si se apilaran todos,\n                    // \"Streams #\" sería una pared de repeticiones donde no se\n                    // ve lo que de verdad cambió. Un repetido solo actualiza su\n                    // hora y su cuenta.\n                    const previas = diarsaba.get(\"Streams #\") || [];\n                    const ultima = previas.find((e) => e.peer === ev.from);\n                    const repetido =\n                        ultima && JSON.stringify(ultima.data) === JSON.stringify(data);\n\n                    if (repetido) {\n                        ultima.hora = hora;\n                        ultima.veces = (ultima.veces || 1) + 1;\n                        ultima.id = ev.stream;\n                        ultima.contestada = !!auto;\n                        diarsaba.set(\"Streams #\", [...previas]);\n                    } else {\n                        const tope = Number(diarsaba.get(\"p2p ƒ @ historial $\")) || 50;\n                        const entrada = {\n                            id: ev.stream,\n                            peer: ev.from,\n                            data,\n                            hora,\n                            veces: 1,\n                            // Con acuse automático el stream ya está cerrado,\n                            // así que Reply ! no puede usarlo: queda marcada.\n                            contestada: !!auto,\n                            // Sin esto la lista dibuja \"[object Object]\":\n                            // create list ƒ interpola el elemento.\n                            toString() {\n                                const d =\n                                    typeof this.data === \"string\" ? this.data : JSON.stringify(this.data);\n                                const n = this.veces > 1 ? ` ×${this.veces}` : \"\";\n                                return `${this.contestada ? \"✓\" : this.id} ${this.hora} ← ${this.peer.slice(-8)}${n}: ${d}`;\n                            },\n                        };\n                        diarsaba.set(\"Streams #\", [entrada, ...previas].slice(0, tope));\n                    }\n\n                    if (auto) {\n                        // El acuse devuelve lo recibido: confirma la entrega y\n                        // de paso que el viaje de ida no deformó nada.\n                        await s.escribir({ ok: true, recibido: data });\n                        await s.cerrar();\n                    }\n\n                    // Y se programa la vuelta, que es lo que mantiene el flujo.\n                    diarsaba.get(\"p2p ƒ @ devolver ƒ\")(ev.from);\n\n                    console.log(\n                        \"[p2p ƒ] entrante de\",\n                        ev.from.slice(-8),\n                        repetido ? \"(repetido)\" : data,\n                        auto ? \"(acusado)\" : \"(abierto)\"\n                    );\n                } catch (e) {\n                    console.error(\"[p2p ƒ] entrante falló\", e);\n                }\n            })\n        );\n\n        await window.p2p.Start();\n        return dice(\"StreamHandle\", \"escuchando: lo entrante aparece en «Streams #»\");\n    } catch (e) {\n        // Sin alert: esto corre al arrancar y un modal dejaría la app\n        // inservible. El fallo queda en la consola y en \"p2p ƒ @ dice §\".\n        diarsaba.set(\"p2p ƒ @ dice §\", `StreamHandle ✗\\n${e.message || e}`);\n        console.error(\"[p2p ƒ] no se pudo escuchar:\", e);\n        return e;\n    }\n}",
-  "p2p ƒ @ Reply ƒ": "async (id, datos) => {\n    // Contesta un stream de \"Streams #\" y lo cierra. El id puede venir como\n    // string, como nombre de un átomo, o como la entrada entera (si le pasas\n    // el objeto de la lista).\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        let sid = arg(id);\n        if (sid && typeof sid === \"object\" && sid.id) sid = sid.id;\n        // Sin id: se contesta el más reciente, que es lo que se querrá el 90%.\n        if (!sid) {\n            const pendientes = diarsaba.get(\"Streams #\") || [];\n            if (!pendientes.length) return dice(\"Reply ✗\", \"no hay streams entrantes que contestar\");\n            sid = pendientes[0].id;\n        }\n\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ responder :\") : arg(datos);\n        // Un stream ya acusado está cerrado en Go: contestar ahí falla\n        // con un \"stream desconocido\" que no explica nada.\n        const entrada = (diarsaba.get(\"Streams #\") || []).find((e) => e.id === sid);\n        if (entrada && entrada.contestada) {\n            return dice(\"Reply ✗\", `${sid} ya se contestó sola (auto responder está activo).\\n\\nPara contestar a mano, vacía \"p2p ƒ @ auto responder §\" y pide que te lo manden otra vez.`);\n        }\n\n        const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(sid, \"\");\n        await s.escribir(carga === undefined ? null : carga);\n        await s.cerrar();\n\n        // Fuera de la lista: ya está contestado y cerrado.\n        diarsaba.set(\"Streams #\", (diarsaba.get(\"Streams #\") || []).filter((e) => e.id !== sid));\n        return dice(\"Reply\", `contestado ${sid}`);\n    } catch (e) {\n        return dice(\"Reply ✗\", e);\n    }\n}",
-  "ID !": [
-    "p2p ƒ @ ID ƒ"
-  ],
-  "Announce !": [
-    "p2p ƒ @ Announce ƒ",
-    "p2p ƒ @ anunciar §"
-  ],
-  "StopAnnounce !": [
-    "p2p ƒ @ StopAnnounce ƒ",
-    "p2p ƒ @ anunciar §"
-  ],
-  "FindProviders !": [
-    "p2p ƒ @ FindProviders ƒ",
-    "p2p ƒ @ buscar §"
-  ],
-  "OpenStream !": [
-    "p2p ƒ @ OpenStream ƒ",
-    "p2p ƒ @ peer §",
-    "p2p ƒ @ enviar :"
-  ],
-  "Reply !": [
-    "p2p ƒ @ Reply ƒ",
-    "p2p ƒ @ responder id §",
-    "p2p ƒ @ responder :"
-  ],
-  "Streams #": [],
-  "p2p ƒ @ providers #": [],
-  "p2p ƒ @ dice §": "",
-  "p2p ƒ @ peer §": "",
-  "p2p ƒ @ anunciar §": "hola",
-  "p2p ƒ @ buscar §": "hola",
-  "p2p ƒ @ responder id §": "",
-  "p2p ƒ @": {
-    "p2p ƒ @ ID ƒ": {
-      "x": 80,
-      "y": 90
-    },
-    "p2p ƒ @ Announce ƒ": {
-      "x": 80,
-      "y": 150
-    },
-    "p2p ƒ @ StopAnnounce ƒ": {
-      "x": 80,
-      "y": 210
-    },
-    "p2p ƒ @ FindProviders ƒ": {
-      "x": 80,
-      "y": 270
-    },
-    "p2p ƒ @ OpenStream ƒ": {
-      "x": 80,
-      "y": 330
-    },
-    "p2p ƒ @ StreamHandle ƒ": {
-      "x": 80,
-      "y": 390
-    },
-    "p2p ƒ @ Reply ƒ": {
-      "x": 80,
-      "y": 450
-    },
-    "p2p ƒ @ arg ƒ": {
-      "x": 480,
-      "y": 90
-    },
-    "p2p ƒ @ dice ƒ": {
-      "x": 480,
-      "y": 150
-    },
-    "p2p ƒ @ stream ƒ": {
-      "x": 480,
-      "y": 210
-    },
-    "p2p ƒ @ devolver ƒ": {
-      "x": 40,
-      "y": 90
-    }
-  },
-  "p2p ! @": {
-    "ID !": {
-      "x": 80,
-      "y": 90
-    },
-    "Announce !": {
-      "x": 80,
-      "y": 150
-    },
-    "StopAnnounce !": {
-      "x": 80,
-      "y": 210
-    },
-    "FindProviders !": {
-      "x": 80,
-      "y": 270
-    },
-    "OpenStream !": {
-      "x": 80,
-      "y": 330
-    },
-    "Reply !": {
-      "x": 80,
-      "y": 390
-    },
-    "Streams #": {
-      "x": 400,
-      "y": 90
-    },
-    "p2p ƒ @ dice §": {
-      "x": 400,
-      "y": 150
-    },
-    "p2p ƒ @ peer §": {
-      "x": 400,
-      "y": 210
-    },
-    "p2p ƒ @ anunciar §": {
-      "x": 400,
-      "y": 270
-    },
-    "p2p ƒ @ buscar §": {
-      "x": 400,
-      "y": 330
-    },
-    "p2p ƒ @ responder id §": {
-      "x": 400,
-      "y": 510
-    },
-    "p2p ƒ @ providers #": {
-      "x": 700,
-      "y": 90
-    },
-    "p2p ƒ @ enviar :": {
-      "x": 400,
-      "y": 390
-    },
-    "p2p ƒ @ responder :": {
-      "x": 400,
-      "y": 450
-    },
-    "p2p ƒ @ auto responder §": {
-      "x": 400,
-      "y": 570
-    },
-    "p2p ƒ @ devolver en $": {
-      "x": 700,
-      "y": 170
-    },
-    "p2p ƒ @ historial $": {
-      "x": 700,
-      "y": 240
-    }
-  },
-  "install mover ƒ": "() => {\n    // Arrastre de chips. Es un MODO —lo enciende \"mover !\" en el menú\n    // principal— porque mientras está activo el clic no abre ni edita.\n    //\n    // Los listeners van en window y solo deben registrarse una vez; la marca\n    // ֎ no se persiste, así que cada arranque los pone de nuevo.\n    if (diarsaba.get(\"mover instalado ֎\")) return;\n    diarsaba.set(\"mover instalado ֎\", true);\n\n    let arrastrando = null;\n    let dx = 0;\n    let dy = 0;\n\n    // Capture: hay que llegar ANTES que los listeners de on start ƒ para poder\n    // cortar el clic que abriría el chip.\n    window.addEventListener(\n        \"pointerdown\",\n        (e) => {\n            if (!diarsaba.get(\"moviendo chips §\")) return;\n            // Solo el botón primario: el derecho abre el menú, y es por donde\n            // se sale del modo.\n            if (e.button !== 0) return;\n            const chip = e.target.closest(\".object-name\");\n            if (!chip) return;\n            const r = chip.getBoundingClientRect();\n            arrastrando = chip;\n            dx = e.clientX - r.left;\n            dy = e.clientY - r.top;\n            chip.setPointerCapture?.(e.pointerId);\n            chip.classList.add(\"arrastrando\");\n            e.stopPropagation();\n            e.preventDefault();\n        },\n        true\n    );\n\n    window.addEventListener(\n        \"pointermove\",\n        (e) => {\n            if (!arrastrando) return;\n            arrastrando.style.left = `${e.clientX - dx}px`;\n            arrastrando.style.top = `${e.clientY - dy}px`;\n            e.stopPropagation();\n        },\n        true\n    );\n\n    window.addEventListener(\n        \"pointerup\",\n        (e) => {\n            if (!arrastrando) return;\n            const chip = arrastrando;\n            arrastrando = null;\n            chip.classList.remove(\"arrastrando\");\n\n            // La posición se guarda en el place actual, que es donde vive la\n            // disposición. Si el átomo no está en el place (p. ej. un chip\n            // hijo abierto), se mueve pero no se registra: no tiene sitio ahí.\n            const nombre = chip.textContent;\n            const placeName = diarsaba.get(\"current place §\");\n            const place = diarsaba.get(placeName);\n            if (place && typeof place === \"object\" && nombre in place) {\n                diarsaba.set(placeName, {\n                    ...place,\n                    [nombre]: { x: parseFloat(chip.style.left) || 0, y: parseFloat(chip.style.top) || 0 },\n                });\n                // Autosave: la nueva posición vive en el place.\n                diarsaba.get(\"persistir atomo ƒ\")(placeName);\n            }\n\n            // Cortamos el clic: si no, al soltar se abriría el chip.\n            e.stopPropagation();\n            e.preventDefault();\n        },\n        true\n    );\n}",
-  "moviendo chips §": "",
-  "p2p ƒ @ enviar :": {
-    "orden": "saludar",
-    "de": "diarsaba"
-  },
-  "p2p ƒ @ responder :": {
-    "ok": true,
-    "resultado": "recibido"
-  },
-  "open submenu ƒ": "(nombre, target) => {\n    // Dibuja el contenido de una lista \"#\" como submenú, con la misma función\n    // que el menú principal — así un submenú ES un menú: sus ítems se pulsan\n    // igual y una lista dentro de otra vuelve a abrirse aquí, anidando sola.\n    //\n    // Devuelve false si el átomo no es una lista, para que quien llama siga su\n    // camino normal.\n    const lista = diarsaba.get(nombre);\n    if (!Array.isArray(lista)) return false;\n\n    // Pulsar dos veces el mismo ítem no debe apilar submenús.\n    const previo = diarsaba.get(`${nombre} submenu ֎`);\n    if (previo && typeof previo.remove === \"function\") previo.remove();\n\n    const r = target.getBoundingClientRect();\n    const sub = diarsaba.get(\"create list menu ƒ\")(lista, nombre, \"\", r.right + 6, r.top);\n    // La marca permite a \"clear menus ƒ\" barrerlos todos sin llevar la cuenta.\n    sub.classList.add(\"submenu\");\n    diarsaba.set(`${nombre} submenu ֎`, sub);\n    return true;\n}",
-  "· @ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || {};\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        JSON.stringify(actual, null, 2),\n        \"json\"\n    );\n    if (res == null || res.trim() === \"\") return;\n\n    let nuevo;\n    try {\n        nuevo = JSON.parse(res);\n    } catch (e) {\n        alert(`\"${dataset.parent}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        return;\n    }\n    // Un objeto no puede volver como número o texto: eso rompería a quien lo lee.\n    if (nuevo === null || typeof nuevo !== \"object\" || Array.isArray(nuevo)) {\n        alert(`\"${dataset.parent}\" no se guardó: tiene que ser un objeto {…}.`);\n        return;\n    }\n    diarsaba.set(dataset.parent, nuevo);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
-  "list option @ #": [
-    "· * tomar",
-    "· * quitar",
-    "· * eliminar",
-    "· * restaurar",
-    "· @ editor",
-    "· * ocultar"
-  ],
-  "p2p ƒ @ auto responder §": "si",
-  "p2p ƒ @ devolver ƒ": "(peer) => {\n    // Programa el envío de \"enviar :\" a ese peer. Es lo que mantiene vivo el\n    // ida y vuelta: cada lado contesta al otro una vez por ronda.\n    const segundos = Number(diarsaba.get(\"p2p ƒ @ devolver en $\")) || 0;\n    if (!segundos || !peer) return; // 0 = apagado\n\n    // UN SOLO temporizador por peer. Sin esto, dos mensajes seguidos\n    // programarían dos envíos, cada uno provocaría otro del otro lado, y el\n    // tráfico se doblaría en cada vuelta hasta ahogar a los dos nodos.\n    const pendientes = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n    if (pendientes[peer]) return;\n\n    pendientes[peer] = setTimeout(async () => {\n        const p = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n        delete p[peer];\n        diarsaba.set(\"p2p ƒ @ pendientes ֎\", p);\n\n        try {\n            const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n            await s.escribir(diarsaba.get(\"p2p ƒ @ enviar :\"));\n            await s.termine();\n            // El acuse del otro lado, si lo tiene puesto. Que no llegue no\n            // importa: lo que cuenta es que el mensaje salió.\n            try {\n                await s.leer();\n            } catch (_) {}\n            await s.cerrar();\n            console.log(\"[p2p ƒ] devuelto a\", peer.slice(-8));\n        } catch (e) {\n            // Si el otro lado se fue, el ida y vuelta se corta AQUÍ y no se\n            // reanuda solo: volverá a arrancar cuando alguien mande algo a\n            // mano con OpenStream !.\n            console.error(\"[p2p ƒ] no se pudo devolver a\", peer.slice(-8), e.message || e);\n        }\n    }, segundos * 1000);\n\n    diarsaba.set(\"p2p ƒ @ pendientes ֎\", pendientes);\n}",
-  "p2p ƒ @ devolver en $": 60,
-  "p2p ƒ @ historial $": 50,
-  "arranque @": {
-    "add to place ƒ": {
+  "editores @": {
+    "open general editor ƒ": {
       "x": 40,
       "y": 90
     },
-    "current place §": {
+    "· ! editor ƒ": {
       "x": 340,
       "y": 90
     },
-    "install mover ƒ": {
+    "· # editor ƒ": {
       "x": 640,
       "y": 90
     },
-    "install style manager ƒ": {
+    "· $ editor ƒ": {
       "x": 40,
       "y": 142
     },
-    "moviendo chips §": {
+    "· : editor ƒ": {
       "x": 340,
       "y": 142
     },
-    "new place ƒ": {
+    "· < editor ƒ": {
       "x": 640,
       "y": 142
     },
-    "on double tap place ƒ": {
+    "· @ editor ƒ": {
       "x": 40,
       "y": 194
     },
-    "on start place ƒ": {
+    "· { editor ƒ": {
       "x": 340,
       "y": 194
     },
-    "on start ƒ": {
+    "· ~ editor ƒ": {
       "x": 640,
       "y": 194
     },
-    "places #": {
-      "x": 940,
-      "y": 90
+    "· § editor ƒ": {
+      "x": 40,
+      "y": 246
     },
-    "mover ƒ": {
-      "x": 640,
-      "y": 90
+    "· ƒ editor ƒ": {
+      "x": 340,
+      "y": 246
     },
-    "mover !": {
-      "x": 640,
-      "y": 142
-    },
-    "reload ƒ": {
-      "x": 640,
-      "y": 194
-    },
-    "reload !": {
+    "· ֎ editor ƒ": {
       "x": 640,
       "y": 246
     }
   },
+  "eliminar elemento del dom ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎`).remove();\n}",
+  "examples @": {
+    "TODO §": {
+      "x": 180,
+      "y": 66
+    },
+    "handle click ƒ": {
+      "x": 157,
+      "y": 137
+    },
+    "add to place ƒ": {
+      "x": 237,
+      "y": 89
+    },
+    "on start ƒ": {
+      "x": 33,
+      "y": 74
+    }
+  },
+  "exportar !": [
+    "exportar ! ƒ"
+  ],
+  "exportar ! ƒ": "async () => {\n    // Exportar es sacar el programa de la app a un JSON revisable (el que se\n    // commitea en git o viaja a otra instancia). Primero se persiste lo que\n    // está VIVO en el mapa —guardar ! ƒ lo vuelca a la base— y solo entonces\n    // se escribe el archivo: al revés se exportaría el estado anterior y el\n    // JSON no coincidiría con lo que tienes en pantalla.\n    const guardar = diarsaba.get(\"guardar ! ƒ\");\n    if (guardar) await guardar();\n\n    try {\n        const ruta = await ExportAtoms();\n        console.log(\"programa exportado en:\", ruta);\n        alert(`programa exportado en:\\n${ruta}`);\n    } catch (error) {\n        console.error(\"Error al exportar:\", error);\n        alert(`no se pudo exportar:\\n${error && error.message ? error.message : error}`);\n    }\n}",
+  "guardado @": {
+    "guardar ! ƒ": {
+      "x": 40,
+      "y": 90
+    },
+    "guardar !": {
+      "x": 340,
+      "y": 90
+    },
+    "exportar ! ƒ": {
+      "x": 40,
+      "y": 160
+    },
+    "exportar !": {
+      "x": 340,
+      "y": 160
+    },
+    "protegidos #": {
+      "x": 340,
+      "y": 230
+    }
+  },
+  "guardar !": [
+    "guardar ! ƒ"
+  ],
+  "guardar ! ƒ": "async () => {\n    // No persistir refs DOM (claves terminadas en ֎) ni objetos vivos de\n    // runtime: se regeneran solos y solo ensucian el archivo (y provocan\n    // entradas {} que rompen código que espera un elemento).\n    const skipKeys = new Set([\n        \"ws socket\",\n        \"Streams #\",\n        \"current menu\",\n        \"current chip menu\",\n        \"pointer up event\",\n        \"pointer down event\",\n        \"pointer move event\"\n    ]);\n\n    const dataToSave = {};\n    for (const [key, value] of diarsaba.entries()) {\n        if (key.endsWith(\"֎\") || skipKeys.has(key)) continue;\n\n        if (key.endsWith(\"ƒ\")) {\n            dataToSave[key] = String(value).replace(/\\r\\n/g, \"\\n\").trim();\n        } else {\n            dataToSave[key] = value;\n        }\n    }\n    const jsonString = JSON.stringify(dataToSave, null, 2);\n\n    try {\n        const savedPath = await SavePredefinedFunctions(jsonString);\n        console.log(\"Archivo guardado exitosamente en:\", savedPath);\n    } catch (error) {\n        console.error(\"Error al guardar el archivo:\", error);\n    }\n}",
+  "handle click !": [
+    "handle click ƒ"
+  ],
+  "handle click ƒ": "async () => {\n    // Con el modo mover activo, un clic en un CHIP lo arrastra y no lo abre.\n    // Solo los chips: si tapara todo, el propio \"mover !\" del menú quedaría\n    // inalcanzable y no habría forma de salir del modo sin recargar.\n    if (diarsaba.get(\"moviendo chips §\")) {\n        const ev = diarsaba.get(\"pointer up event\");\n        if (ev && ev.target && ev.target.closest && ev.target.closest(\".object-name\")) return;\n    }\n\n    // 1. Obtener el evento y el elemento clickeado\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n\n    // Los modales (editor Monaco, modal de nombre, botón de mover) viven\n    // ENCIMA del lienzo, pero este manejador escucha toda la ventana. Sin\n    // esto, un doble clic dentro del editor se lee como doble clic en un\n    // chip: el título del modal ES el nombre del átomo, sigilo incluido.\n    if (event.target.closest && event.target.closest(\".editor-overlay, .modal-content\")) return;\n    const nodeName = target.nodeName;\n\n    // 2. Si se hizo clic en el fondo (HTML/BODY), solo limpiar menús\n    if (nodeName === \"HTML\" || nodeName === \"BODY\") {\n        diarsaba.get(\"clear menus ƒ\")();\n        return;\n    }\n\n    const content = target.textContent;\n    const clearMenus = () => diarsaba.get(\"clear menus ƒ\")(); // función auxiliar para limpiar\n\n    // 3. Caso especial: \"guardar !\"\n    if (content === \"@ place\") {\n        diarsaba.get(\"new place ƒ\")()\n        clearMenus();\n        return\n    }\n\n\n\n    // 3.5 Dentro de un menú manda el sigilo de la DERECHA: el ítem nombra\n    // un átomo concreto y se despacha por su tipo, igual que en las listas.\n    // Con el sigilo a la IZQUIERDA (\"ƒ func\") el ítem no nombra nada — pide\n    // crear uno de ese tipo—, y eso lo resuelve el bloque de más abajo.\n    //\n    // Solo dentro de un .context-menu: en el lienzo un chip responde al\n    // doble clic abriendo su editor, y eso no se toca.\n    if (target.closest && target.closest(\".context-menu\")) {\n        const tipo = content.slice(-1);\n        if (diarsaba.get(\"types list #\").includes(tipo)) {\n            // Una lista se abre como SUBmenú y no con create list ƒ: dentro\n            // de un menú, lo que se abre debe seguir siendo un menú.\n            // Sin clearMenus(): el padre se queda, como en cualquier submenú.\n            if (tipo === \"#\") {\n                if (diarsaba.get(\"open submenu ƒ\")(content, target)) return;\n            } else {\n                const despacho = diarsaba.get(\"dispatch item ƒ\");\n                if (despacho && despacho(content, target.parentElement.dataset, target)) {\n                    clearMenus();\n                    return;\n                }\n            }\n        }\n    }\n\n    // 4. Obtener referencias comunes\n    const parentDataset = target.parentElement.dataset;\n\n    // 5. Ítem creador de chip → pedir nombre y crear. Un creador es\n    // cualquier ítem con su \"create <ítem> ƒ\", NO uno que esté en\n    // \"atom name list #\": al agrupar los creadores dentro de una sublista\n    // (\"chips #\") salían de esa lista y dejaban de crear al pulsarlos desde\n    // el submenú. Además se exige estar DENTRO de un menú, porque un chip\n    // del lienzo cuyo nombre coincidiera con un creador (una lista\n    // \"chips #\", p.ej.) abría el modal de crear en vez de su editor al\n    // doble clic.\n    const enMenu = target.closest && target.closest(\".context-menu\");\n    const createFn = enMenu ? diarsaba.get(`create ${content} ƒ`) : null;\n    if (typeof createFn === \"function\") {\n        // Eliminar menú actual si existe\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu) currentMenu.remove();\n\n        // Pedir nombre mediante un modal (usa la primera letra como pista)\n        const name = await diarsaba.get(\"modal input ƒ\")(content.slice(0, 1));\n\n        // Solo proceder si se ingresó un nombre válido\n        if (name != null && name !== \"\") {\n            \n            \n            diarsaba.get(\"add to place ƒ\")(name)\n            // La función de creación ya se resolvió arriba (es el discriminador).\n            createFn(name);\n            // Autosave: el átomo nuevo (el place lo persiste add to place ƒ).\n            await diarsaba.get(\"persistir atomo ƒ\")(name);\n\n            // Crear el chip visual asociado\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                diarsaba.get(\"open x $\"),\n                diarsaba.get(\"open y $\"),\n                name,\n                \"\",\n                content.slice(0, 1) // letra inicial como categoría\n            );\n\n            // Guardar referencia del chip en el almacenamiento global\n            diarsaba.set(`${name} ֎`, chip);\n        }\n        clearMenus();\n        return;\n    }\n\n    // 6. Solo si es un ÍTEM de lista con formato \"[número] texto\".\n    // Ojo: no basta con que contenga corchetes — opciones como \"· []* ocultar\"\n    // los llevan en su etiqueta y caían aquí, donde el parseo fallaba en\n    // silencio y nunca se ejecutaban.\n    if (/^\\[\\d+\\]/.test(content)) {\n        try {\n            const parsed = diarsaba.get(\"obtener index [0] ƒ\")(content);\n            const label = parsed.texto;\n\n            // Despacho por sigilo: el ítem \"cobra vida\" según su tipo\n            // (! ~ ejecutan, # abre sublista, ƒ corre). Si no lo maneja,\n            // se cae al comportamiento anterior (función con ese nombre).\n            const dispatch = diarsaba.get(\"dispatch item ƒ\");\n            const handled = dispatch ? dispatch(label, parentDataset, target) : false;\n            if (!handled) {\n                const fn = diarsaba.get(`${label} ƒ`) || diarsaba.get(`${content} ƒ`);\n                if (fn) {\n                    fn(parentDataset);\n                }\n            }\n        } catch (err) {\n            // Si el parseo falla, simplemente se ignora\n        }\n        clearMenus();\n        return;\n    }\n\n    //otro caso\n    \n    let last_click = diarsaba.get(\"last click on §\")\n    if (last_click == undefined || last_click == null) {\n        diarsaba.set(\"last click on §\", content)\n    } else {\n        if (last_click == content) {\n            if(content.slice(-1) == \"@\"){\n                diarsaba.get(\"on double tap place ƒ\")()\n            }else{\n                const editables = diarsaba.get(\"editables list #\")\n                if (editables.includes(content.slice(-1))){\n                    \n                    diarsaba.get(\"open general editor ƒ\")(content)\n                }\n            }\n            diarsaba.set(\"last click on §\", null)\n        } else {\n            diarsaba.set(\"last click on §\", content)\n        }\n    }\n\n\n    // 7. Caso general: el contenido corresponde directamente a una función\n    //revisar por que se agrega ƒ o para que casos servia\n    const generalFn = diarsaba.get(`${content} ƒ`);\n    if (generalFn) {\n        generalFn(parentDataset);\n    }\n    clearMenus();\n}",
+  "ia @": {
+    "ai config !": {
+      "x": 40,
+      "y": 90
+    },
+    "ai config ƒ": {
+      "x": 340,
+      "y": 90
+    }
+  },
+  "install mover ƒ": "() => {\n    // Arrastre de chips. Es un MODO —lo enciende \"mover !\" en el menú\n    // principal— porque mientras está activo el clic no abre ni edita.\n    //\n    // Los listeners van en window y solo deben registrarse una vez; la marca\n    // ֎ no se persiste, así que cada arranque los pone de nuevo.\n    if (diarsaba.get(\"mover instalado ֎\")) return;\n    diarsaba.set(\"mover instalado ֎\", true);\n\n    let arrastrando = null;\n    let dx = 0;\n    let dy = 0;\n\n    // Capture: hay que llegar ANTES que los listeners de on start ƒ para poder\n    // cortar el clic que abriría el chip.\n    window.addEventListener(\n        \"pointerdown\",\n        (e) => {\n            if (!diarsaba.get(\"moviendo chips §\")) return;\n            // Solo el botón primario: el derecho abre el menú, y es por donde\n            // se sale del modo.\n            if (e.button !== 0) return;\n            const chip = e.target.closest(\".object-name\");\n            if (!chip) return;\n            const r = chip.getBoundingClientRect();\n            arrastrando = chip;\n            dx = e.clientX - r.left;\n            dy = e.clientY - r.top;\n            chip.setPointerCapture?.(e.pointerId);\n            chip.classList.add(\"arrastrando\");\n            e.stopPropagation();\n            e.preventDefault();\n        },\n        true\n    );\n\n    window.addEventListener(\n        \"pointermove\",\n        (e) => {\n            if (!arrastrando) return;\n            arrastrando.style.left = `${e.clientX - dx}px`;\n            arrastrando.style.top = `${e.clientY - dy}px`;\n            e.stopPropagation();\n        },\n        true\n    );\n\n    window.addEventListener(\n        \"pointerup\",\n        (e) => {\n            if (!arrastrando) return;\n            const chip = arrastrando;\n            arrastrando = null;\n            chip.classList.remove(\"arrastrando\");\n\n            // La posición se guarda en el place actual, que es donde vive la\n            // disposición. Si el átomo no está en el place (p. ej. un chip\n            // hijo abierto), se mueve pero no se registra: no tiene sitio ahí.\n            const nombre = chip.textContent;\n            const placeName = diarsaba.get(\"current place §\");\n            const place = diarsaba.get(placeName);\n            if (place && typeof place === \"object\" && nombre in place) {\n                diarsaba.set(placeName, {\n                    ...place,\n                    [nombre]: { x: parseFloat(chip.style.left) || 0, y: parseFloat(chip.style.top) || 0 },\n                });\n                // Autosave: la nueva posición vive en el place.\n                diarsaba.get(\"persistir atomo ƒ\")(placeName);\n            }\n\n            // Cortamos el clic: si no, al soltar se abriría el chip.\n            e.stopPropagation();\n            e.preventDefault();\n        },\n        true\n    );\n}",
+  "install style manager ƒ": "() => {\n    const styleIdFromKey = (k) => {\n        const base = String(k).replace(/\\s*\\{$/, \"\").trim();\n        return 'diarsaba-style-' + base.replace(/[^\\w-]/g, '_').replace(/^_+|_+$/g, '');\n    };\n\n    // crear inicialmente las etiquetas <style> para claves que terminen en '{'\n    for (const [k, v] of diarsaba.entries()) {\n        if (typeof k === 'string' && k.endsWith('{')) {\n            const id = styleIdFromKey(k);\n            if (!document.getElementById(id)) {\n                const el = document.createElement('style');\n                el.id = id;\n                el.textContent = typeof v === 'string' ? v : '';\n                document.head.appendChild(el);\n            }\n        }\n    }\n\n    // override diarsaba.set para mantener sincronizados los estilos\n    const originalSet = diarsaba.set.bind(diarsaba);\n    diarsaba.set = (key, value) => {\n        originalSet(key, value);\n        try {\n            if (typeof key === 'string' && key.endsWith('{')) {\n                const id = styleIdFromKey(key);\n                let el = document.getElementById(id);\n                if (el) el.textContent = typeof value === 'string' ? value : '';\n                else {\n                    el = document.createElement('style');\n                    el.id = id;\n                    el.textContent = typeof value === 'string' ? value : '';\n                    document.head.appendChild(el);\n                }\n            }\n        } catch (e) { console.error('install style manager error', e); }\n        return diarsaba;\n    };\n}",
   "interacción @": {
     "clear menus ƒ": {
       "x": 40,
@@ -736,60 +470,152 @@
       "y": 402
     }
   },
-  "tipos @": {
-    "atom name list": {
-      "x": 40,
-      "y": 90
-    },
-    "atom name list #": {
-      "x": 340,
-      "y": 90
-    },
-    "create ! action ƒ": {
-      "x": 640,
-      "y": 90
-    },
-    "create # list ƒ": {
-      "x": 40,
-      "y": 142
-    },
-    "create $ num ƒ": {
-      "x": 340,
-      "y": 142
-    },
-    "create : map ƒ": {
-      "x": 640,
-      "y": 142
-    },
-    "create < view ƒ": {
-      "x": 40,
-      "y": 194
-    },
-    "create { style ƒ": {
-      "x": 340,
-      "y": 194
-    },
-    "create ~ thread ƒ": {
-      "x": 640,
-      "y": 194
-    },
-    "create § text ƒ": {
-      "x": 40,
-      "y": 246
-    },
-    "create ƒ func ƒ": {
-      "x": 340,
-      "y": 246
-    },
-    "editables list #": {
-      "x": 640,
-      "y": 246
-    },
-    "types list #": {
-      "x": 40,
-      "y": 298
-    }
-  },
+  "last click on §": "Continue",
+  "list option ! #": [
+    "· * tomar",
+    "· ! abrir",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· * ocultar",
+    "· ! action",
+    "· ! editor"
+  ],
+  "list option # #": [
+    "· * tomar",
+    "· # abrir",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· * ocultar",
+    "· # editor"
+  ],
+  "list option $ #": [
+    "· * tomar",
+    "· $ abrir",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· * ocultar",
+    "· $ editor"
+  ],
+  "list option : #": [
+    "· * tomar",
+    "· : abrir",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· * ocultar",
+    "· : editor"
+  ],
+  "list option < #": [
+    "· * tomar",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· < editor",
+    "· * ocultar"
+  ],
+  "list option @ #": [
+    "· * tomar",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· @ editor",
+    "· * ocultar"
+  ],
+  "list option [] #": [
+    "· []* ocultar",
+    "· #* tomar",
+    "· #* padre",
+    "· # despues",
+    "· # antes",
+    "· # eliminar"
+  ],
+  "list option { #": [
+    "· * tomar",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· { editor",
+    "· * ocultar"
+  ],
+  "list option ~ #": [
+    "· * tomar",
+    "· ~ abrir",
+    "· * ocultar",
+    "· ~ action",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· ~ editor"
+  ],
+  "list option § #": [
+    "· * tomar",
+    "· § abrir",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· § editor",
+    "· § guardar",
+    "· * ocultar"
+  ],
+  "list option ƒ #": [
+    "· * tomar",
+    "· * quitar",
+    "· * eliminar",
+    "· * restaurar",
+    "· ƒ editor",
+    "· * ocultar"
+  ],
+  "list option ֎ #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎ guardar",
+    "· ֎ editor"
+  ],
+  "list option ֎ $ #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎$ guardar",
+    "· ֎ editor"
+  ],
+  "list option ֎ : #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎ editor"
+  ],
+  "list option ֎ < #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎< guardar",
+    "· ֎ editor"
+  ],
+  "list option ֎ { #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎{ guardar",
+    "· ֎ editor"
+  ],
+  "list option ֎ § #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎§ guardar",
+    "· ֎ editor"
+  ],
+  "list option ֎ ƒ #": [
+    "· ֎* ocultar",
+    "· ֎* padre",
+    "· ֎ editar",
+    "· ֎ƒ guardar",
+    "· ֎ editor"
+  ],
   "menú @": {
     "list option ! #": {
       "x": 40,
@@ -972,104 +798,13 @@
       "y": 662
     }
   },
-  "guardado @": {
-    "guardar ! ƒ": {
-      "x": 40,
-      "y": 90
-    },
-    "guardar !": {
-      "x": 340,
-      "y": 90
-    },
-    "exportar ! ƒ": {
-      "x": 40,
-      "y": 160
-    },
-    "exportar !": {
-      "x": 340,
-      "y": 160
-    },
-    "protegidos #": {
-      "x": 340,
-      "y": 230
-    }
-  },
-  "editores @": {
-    "open general editor ƒ": {
-      "x": 40,
-      "y": 90
-    },
-    "· ! editor ƒ": {
-      "x": 340,
-      "y": 90
-    },
-    "· # editor ƒ": {
-      "x": 640,
-      "y": 90
-    },
-    "· $ editor ƒ": {
-      "x": 40,
-      "y": 142
-    },
-    "· : editor ƒ": {
-      "x": 340,
-      "y": 142
-    },
-    "· < editor ƒ": {
-      "x": 640,
-      "y": 142
-    },
-    "· @ editor ƒ": {
-      "x": 40,
-      "y": 194
-    },
-    "· { editor ƒ": {
-      "x": 340,
-      "y": 194
-    },
-    "· ~ editor ƒ": {
-      "x": 640,
-      "y": 194
-    },
-    "· § editor ƒ": {
-      "x": 40,
-      "y": 246
-    },
-    "· ƒ editor ƒ": {
-      "x": 340,
-      "y": 246
-    },
-    "· ֎ editor ƒ": {
-      "x": 640,
-      "y": 246
-    }
-  },
-  "dibujo @": {
-    "clamp to viewport ƒ": {
-      "x": 40,
-      "y": 90
-    },
-    "create chip ƒ": {
-      "x": 340,
-      "y": 90
-    },
-    "create list menu ƒ": {
-      "x": 640,
-      "y": 90
-    },
-    "create list ƒ": {
-      "x": 40,
-      "y": 142
-    },
-    "modal input ƒ": {
-      "x": 340,
-      "y": 142
-    },
-    "todo el estilo {": {
-      "x": 640,
-      "y": 142
-    }
-  },
+  "modal input ƒ": "async (pre) => {\n    const createEl = (tag, props = {}) =>\n        Object.assign(document.createElement(tag), props);\n\n    const div = createEl(\"div\", { className: \"modal-content\" });\n    const input = createEl(\"input\", {\n        type: \"text\",\n        value: pre || \"\",\n        spellcheck: false,\n    });\n\n    const buttonContainer = createEl(\"div\", { className: \"modal-buttons\" });\n\n    [\"Cancel\", \"Continue\"].forEach((text) => {\n        const btn = createEl(\"button\", { textContent: text });\n        btn.dataset.modal = text.toLowerCase();\n        btn.onclick = () => {\n            div.remove();\n            this.nombreInputPromise?.(\n                text === \"Cancel\" ? null : input.value.trim()\n            );\n        };\n        buttonContainer.append(btn);\n    });\n\n    div.append(input, buttonContainer);\n    document.body.append(div);\n    input.focus();\n\n    return await new Promise((resolve) => (this.nombreInputPromise = resolve));\n}",
+  "mover !": [
+    "mover ƒ"
+  ],
+  "mover ƒ": "() => {\n    // Enciende o apaga el modo mover. Sin botón a la vista, la única señal de\n    // que está activo es el borde del lienzo y el cursor sobre los chips: por\n    // eso el borde, y no solo el cursor.\n    const activo = !diarsaba.get(\"moviendo chips §\");\n    diarsaba.set(\"moviendo chips §\", activo ? \"si\" : \"\");\n    document.body.classList.toggle(\"moviendo-chips\", activo);\n    return activo ? \"moviendo\" : \"quieto\";\n}",
+  "moviendo chips §": "",
+  "new place ƒ": "async () => {\n    //preguntamos el nombre\n    //creamos un chip\n    // al dar click en el chip el toma control del contexto del bodi\n    // todo lo creado o eliminado se agencia al chip\n    // si se da click en otro place para ser avierto ahora ese chip pasa a tener la agencia\n\n    const name = await diarsaba.get(\"modal input ƒ\")(\"@\");\n\n    if (name == \"\" || name == null)\n        return\n\n\n    const place_exist = diarsaba.get(name)\n    //si no existe creamos su place\n    if (place_exist == null || place_exist == undefined) {\n        diarsaba.set(name, {})\n        // Autosave: el place nuevo (vacío) ya es un átomo persistible.\n        await diarsaba.get(\"persistir atomo ƒ\")(name);\n    } else {\n        //si ya existe no hacemos nada\n    }\n\n\n    //tenemos ahora el chip con el que interactuar\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        diarsaba.get(\"open x $\"),\n        diarsaba.get(\"open y $\"),\n        name,\n        \"\",\n        \"@\");\n\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        diarsaba.set(\"current place §\", name)\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n        // Autosave: el place actual ahora contiene el place nuevo.\n        await diarsaba.get(\"persistir atomo ƒ\")(current_place_name);\n    }\n\n}",
   "notas @": {
     "TODO #": {
       "x": 40,
@@ -1084,16 +819,164 @@
       "y": 90
     }
   },
-  "ia @": {
-    "ai config !": {
-      "x": 40,
+  "nuevo ejemplo §": "",
+  "obtener index [0] ƒ": "(texto) => {\n    const regex = /^\\[(\\d+)\\]\\s*(.*)$/;\n    const match = texto.match(regex);\n\n    if (!match) {\n        throw new Error('Formato inválido. Se esperaba: \"[número] texto\"');\n    }\n\n    return {\n        indice: parseInt(match[1], 10),\n        texto: match[2].trim(),\n    };\n}",
+  "on double tap place ƒ": "() => {\n\n    const event = diarsaba.get(\"pointer up event\");\n    const target = event.target;\n    const content = target.textContent;\n\n    if (content == \"diarsaba-map @\") {\n\n        // 1. Calculamos los límites de la ventana UNA VEZ fuera del bucle (mejor rendimiento)\n        // Añadimos un \"margen\" para que los chips no queden cortados en los bordes de la pantalla\n        const margen = 50;\n        const maximoX = window.innerWidth - margen;\n        const maximoY = window.innerHeight - margen;\n\n        diarsaba.forEach((valor, clave) => {\n            // 2. Generamos las coordenadas aleatorias\n            // Math.random() da un decimal entre 0 y 1. Lo multiplicamos por el máximo.\n            // Usamos Math.floor() para redondear a números enteros (los píxeles suelen ser enteros)\n            // Sumamos el margen para que empiece desde el margen y no desde el 0 absoluto.\n            const xAleatorio = Math.floor(Math.random() * maximoX) + margen;\n            const yAleatorio = Math.floor(Math.random() * maximoY) + margen;\n\n            // 3. Llamamos a la función con los nuevos valores\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                xAleatorio,\n                yAleatorio,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n        });\n\n        //en caso opuesto a esto, mejor crear una lista y que habra automaticamente en el editor\n    } else {\n        // Las referencias ֎ apuntan a nodos que están a punto de\n        // desaparecer: se limpian antes de repintar.\n        for (const k of [...diarsaba.keys()]) {\n            if (typeof k === \"string\" && k.endsWith(\"֎\") && diarsaba.get(k) instanceof Element) {\n                diarsaba.delete(k);\n            }\n        }\n        document.body.replaceChildren();\n\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            100,\n            50,\n            content,\n            \"\",\n            content.slice(-1)\n        );\n        diarsaba.set(`${content} ֎`, chip);\n\n        // Desestructuramos el array en [clave, valor]\n        let place = diarsaba.get(content)\n        Object.entries(place).forEach(([clave, valor]) => {\n            const chip = diarsaba.get(\"create chip ƒ\")(\n                valor.x,\n                valor.y,\n                clave,\n                \"\",\n                clave.slice(-1)\n            );\n\n            // Sin esta referencia, abrir/ocultar/padre no encuentran el\n            // chip y anclan al puntero: el hijo sale desplazado.\n            diarsaba.set(`${clave} ֎`, chip);\n        });\n\n        \n        diarsaba.set(\"current place §\", content)\n    }\n\n\n\n}",
+  "on start place ƒ": "() => {\n    diarsaba.set(\"current place §\", \"diarsaba @\")\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        20,\n        20,\n        \"diarsaba @\",\n        \"\",\n        \"@\"\n    );\n    diarsaba.set(\"diarsaba @ ֎\", chip);\n\n    const diarsabaplace = diarsaba.get(\"diarsaba @\")\n\n    Object.entries(diarsabaplace).forEach(([clave, valor]) => {\n        const chip = diarsaba.get(\"create chip ƒ\")(\n            valor.x,\n            valor.y,\n            clave,\n            \"\",\n            clave.slice(-1)\n        );\n\n        // Sin esta referencia, abrir/ocultar/padre no encuentran el\n        // chip y anclan al puntero: el hijo sale desplazado.\n        diarsaba.set(`${clave} ֎`, chip);\n    });\n\n}",
+  "on start ƒ": "() => {\n    // instalar manejador de estilos desde predefined_functions.json\n    const installer = diarsaba.get(\"install style manager ƒ\");\n    if (installer) try { installer(); } catch (e) { console.error('install style manager failed', e); }\n\n    window.addEventListener(\"contextmenu\", (e) => {\n        e.preventDefault();\n    });\n    window.addEventListener(\"pointerup\", (e) => {\n        diarsaba.set(\"pointer up event\", e);\n        threads(`pointer up ${e.button} ~`);\n    });\n    window.addEventListener(\"wheel\", (e) => {\n        //diarsaba.set(\"wheel event\", e)\n        //threads(`wheel ~`)\n    });\n    window.addEventListener(\"pointerdown\", (e) => {\n        diarsaba.set(\"pointer down event\", e);\n        threads(`pointer down ${e.button} ~`);\n    });\n    window.addEventListener(\"pointermove\", (e) => {\n        diarsaba.set(\"pointer move event\", e);\n        diarsaba.set(\"pointer x\", e.clientX);\n        diarsaba.set(\"pointer y\", e.clientY);\n        //threads(`pointer move ~`)\n    });\n\n    window.addEventListener(\"keydown\", (e) => {\n        // if is input no prevent default\n        if (\n            e.target.tagName === \"INPUT\" ||\n            e.target.tagName === \"TEXTAREA\" ||\n            e.target.isContentEditable\n        ) {\n        } else {\n            //e.preventDefault()\n        }\n\n        //threads(`key down ~`)\n        //threads(`key down ${e.key} ~`)\n    });\n\n    diarsaba.get(\"on start place ƒ\")()\n\n    diarsaba.get(\"install mover ƒ\")();\n\n    // Escuchar streams entrantes desde el arranque: si el handler se\n    // registrara más tarde, un stream podría llegar antes que él.\n    const p2pEscuchar = diarsaba.get(\"p2p ƒ @ StreamHandle ƒ\");\n    if (p2pEscuchar) Promise.resolve()\n        .then(() => p2pEscuchar())\n        .catch((e) => console.error('[p2p ƒ] no se pudo escuchar al arrancar', e));\n\n\n}",
+  "open general editor ƒ": "async (key) => {\n    // Delegamos en el editor específico del tipo, que serializa y reconstruye\n    // cada tipo según el sufijo de la clave. Así el átomo vuelve SIEMPRE a su\n    // tipo original: un # sigue siendo lista y un @ sigue siendo place.\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor({ parent: key });\n        return;\n    }\n\n    // Sin editor específico. Un valor estructurado se edita como JSON:\n    // String(objeto) daría \"[object Object]\" y guardarlo lo destruiría.\n    const actual = diarsaba.get(key);\n    const esEstructura = actual !== null && typeof actual === \"object\";\n    const res = await window.codeEditor.open(\n        key,\n        esEstructura ? JSON.stringify(actual, null, 2) : String(actual ?? \"\"),\n        esEstructura ? \"json\" : \"text\"\n    );\n    if (res == null) return;\n\n    if (esEstructura) {\n        try {\n            diarsaba.set(key, JSON.parse(res));\n            await diarsaba.get(\"persistir atomo ƒ\")(key);\n        } catch (e) {\n            alert(`\"${key}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        }\n        return;\n    }\n    diarsaba.set(key, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(key);\n}",
+  "open submenu ƒ": "(nombre, target) => {\n    // Dibuja el contenido de una lista \"#\" como submenú, con la misma función\n    // que el menú principal — así un submenú ES un menú: sus ítems se pulsan\n    // igual y una lista dentro de otra vuelve a abrirse aquí, anidando sola.\n    //\n    // Devuelve false si el átomo no es una lista, para que quien llama siga su\n    // camino normal.\n    const lista = diarsaba.get(nombre);\n    if (!Array.isArray(lista)) return false;\n\n    // Pulsar dos veces el mismo ítem no debe apilar submenús.\n    const previo = diarsaba.get(`${nombre} submenu ֎`);\n    if (previo && typeof previo.remove === \"function\") previo.remove();\n\n    const r = target.getBoundingClientRect();\n    const sub = diarsaba.get(\"create list menu ƒ\")(lista, nombre, \"\", r.right + 6, r.top);\n    // La marca permite a \"clear menus ƒ\" barrerlos todos sin llevar la cuenta.\n    sub.classList.add(\"submenu\");\n    diarsaba.set(`${nombre} submenu ֎`, sub);\n    return true;\n}",
+  "open x $": 700,
+  "open y $": 144,
+  "p2p ! @": {
+    "ID !": {
+      "x": 80,
       "y": 90
     },
-    "ai config ƒ": {
-      "x": 340,
+    "Announce !": {
+      "x": 80,
+      "y": 150
+    },
+    "StopAnnounce !": {
+      "x": 80,
+      "y": 210
+    },
+    "FindProviders !": {
+      "x": 80,
+      "y": 270
+    },
+    "OpenStream !": {
+      "x": 80,
+      "y": 330
+    },
+    "Reply !": {
+      "x": 80,
+      "y": 390
+    },
+    "Streams #": {
+      "x": 400,
+      "y": 90
+    },
+    "p2p ƒ @ dice §": {
+      "x": 400,
+      "y": 150
+    },
+    "p2p ƒ @ peer §": {
+      "x": 400,
+      "y": 210
+    },
+    "p2p ƒ @ anunciar §": {
+      "x": 400,
+      "y": 270
+    },
+    "p2p ƒ @ buscar §": {
+      "x": 400,
+      "y": 330
+    },
+    "p2p ƒ @ responder id §": {
+      "x": 400,
+      "y": 510
+    },
+    "p2p ƒ @ providers #": {
+      "x": 700,
+      "y": 90
+    },
+    "p2p ƒ @ enviar :": {
+      "x": 400,
+      "y": 390
+    },
+    "p2p ƒ @ responder :": {
+      "x": 400,
+      "y": 450
+    },
+    "p2p ƒ @ auto responder §": {
+      "x": 400,
+      "y": 570
+    },
+    "p2p ƒ @ devolver en $": {
+      "x": 700,
+      "y": 170
+    },
+    "p2p ƒ @ historial $": {
+      "x": 700,
+      "y": 240
+    }
+  },
+  "p2p ƒ @": {
+    "p2p ƒ @ ID ƒ": {
+      "x": 80,
+      "y": 90
+    },
+    "p2p ƒ @ Announce ƒ": {
+      "x": 80,
+      "y": 150
+    },
+    "p2p ƒ @ StopAnnounce ƒ": {
+      "x": 80,
+      "y": 210
+    },
+    "p2p ƒ @ FindProviders ƒ": {
+      "x": 80,
+      "y": 270
+    },
+    "p2p ƒ @ OpenStream ƒ": {
+      "x": 80,
+      "y": 330
+    },
+    "p2p ƒ @ StreamHandle ƒ": {
+      "x": 80,
+      "y": 390
+    },
+    "p2p ƒ @ Reply ƒ": {
+      "x": 80,
+      "y": 450
+    },
+    "p2p ƒ @ arg ƒ": {
+      "x": 480,
+      "y": 90
+    },
+    "p2p ƒ @ dice ƒ": {
+      "x": 480,
+      "y": 150
+    },
+    "p2p ƒ @ stream ƒ": {
+      "x": 480,
+      "y": 210
+    },
+    "p2p ƒ @ devolver ƒ": {
+      "x": 40,
       "y": 90
     }
   },
+  "p2p ƒ @ Announce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"Announce ✗\", \"sin clave: pásale un § con el valor a anunciar\");\n        // Anunciar sin escuchar no sirve: te encontrarían y no contestarías.\n        // StreamHandle ya corre desde el arranque, así que solo se comprueba.\n        await window.p2p.Announce(k);\n        return dice(\"Announce\", `anunciado \"${k}\" — sirviendo mientras la app siga abierta`);\n    } catch (e) {\n        return dice(\"Announce ✗\", e);\n    }\n}",
+  "p2p ƒ @ FindProviders ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"FindProviders ✗\", \"sin clave que buscar\");\n        // No hay límite de resultados: lo que acota es el plazo.\n        const hallados = await window.p2p.FindProviders(k, 30000);\n        diarsaba.set(\"p2p ƒ @ providers #\", hallados.map((p) => p.id));\n        if (hallados.length) diarsaba.set(\"p2p ƒ @ peer §\", hallados[0].id);\n        // Cero proveedores no es un fallo: es que nadie lo tiene.\n        return dice(`FindProviders \"${k}\"`, hallados.length ? hallados.map((p) => p.id) : \"nadie lo tiene\");\n    } catch (e) {\n        return dice(\"FindProviders ✗\", e);\n    }\n}",
+  "p2p ƒ @ ID ƒ": "async () => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        return dice(\"ID\", await window.p2p.ID());\n    } catch (e) {\n        return dice(\"ID ✗\", e);\n    }\n}",
+  "p2p ƒ @ OpenStream ƒ": "async (peer, datos) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    let s = null;\n    try {\n        // Sin peer explícito se usa el último que dejó FindProviders.\n        const p = arg(peer) || diarsaba.get(\"p2p ƒ @ peer §\");\n        if (!p) return dice(\"OpenStream ✗\", \"sin peer: corre FindProviders antes, o pásale uno\");\n\n        // La carga por defecto es un mapa \":\": editable con · : editor ƒ (Monaco\n        // en modo json, que valida al guardar).\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(datos);\n        s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(p, 30000), p);\n\n        await s.escribir(carga === undefined ? null : carga);\n        await s.termine(); // le decimos que terminamos: ahora puede contestar\n\n        // Que no conteste NO es un fallo: el mensaje ya está entregado. Pasa\n        // siempre que el otro lado tenga la respuesta automática apagada y no\n        // haya nadie para pulsar Reply !. Antes esto salía como error y parecía\n        // que el envío no había funcionado.\n        let respuesta;\n        let hubo = true;\n        try {\n            respuesta = await s.leer();\n        } catch (e) {\n            hubo = false;\n        }\n        await s.cerrar();\n\n        if (!hubo) {\n            return dice(\"OpenStream\", {\n                a: p.slice(-8),\n                envié: carga,\n                nota: \"entregado, pero no contestó. Si esperabas respuesta, mira «p2p ƒ @ auto responder §» en el OTRO nodo: vacío = alguien tiene que pulsar Reply ! allí.\",\n            });\n        }\n\n        diarsaba.set(\"p2p ƒ @ respuesta\", respuesta);\n        return dice(\"OpenStream\", { a: p.slice(-8), envié: carga, contestó: respuesta });\n    } catch (e) {\n        if (s) {\n            try {\n                await s.cerrar();\n            } catch (_) {}\n        }\n        return dice(\"OpenStream ✗\", e);\n    }\n}",
+  "p2p ƒ @ Reply ƒ": "async (id, datos) => {\n    // Contesta un stream de \"Streams #\" y lo cierra. El id puede venir como\n    // string, como nombre de un átomo, o como la entrada entera (si le pasas\n    // el objeto de la lista).\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        let sid = arg(id);\n        if (sid && typeof sid === \"object\" && sid.id) sid = sid.id;\n        // Sin id: se contesta el más reciente, que es lo que se querrá el 90%.\n        if (!sid) {\n            const pendientes = diarsaba.get(\"Streams #\") || [];\n            if (!pendientes.length) return dice(\"Reply ✗\", \"no hay streams entrantes que contestar\");\n            sid = pendientes[0].id;\n        }\n\n        const carga = datos === undefined ? diarsaba.get(\"p2p ƒ @ responder :\") : arg(datos);\n        // Un stream ya acusado está cerrado en Go: contestar ahí falla\n        // con un \"stream desconocido\" que no explica nada.\n        const entrada = (diarsaba.get(\"Streams #\") || []).find((e) => e.id === sid);\n        if (entrada && entrada.contestada) {\n            return dice(\"Reply ✗\", `${sid} ya se contestó sola (auto responder está activo).\\n\\nPara contestar a mano, vacía \"p2p ƒ @ auto responder §\" y pide que te lo manden otra vez.`);\n        }\n\n        const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(sid, \"\");\n        await s.escribir(carga === undefined ? null : carga);\n        await s.cerrar();\n\n        // Fuera de la lista: ya está contestado y cerrado.\n        diarsaba.set(\"Streams #\", (diarsaba.get(\"Streams #\") || []).filter((e) => e.id !== sid));\n        return dice(\"Reply\", `contestado ${sid}`);\n    } catch (e) {\n        return dice(\"Reply ✗\", e);\n    }\n}",
+  "p2p ƒ @ StopAnnounce ƒ": "async (clave) => {\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const k = arg(clave);\n        if (!k) return dice(\"StopAnnounce ✗\", \"sin clave que parar\");\n        await window.p2p.StopAnnounce(k);\n        // No existe el borrado: el registro sigue en la red hasta que caduca.\n        return dice(\"StopAnnounce\", `dejado de publicar \"${k}\" (la red lo olvidará al caducar)`);\n    } catch (e) {\n        return dice(\"StopAnnounce ✗\", e);\n    }\n}",
+  "p2p ƒ @ StreamHandle ƒ": "async () => {\n    // Deja la app lista para RECIBIR. La llama \"on start ƒ\", así que no hace\n    // falta tocarla: al abrir la app ya se escucha.\n    //\n    // Lo entrante se apila en \"Streams #\". Qué pasa después lo deciden dos\n    // átomos:\n    //   - \"p2p ƒ @ auto responder §\": con valor, se acusa recibo y se cierra\n    //     (permite dejar la app sola); vacío, el stream queda abierto para\n    //     Reply !.\n    //   - \"p2p ƒ @ devolver en $\": segundos tras los cuales se le manda a ese\n    //     peer el contenido de \"enviar :\". 0 lo apaga.\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    try {\n        // Idempotente: suscribirse dos veces duplicaría cada entrada.\n        if (diarsaba.get(\"p2p ƒ @ escuchando ֎\")) return \"ya escuchaba\";\n\n        diarsaba.set(\n            \"p2p ƒ @ escuchando ֎\",\n            window.EventsOn(\"p2p:stream\", async (ev) => {\n                try {\n                    const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(ev.stream, ev.from);\n                    // Se lee hasta el final ANTES de decidir: así \"data\" ya\n                    // trae el mensaje, se conteste o no.\n                    const data = await s.leer();\n                    const auto = diarsaba.get(\"p2p ƒ @ auto responder §\");\n                    const hora = new Date().toLocaleTimeString();\n\n                    // Con el ida y vuelta puesto llega un mensaje por ronda,\n                    // casi siempre idéntico al anterior. Si se apilaran todos,\n                    // \"Streams #\" sería una pared de repeticiones donde no se\n                    // ve lo que de verdad cambió. Un repetido solo actualiza su\n                    // hora y su cuenta.\n                    const previas = diarsaba.get(\"Streams #\") || [];\n                    const ultima = previas.find((e) => e.peer === ev.from);\n                    const repetido =\n                        ultima && JSON.stringify(ultima.data) === JSON.stringify(data);\n\n                    if (repetido) {\n                        ultima.hora = hora;\n                        ultima.veces = (ultima.veces || 1) + 1;\n                        ultima.id = ev.stream;\n                        ultima.contestada = !!auto;\n                        diarsaba.set(\"Streams #\", [...previas]);\n                    } else {\n                        const tope = Number(diarsaba.get(\"p2p ƒ @ historial $\")) || 50;\n                        const entrada = {\n                            id: ev.stream,\n                            peer: ev.from,\n                            data,\n                            hora,\n                            veces: 1,\n                            // Con acuse automático el stream ya está cerrado,\n                            // así que Reply ! no puede usarlo: queda marcada.\n                            contestada: !!auto,\n                            // Sin esto la lista dibuja \"[object Object]\":\n                            // create list ƒ interpola el elemento.\n                            toString() {\n                                const d =\n                                    typeof this.data === \"string\" ? this.data : JSON.stringify(this.data);\n                                const n = this.veces > 1 ? ` ×${this.veces}` : \"\";\n                                return `${this.contestada ? \"✓\" : this.id} ${this.hora} ← ${this.peer.slice(-8)}${n}: ${d}`;\n                            },\n                        };\n                        diarsaba.set(\"Streams #\", [entrada, ...previas].slice(0, tope));\n                    }\n\n                    if (auto) {\n                        // El acuse devuelve lo recibido: confirma la entrega y\n                        // de paso que el viaje de ida no deformó nada.\n                        await s.escribir({ ok: true, recibido: data });\n                        await s.cerrar();\n                    }\n\n                    // Y se programa la vuelta, que es lo que mantiene el flujo.\n                    diarsaba.get(\"p2p ƒ @ devolver ƒ\")(ev.from);\n\n                    console.log(\n                        \"[p2p ƒ] entrante de\",\n                        ev.from.slice(-8),\n                        repetido ? \"(repetido)\" : data,\n                        auto ? \"(acusado)\" : \"(abierto)\"\n                    );\n                } catch (e) {\n                    console.error(\"[p2p ƒ] entrante falló\", e);\n                }\n            })\n        );\n\n        await window.p2p.Start();\n        return dice(\"StreamHandle\", \"escuchando: lo entrante aparece en «Streams #»\");\n    } catch (e) {\n        // Sin alert: esto corre al arrancar y un modal dejaría la app\n        // inservible. El fallo queda en la consola y en \"p2p ƒ @ dice §\".\n        diarsaba.set(\"p2p ƒ @ dice §\", `StreamHandle ✗\\n${e.message || e}`);\n        console.error(\"[p2p ƒ] no se pudo escuchar:\", e);\n        return e;\n    }\n}",
+  "p2p ƒ @ anunciar §": "hola",
+  "p2p ƒ @ arg ƒ": "(v) => {\n    // Un ejecutor ! pasa los elementos del arreglo COMO STRINGS: threads hace\n    // a.apply(null, s.slice(1)), así que llega el NOMBRE del átomo, no su\n    // valor. Por eso cada ƒ resuelve aquí: si el string nombra un átomo, se\n    // usa su contenido; si no, se toma tal cual como literal.\n    //\n    // Es lo que permite [\"... Announce ƒ\", \"valor para anunciar §\"] sin que la\n    // ƒ tenga que saber de dónde viene el dato.\n    if (typeof v !== \"string\") return v;\n    return diarsaba.has(v) ? diarsaba.get(v) : v;\n}",
+  "p2p ƒ @ auto responder §": "si",
+  "p2p ƒ @ buscar §": "hola",
+  "p2p ƒ @ devolver en $": 60,
+  "p2p ƒ @ devolver ƒ": "(peer) => {\n    // Programa el envío de \"enviar :\" a ese peer. Es lo que mantiene vivo el\n    // ida y vuelta: cada lado contesta al otro una vez por ronda.\n    const segundos = Number(diarsaba.get(\"p2p ƒ @ devolver en $\")) || 0;\n    if (!segundos || !peer) return; // 0 = apagado\n\n    // UN SOLO temporizador por peer. Sin esto, dos mensajes seguidos\n    // programarían dos envíos, cada uno provocaría otro del otro lado, y el\n    // tráfico se doblaría en cada vuelta hasta ahogar a los dos nodos.\n    const pendientes = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n    if (pendientes[peer]) return;\n\n    pendientes[peer] = setTimeout(async () => {\n        const p = diarsaba.get(\"p2p ƒ @ pendientes ֎\") || {};\n        delete p[peer];\n        diarsaba.set(\"p2p ƒ @ pendientes ֎\", p);\n\n        try {\n            const s = diarsaba.get(\"p2p ƒ @ stream ƒ\")(await window.p2p.OpenStream(peer, 30000), peer);\n            await s.escribir(diarsaba.get(\"p2p ƒ @ enviar :\"));\n            await s.termine();\n            // El acuse del otro lado, si lo tiene puesto. Que no llegue no\n            // importa: lo que cuenta es que el mensaje salió.\n            try {\n                await s.leer();\n            } catch (_) {}\n            await s.cerrar();\n            console.log(\"[p2p ƒ] devuelto a\", peer.slice(-8));\n        } catch (e) {\n            // Si el otro lado se fue, el ida y vuelta se corta AQUÍ y no se\n            // reanuda solo: volverá a arrancar cuando alguien mande algo a\n            // mano con OpenStream !.\n            console.error(\"[p2p ƒ] no se pudo devolver a\", peer.slice(-8), e.message || e);\n        }\n    }, segundos * 1000);\n\n    diarsaba.set(\"p2p ƒ @ pendientes ֎\", pendientes);\n}",
+  "p2p ƒ @ dice §": "",
+  "p2p ƒ @ dice ƒ": "(etiqueta, valor) => {\n    // Deja el resultado a la vista: un ! disparado con un clic no tiene dónde\n    // devolver. Los fallos además se gritan.\n    const plano = valor instanceof Error ? valor.message : valor;\n    diarsaba.set(\"p2p ƒ @ dice §\", `${etiqueta}\\n${typeof plano === \"string\" ? plano : JSON.stringify(plano, null, 2)}`);\n    console.log(`[p2p ƒ] ${etiqueta}`, valor);\n    if (String(etiqueta).endsWith(\"✗\")) alert(`${etiqueta}\\n${plano}`);\n    return valor;\n}",
+  "p2p ƒ @ enviar :": {
+    "orden": "saludar",
+    "de": "diarsaba"
+  },
+  "p2p ƒ @ historial $": 50,
+  "p2p ƒ @ peer §": "",
+  "p2p ƒ @ providers #": [],
+  "p2p ƒ @ responder :": {
+    "ok": true,
+    "resultado": "recibido"
+  },
+  "p2p ƒ @ responder id §": "",
+  "p2p ƒ @ stream ƒ": "(id, peer) => {\n    // Un Stream vive en Go; aquí llega su identificador. Esto lo envuelve.\n    //\n    // Por el cable va JSON. Se eligió sobre msgpack por dos razones, y ninguna\n    // es el tamaño: (1) un átomo de carga JSON es un mapa \":\", que en diarsaba\n    // tiene tipo y por tanto editor —msgpack obligaba a un átomo sin sigilo,\n    // que no se puede abrir ni despachar—; y (2) cualquier peer puede hablarlo,\n    // incluida la CLI de p2plite. window.msgpack sigue disponible para cuando\n    // haga falta binario de verdad.\n    //\n    // El base64 de abajo NO es el formato: es el salto Go↔JS, que es JSON por\n    // definición de los bindings de Wails y codifica []byte en base64.\n    const aB64 = (texto) => {\n        const bytes = new TextEncoder().encode(texto);\n        let bin = \"\";\n        for (const b of bytes) bin += String.fromCharCode(b);\n        return btoa(bin);\n    };\n    const deB64 = (b64) =>\n        new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));\n\n    return {\n        id,\n        peer: peer || \"\",\n        escribir: async (valor) => {\n            // Un string se manda tal cual: así se puede hablar con un peer que\n            // espera texto plano sin envolverlo en comillas JSON.\n            const texto = typeof valor === \"string\" ? valor : JSON.stringify(valor);\n            return await window.p2p.StreamWrite(id, aB64(texto));\n        },\n        // Termina de hablar sin cerrar: el otro lado lee hasta el final y contesta.\n        termine: async () => await window.p2p.StreamCloseWrite(id),\n        leer: async () => {\n            let texto = \"\";\n            for (;;) {\n                const c = await window.p2p.StreamRead(id, 0, 0);\n                if (c.data) texto += deB64(c.data);\n                if (c.eof) break;\n            }\n            if (texto === \"\") return null;\n            // Si no es JSON se devuelve el texto tal cual en vez de reventar:\n            // así el place entiende a la CLI de p2plite y a cualquier peer que\n            // mande texto plano.\n            try {\n                return JSON.parse(texto);\n            } catch (_) {\n                return texto;\n            }\n        },\n        cerrar: async () => await window.p2p.StreamClose(id),\n    };\n}",
+  "persistir atomo ƒ": "async (name) => {\n    // Autosave granular: persiste UN átomo en la base (bbolt) al terminar de\n    // editarlo en Monaco. NO pasa por \"guardar !\" (que vuelca el mapa entero)\n    // ni toca el JSON del repo — exportar a git sigue siendo manual (\"exportar\n    // !\"). Cada guardado versiona el valor anterior; para deshacer, \"· *\n    // restaurar\" o, desde consola, window.AtomHistory / RestoreAtomVersion.\n    if (typeof window.SetAtom !== \"function\") return; // frontend suelto: no-op\n    if (typeof name !== \"string\" || name.endsWith(\"֎\")) return; // refs DOM no\n\n    const value = diarsaba.get(name);\n    // Mismo criterio que \"guardar ! ƒ\": una ƒ se persiste como su código fuente.\n    const serial = name.endsWith(\"ƒ\")\n        ? String(value).replace(/\\r\\n/g, \"\\n\").trim()\n        : value;\n\n    try {\n        await window.SetAtom(name, JSON.stringify(serial));\n    } catch (e) {\n        // El autosave no debe romper la edición: si falla, se avisa y ya.\n        console.error(`autosave de \"${name}\" falló:`, e);\n    }\n}",
   "places #": [
     "arranque @",
     "develop @",
@@ -1110,15 +993,132 @@
     "p2p ƒ @",
     "tipos @"
   ],
-  "mover ƒ": "() => {\n    // Enciende o apaga el modo mover. Sin botón a la vista, la única señal de\n    // que está activo es el borde del lienzo y el cursor sobre los chips: por\n    // eso el borde, y no solo el cursor.\n    const activo = !diarsaba.get(\"moviendo chips §\");\n    diarsaba.set(\"moviendo chips §\", activo ? \"si\" : \"\");\n    document.body.classList.toggle(\"moviendo-chips\", activo);\n    return activo ? \"moviendo\" : \"quieto\";\n}",
-  "mover !": [
-    "mover ƒ"
+  "pointer down 0 ~": [],
+  "pointer down 2 ~": [],
+  "pointer up 0 ~": [
+    "handle click !"
   ],
-  "guardar !": [
-    "guardar ! ƒ"
+  "pointer up 2 ~": [
+    "show context menu !"
   ],
-  "reload ƒ": "() => {\n    window.location.reload();\n}",
+  "pointer x": 743,
+  "pointer y": 364,
+  "protegidos #": [],
   "reload !": [
     "reload ƒ"
-  ]
+  ],
+  "reload ƒ": "() => {\n    window.location.reload();\n}",
+  "show context menu !": [
+    "show context menu ƒ"
+  ],
+  "show context menu ƒ": "() => {\n    const event = diarsaba.get(\"pointer up event\");\n\n    // Los modales (editor Monaco, modal de nombre, botón de mover) viven\n    // ENCIMA del lienzo, pero este manejador escucha toda la ventana. Sin\n    // esto, un doble clic dentro del editor se lee como doble clic en un\n    // chip: el título del modal ES el nombre del átomo, sigilo incluido.\n    if (event.target.closest && event.target.closest(\".editor-overlay, .modal-content\")) return;\n\n    if (event.target.nodeName === \"HTML\" || event.target.nodeName === \"BODY\") {\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu && typeof currentMenu.remove === \"function\") {\n                        currentMenu.remove();\n        }\n\n        diarsaba.set(\n            \"current menu\",\n            diarsaba.get(\"create list menu ƒ\")(diarsaba.get(\"atom name list #\"))\n        );\n\n        diarsaba.set(\"open x $\", event.clientX);\n        diarsaba.set(\"open y $\", event.clientY);\n    } else {\n        const type = event.target.textContent.slice(-1);\n        const name = event.target.textContent;\n\n        diarsaba.get(\"show options list ƒ\")(type, name);\n    }\n}",
+  "show options list ƒ": "(type, name) => {\n    // 1. Limpiar el menú anterior si existe\n    const currentMenu = diarsaba.get(\"current chip menu\");\n    if (currentMenu instanceof Element) {\n        currentMenu.remove();\n    }\n\n    // 2. Obtener los recursos compartidos que usan todas las ramas\n    const event = diarsaba.get(\"pointer up event\");\n    const createMenu = diarsaba.get(\"create list menu ƒ\");\n    const target = event.target;\n\n    // Variables que determinarán cómo se creará el menú\n    let menuOptions;\n    let menuArgs = [];\n\n    // 3. Determinar las opciones y argumentos según el caso\n    if (/^\\[\\d+\\]/.test(name)) {\n        menuOptions = diarsaba.get(\"list option [] #\");\n        menuArgs = [target.parentElement.dataset.parent, name];\n    } else if (diarsaba.get(\"types list #\").includes(type)) {\n        menuOptions = diarsaba.get(`list option ${type} #`);\n        menuArgs = [name];\n    } else {\n        const fallbackType = \"֎\";\n        const parentDataset = target.dataset.parent;\n        const lastChar = parentDataset.slice(-1);\n        \n        menuOptions = diarsaba.get(`list option ${fallbackType} ${lastChar} #`);\n        menuArgs = [parentDataset];\n    }\n\n    // 4. Crear y guardar el nuevo menú en un solo lugar\n    const newMenu = createMenu(menuOptions, ...menuArgs);\n    diarsaba.set(\"current chip menu\", newMenu);\n}",
+  "tipos @": {
+    "atom name list": {
+      "x": 40,
+      "y": 90
+    },
+    "atom name list #": {
+      "x": 340,
+      "y": 90
+    },
+    "create ! action ƒ": {
+      "x": 640,
+      "y": 90
+    },
+    "create # list ƒ": {
+      "x": 40,
+      "y": 142
+    },
+    "create $ num ƒ": {
+      "x": 340,
+      "y": 142
+    },
+    "create : map ƒ": {
+      "x": 640,
+      "y": 142
+    },
+    "create < view ƒ": {
+      "x": 40,
+      "y": 194
+    },
+    "create { style ƒ": {
+      "x": 340,
+      "y": 194
+    },
+    "create ~ thread ƒ": {
+      "x": 640,
+      "y": 194
+    },
+    "create § text ƒ": {
+      "x": 40,
+      "y": 246
+    },
+    "create ƒ func ƒ": {
+      "x": 340,
+      "y": 246
+    },
+    "editables list #": {
+      "x": 640,
+      "y": 246
+    },
+    "types list #": {
+      "x": 40,
+      "y": 298
+    }
+  },
+  "todo el estilo {": "  /* Paleta monocroma: negro, blanco y blancos translúcidos. La jerarquía\n     visual la da SOLO la opacidad — no hay matices de color en ningún lado.\n     Si algo necesita destacar, sube de nivel (0.08 → 0.18), no cambia de tono. */\n  :root {\n      --graph-bg: #000000;\n      --graph-bg-elevated: rgba(255, 255, 255, 0.08);\n      --graph-bg-strong: rgba(0, 0, 0, 0.92);\n      --graph-border: rgba(255, 255, 255, 0.14);\n      --graph-border-active: rgba(255, 255, 255, 0.24);\n      --graph-text: #ffffff;\n      --graph-text-muted: rgba(255, 255, 255, 0.62);\n      --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);\n      --graph-font: ui-monospace, \"Cascadia Mono\", Consolas, \"Courier New\", monospace;\n  }\n\n  * {\n      margin: 0;\n      padding: 0;\n      box-sizing: border-box;\n  }\n\n  /* La monoespaciada se declara una sola vez aquí y todo lo demás la hereda:\n     los chips SON el código, así que deben medir igual que el editor. */\n  body {\n      background: var(--graph-bg);\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      font-family: var(--graph-font);\n      color: var(--graph-text);\n      padding: 20px;\n  }\n\n  .object-name {\n      position: absolute;\n      font-size: 1rem;\n      color: var(--graph-text);\n      font-weight: 500;\n      cursor: pointer;\n      padding: 6px 12px;\n      border-radius: 999px;\n      transition: background-color 0.15s ease, border-color 0.15s ease,\n          transform 0.15s ease;\n      width: fit-content;\n      background: var(--graph-bg-elevated);\n      border: 1px solid var(--graph-border);\n      box-shadow: var(--graph-shadow);\n      backdrop-filter: blur(14px);\n      -webkit-backdrop-filter: blur(14px);\n      outline: none;\n      user-select: none;\n  }\n\n  .object-name:hover {\n      background: rgba(255, 255, 255, 0.12);\n      border-color: var(--graph-border-active);\n      transform: translateY(-1px);\n  }\n\n  .object-name:focus {\n      border: 1px solid rgba(255, 255, 255, 0.55);\n  }\n\n  .object-name:active {\n      background: rgba(255, 255, 255, 0.18);\n      transform: translateY(0);\n  }\n\n  .context-menu {\n      position: absolute;\n      background: var(--graph-bg-strong);\n      border-radius: 14px;\n      box-shadow: var(--graph-shadow);\n      border: 1px solid var(--graph-border);\n      z-index: 1000;\n      min-width: 140px;\n      max-height: min(360px, 60vh);\n      overflow-y: auto;\n      overflow-x: hidden;\n      transition: opacity 0.1s ease, transform 0.1s ease;\n      user-select: none;\n      backdrop-filter: blur(14px);\n      -webkit-backdrop-filter: blur(14px);\n  }\n\n  /* Barra de scroll discreta en los menús.\n     Se afina en vez de ocultarse: una lista larga sin ninguna señal de que hay\n     más abajo se siente rota.\n\n     Ojo con scrollbar-width: declararlo hace que Chromium —y WebView2 lo es—\n     IGNORE por completo ::-webkit-scrollbar y vuelva a su barra nativa. Por eso\n     aquí NO se declara: es lo que deja pasar el ancho de 6px de abajo. */\n  .context-menu::-webkit-scrollbar {\n      width: 6px;\n  }\n\n  .context-menu::-webkit-scrollbar-track {\n      background: transparent;\n  }\n\n  .context-menu::-webkit-scrollbar-thumb {\n      background: rgba(255, 255, 255, 0.14);\n      border-radius: 999px;\n  }\n\n  .context-menu::-webkit-scrollbar-thumb:hover {\n      background: rgba(255, 255, 255, 0.28);\n  }\n\n  .menu-item {\n      padding: 6px 12px;\n      font-size: 0.75rem;\n      color: var(--graph-text-muted);\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 6px;\n      user-select: none;\n      border-bottom: 1px solid rgba(255, 255, 255, 0.08);\n  }\n\n  .menu-item:last-child {\n      border-bottom: none;\n  }\n\n  .menu-item:hover {\n      background: rgba(255, 255, 255, 0.08);\n  }\n\n  .menu-item:active {\n      background: rgba(255, 255, 255, 0.12);\n  }\n\n  .modal-content {\n      position: absolute;\n      left: 50%;\n      top: 50%;\n      padding: 1rem;\n      border: 1px solid var(--graph-border);\n      border-radius: 18px;\n      background: rgba(0, 0, 0, 0.88);\n      box-shadow: var(--graph-shadow);\n      backdrop-filter: blur(18px);\n      -webkit-backdrop-filter: blur(18px);\n      transform: translate(-50%, -50%);\n      z-index: 2000;\n  }\n\n  .modal-content button {\n      font-size: 0.75rem;\n      color: var(--graph-text);\n      font-weight: 500;\n      cursor: pointer;\n      padding: 4px 12px;\n      border-radius: 10px;\n      transition: all 0.15s ease;\n      width: fit-content;\n      background: rgba(255, 255, 255, 0.08);\n      border: 1px solid var(--graph-border);\n      outline: none;\n      user-select: none;\n  }\n\n  .modal-content button:hover {\n      background: rgba(255, 255, 255, 0.12);\n      border-color: var(--graph-border-active);\n  }\n\n  .modal-content button:active {\n      background: rgba(255, 255, 255, 0.18);\n      transform: scale(0.98);\n  }\n\n  /* Sin color, la acción primaria se distingue por PESO: relleno más claro y\n     borde más marcado. Antes era el único azul de la interfaz. */\n  .modal-content button[data-modal=\"continue\"] {\n      background: rgba(255, 255, 255, 0.2);\n      color: var(--graph-text);\n      border: 1px solid rgba(255, 255, 255, 0.38);\n  }\n\n  .modal-content button[data-modal=\"continue\"]:hover {\n      background: rgba(255, 255, 255, 0.3);\n  }\n\n  .modal-content input {\n      border: 1px solid rgba(255, 255, 255, 0.1);\n      outline: none;\n      padding: 4px 8px;\n      border-radius: 8px;\n      color: var(--graph-text);\n      font-family: inherit;\n      font-size: 1rem;\n      flex: 1;\n      background: rgba(255, 255, 255, 0.06);\n  }\n\n  .modal-content span {\n      font-family: inherit;\n      color: var(--graph-text-muted);\n      font-weight: 100;\n      font-size: smaller;\n      font-style: italic;\n  }\n\n  .modal-buttons {\n      display: flex;\n      gap: 8px;\n      justify-content: space-around;\n      margin-top: 12px;\n  }\n\n  .editor-overlay {\n      position: fixed;\n      top: 0;\n      left: 0;\n      width: 100%;\n      height: 100%;\n      background: rgba(0, 0, 0, 0.22);\n      justify-content: center;\n      align-items: center;\n      z-index: 1000;\n      backdrop-filter: blur(1px) saturate(0.6%);\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n      display: flex;\n  }\n\n  .editor-modal {\n      width: 90%;\n      max-width: 900px;\n      height: 80%;\n      max-height: 700px;\n      border-radius: 18px;\n      background: rgba(0, 0, 0, 0.34);\n      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);\n      border: 1px solid var(--graph-border);\n      backdrop-filter: blur(1px) saturate(0.6%);\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n      display: flex;\n      flex-direction: column;\n      overflow: hidden;\n  }\n\n  .editor-header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      background: rgba(255, 255, 255, 0.06);\n      border-bottom: 1px solid rgba(255, 255, 255, 0.1);\n      padding: 12px 16px;\n      flex-shrink: 0;\n  }\n\n  .editor-title {\n      color: var(--graph-text);\n      font-size: 14px;\n      font-weight: 500;\n      display: flex;\n      align-items: center;\n      gap: 8px;\n  }\n\n  .editor-controls {\n      display: flex;\n      gap: 10px;\n  }\n\n  .close-button,\n  .save-button {\n      border: 1px solid var(--graph-border);\n      border-radius: 6px;\n      color: var(--graph-text);\n      padding: 6px 12px;\n      font-size: 12px;\n      cursor: pointer;\n      transition: all 0.2s;\n      display: flex;\n      align-items: center;\n      gap: 4px;\n      font-family: inherit;\n  }\n\n  /* Cerrar (descarta) va en contorno; guardar (confirma) va relleno. Sin el\n     rojo/gris de antes, el relleno es lo único que separa una de otra. */\n  .close-button {\n      background: transparent;\n  }\n\n  .close-button:hover {\n      background: rgba(255, 255, 255, 0.1);\n      border-color: var(--graph-border-active);\n  }\n\n  .save-button {\n      background: rgba(255, 255, 255, 0.14);\n  }\n\n  .save-button:hover {\n      background: rgba(255, 255, 255, 0.24);\n      border-color: var(--graph-border-active);\n  }\n\n  .monaco-container {\n      flex: 1;\n      width: 100%;\n      height: 100%;\n      background: rgba(255, 255, 255, 0.04);\n      backdrop-filter: blur(8px);\n      -webkit-backdrop-filter: blur(8px);\n  }\n\n  .monaco-container .monaco-editor,\n  .monaco-container .monaco-editor-background,\n  .monaco-container .margin,\n  .monaco-container .monaco-scrollable-element {\n      background: transparent !important;\n  }\n\n  .language-selector {\n      position: relative;\n      display: inline-block;\n  }\n\n  .language-button {\n      background: none;\n      border-radius: 10px;\n      border: none;\n      color: var(--graph-text);\n      padding: 6px 12px;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 8px;\n      font-size: 14px;\n      font-family: inherit;\n      transition: all 0.3s ease;\n  }\n\n  .language-button:hover {\n      background: rgba(255, 255, 255, 0.15);\n  }\n\n  .language-name {\n      flex-grow: 1;\n      text-align: left;\n  }\n\n  .language-dropdown {\n      display: none;\n      position: absolute;\n      top: 100%;\n      left: 0;\n      background: var(--graph-bg-strong);\n      border: 1px solid var(--graph-border-active);\n      border-radius: 4px;\n      min-width: 150px;\n      z-index: 1000;\n      margin-top: 5px;\n      box-shadow: var(--graph-shadow);\n  }\n\n  .language-dropdown.show {\n      display: block;\n  }\n\n  .dropdown-item {\n      width: 100%;\n      padding: 10px 15px;\n      background: none;\n      border: none;\n      color: var(--graph-text);\n      text-align: left;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 10px;\n      font-family: inherit;\n      transition: background 0.2s ease;\n  }\n\n  .dropdown-item:hover {\n      background: rgba(255, 255, 255, 0.1);\n  }\n\n  .dropdown-item i {\n      width: 20px;\n      text-align: center;\n  }\n\n  /* En modo mover el cursor anuncia que se puede arrastrar, y se desactiva la\n     selección de texto para que arrastrar no seleccione el nombre del chip. */\n  body.moviendo-chips::after {\n      content: \"moviendo chips — «mover !» para salir\";\n      position: fixed;\n      inset: 0;\n      border: 2px solid var(--graph-border-active);\n      border-radius: 6px;\n      pointer-events: none;\n      z-index: 1500;\n      color: var(--graph-text-muted);\n      font-size: 0.7rem;\n      padding: 6px 10px;\n      text-align: right;\n  }\n\n  body.moviendo-chips .object-name { cursor: grab; user-select: none; }\n  body.moviendo-chips .object-name.arrastrando {\n      cursor: grabbing;\n      border-color: rgba(255, 255, 255, 0.7);\n  }\n",
+  "types list #": [
+    "~",
+    "ƒ",
+    "!",
+    "$",
+    "§",
+    "#",
+    "[]",
+    "֎",
+    "<",
+    "{",
+    ":",
+    "@"
+  ],
+  "· ! abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const l_div = diarsaba.get(\"create list ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent\n    );\n\n    if (diarsaba.get(`${dataset.parent} # ֎`)) {\n        diarsaba.get(`${dataset.parent} # ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} # ֎`, l_div);\n}",
+  "· ! action ƒ": "async (dataset) => {\n    threads(`${dataset.parent}`);\n}",
+  "· ! editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        Array.isArray(actual) ? actual.join(\",\\n\") : String(actual),\n        \"text\"\n    );\n\n    // null = cancelado. No se toca nada: es la diferencia entre cerrar y vaciar.\n    if (res == null) return;\n\n    // \"\" sí vacía, pero solo si se llegó aquí GUARDANDO.\n    if (res.trim() === \"\") {\n        diarsaba.set(dataset.parent, []);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n        return;\n    }\n\n    diarsaba.set(\n        dataset.parent,\n        res.split(\",\").map((x) => x.trim()).filter((x) => x !== \"\")\n    );\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· # abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const l_div = diarsaba.get(\"create list ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent\n    );\n\n    if (diarsaba.get(`${dataset.parent} # ֎`)) {\n        diarsaba.get(`${dataset.parent} # ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} # ֎`, l_div);\n}",
+  "· # antes ƒ": "(dataset) => {\n    const tomado = diarsaba.get(\"· * tomar §\");\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice, 0, tomado);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
+  "· # despues ƒ": "(dataset) => {\n    const tomado = diarsaba.get(\"· * tomar §\");\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice + 1, 0, tomado);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
+  "· # editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        Array.isArray(actual) ? actual.join(\",\\n\") : String(actual),\n        \"text\"\n    );\n\n    // null = cancelado. No se toca nada: es la diferencia entre cerrar y vaciar.\n    if (res == null) return;\n\n    // \"\" sí vacía, pero solo si se llegó aquí GUARDANDO.\n    if (res.trim() === \"\") {\n        diarsaba.set(dataset.parent, []);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n        return;\n    }\n\n    diarsaba.set(\n        dataset.parent,\n        res.split(\",\").map((x) => x.trim()).filter((x) => x !== \"\")\n    );\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· # eliminar ƒ": "(dataset) => {\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.get(dataset.parent).splice(selection.indice, 1);\n\n    diarsaba.get(`${dataset.parent} # ֎`).remove();\n    diarsaba.get(\"· ~ abrir ƒ\")(dataset);\n}",
+  "· #* padre ƒ": "(dataset) => {\n    const rect = diarsaba.get(`${dataset.parent} # ֎`).getBoundingClientRect();\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.right,\n        rect.top,\n        dataset.parent,\n        \"\",\n        dataset.parent.slice(0, 1)\n    );\n\n    const chip_rect = chip.getBoundingClientRect();\n\n    chip.style.left = `${rect.left - (chip_rect.width + 10)}px`;\n    diarsaba.set(`${dataset.parent} ֎`, chip);\n}",
+  "· #* tomar ƒ": "(dataset) => {\n    const selection = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n    diarsaba.set(\"· * tomar §\", selection.texto);\n}",
+  "· $ abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent,\n        \"$\"\n    );\n\n    if (diarsaba.get(`${dataset.parent} ֎ ֎`)) {\n        diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} ֎ ֎`, chip);\n}",
+  "· $ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) ?? 0;\n    const res = await window.codeEditor.open(dataset.parent, String(actual), \"text\");\n    if (res == null) return;\n\n    const n = Number(res.trim());\n    // Un número que no es número no se guarda: el átomo conserva su valor.\n    if (res.trim() === \"\" || Number.isNaN(n)) {\n        alert(`\"${dataset.parent}\" es un número.\\n\\nNo se guardó: ${JSON.stringify(res.trim())} no lo es.`);\n        return;\n    }\n    diarsaba.set(dataset.parent, n);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· * eliminar ƒ": "async (dataset) => {\n    // Borrado DEFINITIVO: elimina el átomo de diarsaba, sus chips del DOM y\n    // todas las referencias en cualquier place.\n    const name = dataset.parent;\n\n    // 1. Quitar chips del DOM (principal y posibles hijos abiertos) y sus refs\n    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {\n        const el = diarsaba.get(k);\n        if (el && typeof el.remove === \"function\") el.remove();\n        diarsaba.delete(k);\n    });\n\n    // 2. Quitar la referencia de TODOS los places que lo contengan\n    const placesTocados = [];\n    for (const [k, v] of diarsaba.entries()) {\n        if (typeof k === \"string\" && k.endsWith(\"@\") && v && typeof v === \"object\") {\n            if (Object.prototype.hasOwnProperty.call(v, name)) {\n                const { [name]: _omit, ...rest } = v;\n                diarsaba.set(k, rest);\n                placesTocados.push(k);\n            }\n        }\n    }\n\n    // 3. Borrar el átomo de diarsaba (definitivo)\n    diarsaba.delete(name);\n\n    // 4. Propagar a la base: sin esto el átomo RESUCITA al recargar\n    //    (LoadPredefinedFunctions rehace el mapa desde bbolt) y los places\n    //    quedarían apuntando a un fantasma. DeleteAtom versiona el valor,\n    //    así que el borrado sigue siendo recuperable.\n    const persist = diarsaba.get(\"persistir atomo ƒ\");\n    for (const k of placesTocados) await persist(k);\n    if (typeof window.DeleteAtom === \"function\") {\n        try { await window.DeleteAtom(name); }\n        catch (e) { console.error(`no se pudo borrar \"${name}\" de la base:`, e); }\n    }\n}",
+  "· * ocultar ƒ": "(dataset) => {\n    const chip = diarsaba.get(`${dataset.parent} ֎`);\n    if (chip && typeof chip.remove === \"function\") {\n        chip.remove();\n        diarsaba.delete(`${dataset.parent} ֎`);\n    } else {\n        const child = diarsaba.get(`${dataset.parent} ֎ ֎`);\n        if (child && typeof child.remove === \"function\") child.remove();\n        diarsaba.delete(`${dataset.parent} ֎ ֎`);\n    }\n}",
+  "· * quitar ƒ": "async (dataset) => {\n    // Saca el chip del place actual y del DOM. El ÁTOMO permanece en diarsaba\n    // (puede volver a colocarse en otro place o seguir siendo referenciado).\n    const name = dataset.parent;\n\n    // 1. Quitar chips del DOM (principal e hijos abiertos) y sus referencias\n    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {\n        const el = diarsaba.get(k);\n        if (el && typeof el.remove === \"function\") el.remove();\n        diarsaba.delete(k);\n    });\n\n    // 2. Quitar la entrada del place actual (para que no reaparezca al recargar)\n    const placeName = diarsaba.get(\"current place §\");\n    const place = diarsaba.get(placeName);\n    if (place && typeof place === \"object\") {\n        const { [name]: _omit, ...rest } = place;\n        diarsaba.set(placeName, rest);\n        // Autosave: el átomo se queda, pero el place cambió — sin esto el\n        // chip reaparece aquí al recargar.\n        await diarsaba.get(\"persistir atomo ƒ\")(placeName);\n    }\n}",
+  "· * restaurar ƒ": "async (dataset) => {\n    // Deshace el autosave de un átomo: lo devuelve a su versión anterior. Por\n    // defecto restaura la MÁS reciente del historial (el \"deshacer lo último\");\n    // para elegir otra o inspeccionarlas, desde consola:\n    //   await window.AtomHistory(\"nombre del átomo\")   → lista [{seq,value}]\n    //   await window.RestoreAtomVersion(\"nombre\", seq)\n    // Ojo: la recuperación de un handler roto que dejó la UI inservible se hace\n    // por consola, no por aquí — si el clic no responde, este átomo tampoco.\n    const name = dataset && dataset.parent;\n    if (!name || typeof window.AtomHistory !== \"function\") return;\n\n    let versiones;\n    try {\n        versiones = JSON.parse(await window.AtomHistory(name));\n    } catch (e) {\n        alert(`no se pudo leer el historial de \"${name}\": ${e && e.message ? e.message : e}`);\n        return;\n    }\n    if (!versiones.length) {\n        alert(`\"${name}\" no tiene versiones anteriores.`);\n        return;\n    }\n\n    try {\n        await window.RestoreAtomVersion(name, versiones[0].seq);\n        alert(`\"${name}\" restaurado a su versión anterior.\\nRecarga para verlo reflejado en el lienzo.`);\n    } catch (e) {\n        alert(`no se pudo restaurar \"${name}\": ${e && e.message ? e.message : e}`);\n    }\n}",
+  "· * tomar §": "delete db ƒ",
+  "· * tomar ƒ": "(dataset) => {\n    diarsaba.set(\"· * tomar §\", dataset.parent);\n}",
+  "· : editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || {};\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        JSON.stringify(actual, null, 2),\n        \"json\"\n    );\n    if (res == null || res.trim() === \"\") return;\n\n    let nuevo;\n    try {\n        nuevo = JSON.parse(res);\n    } catch (e) {\n        alert(`\"${dataset.parent}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        return;\n    }\n    // Un objeto no puede volver como número o texto: eso rompería a quien lo lee.\n    if (nuevo === null || typeof nuevo !== \"object\" || Array.isArray(nuevo)) {\n        alert(`\"${dataset.parent}\" no se guardó: tiene que ser un objeto {…}.`);\n        return;\n    }\n    diarsaba.set(dataset.parent, nuevo);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· < editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"html\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· @ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || {};\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        JSON.stringify(actual, null, 2),\n        \"json\"\n    );\n    if (res == null || res.trim() === \"\") return;\n\n    let nuevo;\n    try {\n        nuevo = JSON.parse(res);\n    } catch (e) {\n        alert(`\"${dataset.parent}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        return;\n    }\n    // Un objeto no puede volver como número o texto: eso rompería a quien lo lee.\n    if (nuevo === null || typeof nuevo !== \"object\" || Array.isArray(nuevo)) {\n        alert(`\"${dataset.parent}\" no se guardó: tiene que ser un objeto {…}.`);\n        return;\n    }\n    diarsaba.set(dataset.parent, nuevo);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· []* ocultar ƒ": "(dataset) => {\n    // Cierra la lista abierta y borra su referencia: dejarla apuntando a un\n    // nodo huérfano confunde a quien luego consulte `... # ֎`.\n    const key = `${dataset.parent} # ֎`;\n    const node = diarsaba.get(key);\n    if (node instanceof Element) node.remove();\n    diarsaba.delete(key);\n}",
+  "· { editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"css\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· ~ abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const l_div = diarsaba.get(\"create list ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent\n    );\n\n    if (diarsaba.get(`${dataset.parent} # ֎`)) {\n        diarsaba.get(`${dataset.parent} # ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} # ֎`, l_div);\n}",
+  "· ~ action ƒ": "async (dataset) => {\n    threads(`${dataset.parent}`);\n}",
+  "· ~ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent) || [];\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        Array.isArray(actual) ? actual.join(\",\\n\") : String(actual),\n        \"text\"\n    );\n\n    // null = cancelado. No se toca nada: es la diferencia entre cerrar y vaciar.\n    if (res == null) return;\n\n    // \"\" sí vacía, pero solo si se llegó aquí GUARDANDO.\n    if (res.trim() === \"\") {\n        diarsaba.set(dataset.parent, []);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n        return;\n    }\n\n    diarsaba.set(\n        dataset.parent,\n        res.split(\",\").map((x) => x.trim()).filter((x) => x !== \"\")\n    );\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· § abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent,\n        \"§\"\n    );\n\n    if (diarsaba.get(`${dataset.parent} ֎ ֎`)) {\n        diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} ֎ ֎`, chip);\n}",
+  "· § editor ƒ": "async (dataset) => {\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        String(diarsaba.get(dataset.parent) ?? \"\"),\n        \"text\"\n    );\n\n    // null = cancelado, no se toca. \"\" sí vacía: en texto es un valor legítimo.\n    if (res == null) return;\n\n    diarsaba.set(dataset.parent, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n}",
+  "· ƒ abrir ƒ": "(dataset) => {\n    // Si el chip no está visible, anclamos al puntero en vez de reventar.\n    const chip_ancla = diarsaba.get(`${dataset.parent} ֎`);\n    const rect = (chip_ancla instanceof Element)\n        ? chip_ancla.getBoundingClientRect()\n        : { left: diarsaba.get(\"pointer x\") || 0, top: diarsaba.get(\"pointer y\") || 0, width: 0 };\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.left + rect.width + 10,\n        rect.top,\n        diarsaba.get(dataset.parent),\n        dataset.parent,\n        \"ƒ\"\n    );\n\n    if (diarsaba.get(`${dataset.parent} ֎ ֎`)) {\n        diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    }\n\n    diarsaba.set(`${dataset.parent} ֎ ֎`, chip);\n}",
+  "· ƒ editor ƒ": "async (dataset) => {\n    const actual = diarsaba.get(dataset.parent);\n    const res = await window.codeEditor.open(\n        dataset.parent,\n        actual instanceof Function ? actual.toString() : \"()=>{}\",\n        \"js\"\n    );\n    if (res == null || res.trim() === \"\") return;\n\n    try {\n        const fn = createFunction(res);\n        diarsaba.set(dataset.parent, fn);\n        await diarsaba.get(\"persistir atomo ƒ\")(dataset.parent);\n    } catch (e) {\n        alert(`\"${dataset.parent}\" no se guardó: el código no compila.\\n\\n${e.message}`);\n    }\n}",
+  "· ֎ editar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = true;\n    diarsaba.get(`${dataset.parent} ֎ ֎`).focus();\n}",
+  "· ֎ editor ƒ": "async (dataset) => {\n    const key = dataset.parent;\n    const type = key.slice(-1);\n    const specificEditor = diarsaba.get(`· ${type} editor ƒ`);\n\n    if (specificEditor) {\n        await specificEditor(dataset);\n        return;\n    }\n\n    // Sin editor específico. Un valor estructurado se edita como JSON:\n    // String(objeto) daría \"[object Object]\" y guardarlo lo destruiría.\n    const actual = diarsaba.get(key);\n    const esEstructura = actual !== null && typeof actual === \"object\";\n    const res = await window.codeEditor.open(\n        key,\n        esEstructura ? JSON.stringify(actual, null, 2) : String(actual ?? \"\"),\n        esEstructura ? \"json\" : \"text\"\n    );\n    if (res == null) return;\n\n    if (esEstructura) {\n        try {\n            diarsaba.set(key, JSON.parse(res));\n            await diarsaba.get(\"persistir atomo ƒ\")(key);\n        } catch (e) {\n            alert(`\"${key}\" no se guardó: el JSON no es válido.\\n\\n${e.message}`);\n        }\n        return;\n    }\n    diarsaba.set(key, res);\n    await diarsaba.get(\"persistir atomo ƒ\")(key);\n}",
+  "· ֎$ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        Number(diarsaba.get(`${dataset.parent} ֎ ֎`).textContent)\n    );\n}",
+  "· ֎* ocultar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).remove();\n    diarsaba.delete(`${dataset.parent} ֎ ֎`);\n}",
+  "· ֎* padre ƒ": "(dataset) => {\n    const rect = diarsaba.get(`${dataset.parent} ֎ ֎`).getBoundingClientRect();\n\n    const chip = diarsaba.get(\"create chip ƒ\")(\n        rect.right,\n        rect.top,\n        dataset.parent,\n        \"\",\n        dataset.parent.slice(0, 1)\n    );\n\n    const chip_rect = chip.getBoundingClientRect();\n\n    chip.style.left = `${rect.left - (chip_rect.width + 10)}px`;\n    diarsaba.set(`${dataset.parent} ֎`, chip);\n}",
+  "· ֎< guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
+  "· ֎{ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
+  "· ֎§ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        diarsaba.get(`${dataset.parent} ֎ ֎`).textContent\n    );\n}",
+  "· ֎ƒ guardar ƒ": "(dataset) => {\n    diarsaba.get(`${dataset.parent} ֎ ֎`).contentEditable = false;\n    diarsaba.set(\n        `${dataset.parent}`,\n        createFunction(diarsaba.get(`${dataset.parent} ֎ ֎`).textContent)\n    );\n}"
 }
