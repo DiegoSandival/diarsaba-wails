@@ -18,6 +18,12 @@
   "Streams info #": [],
   "TODO #": [],
   "TODO §": "ARREGLAR EL EDIT\r\n\r\nARREGLAR EL DELETE\r\n\r\nHACER LAS LISTAS\r\n\r\nLISTAS DINAMICAS\r\n\r\n\r\n\r\n",
+  "actions #": [
+    "mover !",
+    "guardar !",
+    "exportar !",
+    "reload !"
+  ],
   "add to place ƒ": "(name) => {\n\n    const current_place_name = diarsaba.get(\"current place §\")\n\n    if (current_place_name == null || current_place_name == undefined) {\n        //si no existe un place ahora somos el place\n        // unicamente si es un place\n\n        if (name.slice(-1) == \"@\") {\n            diarsaba.set(\"current place §\", name)\n        }else{\n            alert(\"todos los movimientos que hagas no seran registrados\")\n        }\n\n    } else {\n        // 1. Declaramos la variable y evitamos que sea undefined\n        let current_place = diarsaba.get(current_place_name) || {};\n\n        // 2. Usamos un nombre de variable más seguro (asumiendo que 'name' viene de otro lado)\n        const itemKey = name;\n\n        // 3. Creamos un nuevo objeto (inmutabilidad) usando el spread operator (...)\n        const updated_place = {\n            ...current_place,\n            [itemKey]: {\n                x: diarsaba.get(\"open x $\"),\n                y: diarsaba.get(\"open y $\")\n            }\n        };\n\n        // 4. Guardamos el nuevo objeto\n        diarsaba.set(current_place_name, updated_place);\n        // Autosave: el place cambió (un chip nuevo con su posición).\n        diarsaba.get(\"persistir atomo ƒ\")(current_place_name);\n    }\n}",
   "ai config !": [
     "ai config ƒ"
@@ -94,20 +100,21 @@
     ": map"
   ],
   "atom name list #": [
+    "diarsaba @",
+    "actions #",
+    "chips #"
+  ],
+  "chips #": [
     "~ thread",
     "ƒ func",
     "! action",
     "$ num",
     "§ text",
     "# list",
-    "guardar !",
-    "exportar !",
     "< view",
     "{ style",
     ": map",
-    "@ place",
-    "reload !",
-    "mover !"
+    "@ place"
   ],
   "clamp to viewport ƒ": "(el) => {\n    // Reposiciona el elemento para que no se salga de la ventana (clamp).\n    // Se mide el tamaño natural en (0,0): si se coloca desbordando, el ancho\n    // shrink-to-fit del .context-menu se comprime y daría una medida errónea.\n    const margin = 8;\n    const vw = window.innerWidth;\n    const vh = window.innerHeight;\n\n    const desiredLeft = parseFloat(el.style.left) || 0;\n    const desiredTop = parseFloat(el.style.top) || 0;\n\n    el.style.left = \"0px\";\n    el.style.top = \"0px\";\n    const w = el.offsetWidth;\n    const h = el.offsetHeight;\n\n    let left = desiredLeft;\n    let top = desiredTop;\n\n    if (left + w > vw - margin) left = vw - margin - w;\n    if (top + h > vh - margin) top = vh - margin - h;\n    if (left < margin) left = margin;\n    if (top < margin) top = margin;\n\n    el.style.left = `${left}px`;\n    el.style.top = `${top}px`;\n}",
   "clear menus ƒ": "() => {\n    // Guard: los defaults serializados pueden ser {} (truthy sin .remove)\n    const menu = diarsaba.get(\"current menu\");\n    if (menu && typeof menu.remove === \"function\") menu.remove();\n\n    const chipMenu = diarsaba.get(\"current chip menu\");\n    if (chipMenu && typeof chipMenu.remove === \"function\") chipMenu.remove();\n\n    // Los submenús se abren en cadena, así que no hay una sola\n    // referencia que valga: se barren por su marca.\n    document.querySelectorAll(\".context-menu.submenu\").forEach((el) => el.remove());\n}",
@@ -171,61 +178,9 @@
     }
   },
   "diarsaba @": {
-    "places #": {
-      "x": 40,
-      "y": 40
-    },
-    "arranque @": {
-      "x": 40,
-      "y": 120
-    },
-    "develop @": {
-      "x": 300,
-      "y": 120
-    },
-    "dibujo @": {
-      "x": 820,
-      "y": 120
-    },
-    "editores @": {
-      "x": 40,
-      "y": 176
-    },
-    "examples @": {
-      "x": 300,
-      "y": 176
-    },
-    "guardado @": {
-      "x": 560,
-      "y": 176
-    },
-    "ia @": {
-      "x": 820,
-      "y": 176
-    },
-    "interacción @": {
-      "x": 40,
-      "y": 232
-    },
-    "menú @": {
-      "x": 300,
-      "y": 232
-    },
-    "notas @": {
-      "x": 560,
-      "y": 232
-    },
-    "p2p ! @": {
-      "x": 820,
-      "y": 232
-    },
-    "p2p ƒ @": {
-      "x": 40,
-      "y": 288
-    },
-    "tipos @": {
-      "x": 300,
-      "y": 288
+    "system @": {
+      "x": 101,
+      "y": 97
     }
   },
   "dibujo @": {
@@ -953,8 +908,8 @@
   "p2p ƒ @ dice ƒ": "(etiqueta, valor) => {\n    // Deja el resultado a la vista: un ! disparado con un clic no tiene dónde\n    // devolver. Los fallos además se gritan.\n    const plano = valor instanceof Error ? valor.message : valor;\n    diarsaba.set(\"p2p ƒ @ dice §\", `${etiqueta}\\n${typeof plano === \"string\" ? plano : JSON.stringify(plano, null, 2)}`);\n    console.log(`[p2p ƒ] ${etiqueta}`, valor);\n    if (String(etiqueta).endsWith(\"✗\")) alert(`${etiqueta}\\n${plano}`);\n    return valor;\n}",
   "p2p ƒ @ difundir ƒ": "async (valor) => {\n    // Manda a TODOS los peers conectados por sus streams persistentes. arg ƒ\n    // resuelve el nombre del átomo (un ! pasa \"p2p ƒ @ enviar :\" como string).\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    const conns = diarsaba.get(\"p2p ƒ @ conns ֎\");\n    if (!conns || conns.size === 0) return dice(\"difundir\", \"no hay peers conectados\");\n    const carga = valor === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(valor);\n    let ok = 0;\n    for (const s of conns.values()) {\n        try { await s.escribir(carga === undefined ? null : carga); ok++; } catch (_) {}\n    }\n    return dice(\"difundir\", { a: `${ok} peers`, envié: carga });\n}",
   "p2p ƒ @ enviar :": {
-    "orden": "saludar",
-    "de": "diarsaba"
+    "orden": "saludo",
+    "para": "casas"
   },
   "p2p ƒ @ enviar a ƒ": "async (peer, valor) => {\n    // Manda UN objeto a un peer por su stream persistente (lo reusa; no cierra).\n    // arg ƒ resuelve nombres de átomo: un ! pasa \"p2p ƒ @ peer §\" como string,\n    // así que aquí se convierte en su valor. Sin peer explícito, el último de\n    // \"p2p ƒ @ peer §\".\n    const dice = diarsaba.get(\"p2p ƒ @ dice ƒ\");\n    const arg = diarsaba.get(\"p2p ƒ @ arg ƒ\");\n    try {\n        const p = arg(peer) || diarsaba.get(\"p2p ƒ @ peer §\");\n        if (!p) return dice(\"enviar ✗\", \"sin peer: corre FindProviders antes, o pásale uno\");\n        const carga = valor === undefined ? diarsaba.get(\"p2p ƒ @ enviar :\") : arg(valor);\n        const s = await diarsaba.get(\"p2p ƒ @ abrir o reusar ƒ\")(p);\n        await s.escribir(carga === undefined ? null : carga);\n        return dice(\"enviar\", { a: p.slice(-8), envié: carga });\n    } catch (e) {\n        return dice(\"enviar ✗\", e);\n    }\n}",
   "p2p ƒ @ historial $": 50,
@@ -989,7 +944,12 @@
   ],
   "pointer x": 743,
   "pointer y": 364,
-  "protegidos #": [],
+  "protegidos #": [
+    "atom name list #",
+    "chips #",
+    "actions #",
+    "protegidos #"
+  ],
   "reload !": [
     "reload ƒ"
   ],
@@ -999,14 +959,68 @@
   ],
   "show context menu ƒ": "() => {\n    const event = diarsaba.get(\"pointer up event\");\n\n    // Los modales (editor Monaco, modal de nombre, botón de mover) viven\n    // ENCIMA del lienzo, pero este manejador escucha toda la ventana. Sin\n    // esto, un doble clic dentro del editor se lee como doble clic en un\n    // chip: el título del modal ES el nombre del átomo, sigilo incluido.\n    if (event.target.closest && event.target.closest(\".editor-overlay, .modal-content\")) return;\n\n    if (event.target.nodeName === \"HTML\" || event.target.nodeName === \"BODY\") {\n        const currentMenu = diarsaba.get(\"current menu\");\n        if (currentMenu && typeof currentMenu.remove === \"function\") {\n                        currentMenu.remove();\n        }\n\n        diarsaba.set(\n            \"current menu\",\n            diarsaba.get(\"create list menu ƒ\")(diarsaba.get(\"atom name list #\"))\n        );\n\n        diarsaba.set(\"open x $\", event.clientX);\n        diarsaba.set(\"open y $\", event.clientY);\n    } else {\n        const type = event.target.textContent.slice(-1);\n        const name = event.target.textContent;\n\n        diarsaba.get(\"show options list ƒ\")(type, name);\n    }\n}",
   "show options list ƒ": "(type, name) => {\n    // 1. Limpiar el menú anterior si existe\n    const currentMenu = diarsaba.get(\"current chip menu\");\n    if (currentMenu instanceof Element) {\n        currentMenu.remove();\n    }\n\n    // 2. Obtener los recursos compartidos que usan todas las ramas\n    const event = diarsaba.get(\"pointer up event\");\n    const createMenu = diarsaba.get(\"create list menu ƒ\");\n    const target = event.target;\n\n    // Variables que determinarán cómo se creará el menú\n    let menuOptions;\n    let menuArgs = [];\n\n    // 3. Determinar las opciones y argumentos según el caso\n    if (/^\\[\\d+\\]/.test(name)) {\n        menuOptions = diarsaba.get(\"list option [] #\");\n        menuArgs = [target.parentElement.dataset.parent, name];\n    } else if (diarsaba.get(\"types list #\").includes(type)) {\n        menuOptions = diarsaba.get(`list option ${type} #`);\n        menuArgs = [name];\n    } else {\n        const fallbackType = \"֎\";\n        const parentDataset = target.dataset.parent;\n        const lastChar = parentDataset.slice(-1);\n        \n        menuOptions = diarsaba.get(`list option ${fallbackType} ${lastChar} #`);\n        menuArgs = [parentDataset];\n    }\n\n    // 4. Crear y guardar el nuevo menú en un solo lugar\n    const newMenu = createMenu(menuOptions, ...menuArgs);\n    diarsaba.set(\"current chip menu\", newMenu);\n}",
+  "system @": {
+    "arranque @": {
+      "x": 40,
+      "y": 120
+    },
+    "develop @": {
+      "x": 300,
+      "y": 120
+    },
+    "dibujo @": {
+      "x": 820,
+      "y": 120
+    },
+    "editores @": {
+      "x": 40,
+      "y": 176
+    },
+    "examples @": {
+      "x": 300,
+      "y": 176
+    },
+    "guardado @": {
+      "x": 560,
+      "y": 176
+    },
+    "ia @": {
+      "x": 820,
+      "y": 176
+    },
+    "interacción @": {
+      "x": 40,
+      "y": 232
+    },
+    "menú @": {
+      "x": 300,
+      "y": 232
+    },
+    "notas @": {
+      "x": 560,
+      "y": 232
+    },
+    "p2p ! @": {
+      "x": 820,
+      "y": 232
+    },
+    "p2p ƒ @": {
+      "x": 40,
+      "y": 288
+    },
+    "tipos @": {
+      "x": 300,
+      "y": 288
+    }
+  },
   "tipos @": {
     "atom name list": {
       "x": 40,
       "y": 90
     },
     "atom name list #": {
-      "x": 340,
-      "y": 90
+      "x": 863,
+      "y": 93.0069
     },
     "create ! action ƒ": {
       "x": 640,
@@ -1051,6 +1065,18 @@
     "types list #": {
       "x": 40,
       "y": 298
+    },
+    "protegidos #": {
+      "x": 1058,
+      "y": 92.0071
+    },
+    "chips #": {
+      "x": 869,
+      "y": 198.074
+    },
+    "actions #": {
+      "x": 867,
+      "y": 148.016
     }
   },
   "todo el estilo {": "  /* Paleta monocroma: negro, blanco y blancos translúcidos. La jerarquía\n     visual la da SOLO la opacidad — no hay matices de color en ningún lado.\n     Si algo necesita destacar, sube de nivel (0.08 → 0.18), no cambia de tono. */\n  :root {\n      --graph-bg: #000000;\n      --graph-bg-elevated: rgba(255, 255, 255, 0.08);\n      --graph-bg-strong: rgba(0, 0, 0, 0.92);\n      --graph-border: rgba(255, 255, 255, 0.14);\n      --graph-border-active: rgba(255, 255, 255, 0.24);\n      --graph-text: #ffffff;\n      --graph-text-muted: rgba(255, 255, 255, 0.62);\n      --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);\n      --graph-font: ui-monospace, \"Cascadia Mono\", Consolas, \"Courier New\", monospace;\n  }\n\n  * {\n      margin: 0;\n      padding: 0;\n      box-sizing: border-box;\n  }\n\n  /* La monoespaciada se declara una sola vez aquí y todo lo demás la hereda:\n     los chips SON el código, así que deben medir igual que el editor. */\n  body {\n      background: var(--graph-bg);\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      font-family: var(--graph-font);\n      color: var(--graph-text);\n      padding: 20px;\n  }\n\n  .object-name {\n      position: absolute;\n      font-size: 1rem;\n      color: var(--graph-text);\n      font-weight: 500;\n      cursor: pointer;\n      padding: 6px 12px;\n      border-radius: 999px;\n      transition: background-color 0.15s ease, border-color 0.15s ease,\n          transform 0.15s ease;\n      width: fit-content;\n      background: var(--graph-bg-elevated);\n      border: 1px solid var(--graph-border);\n      box-shadow: var(--graph-shadow);\n      backdrop-filter: blur(14px);\n      -webkit-backdrop-filter: blur(14px);\n      outline: none;\n      user-select: none;\n  }\n\n  .object-name:hover {\n      background: rgba(255, 255, 255, 0.12);\n      border-color: var(--graph-border-active);\n      transform: translateY(-1px);\n  }\n\n  .object-name:focus {\n      border: 1px solid rgba(255, 255, 255, 0.55);\n  }\n\n  .object-name:active {\n      background: rgba(255, 255, 255, 0.18);\n      transform: translateY(0);\n  }\n\n  .context-menu {\n      position: absolute;\n      background: var(--graph-bg-strong);\n      border-radius: 14px;\n      box-shadow: var(--graph-shadow);\n      border: 1px solid var(--graph-border);\n      z-index: 1000;\n      min-width: 140px;\n      max-height: min(360px, 60vh);\n      overflow-y: auto;\n      overflow-x: hidden;\n      transition: opacity 0.1s ease, transform 0.1s ease;\n      user-select: none;\n      backdrop-filter: blur(14px);\n      -webkit-backdrop-filter: blur(14px);\n  }\n\n  /* Barra de scroll discreta en los menús.\n     Se afina en vez de ocultarse: una lista larga sin ninguna señal de que hay\n     más abajo se siente rota.\n\n     Ojo con scrollbar-width: declararlo hace que Chromium —y WebView2 lo es—\n     IGNORE por completo ::-webkit-scrollbar y vuelva a su barra nativa. Por eso\n     aquí NO se declara: es lo que deja pasar el ancho de 6px de abajo. */\n  .context-menu::-webkit-scrollbar {\n      width: 6px;\n  }\n\n  .context-menu::-webkit-scrollbar-track {\n      background: transparent;\n  }\n\n  .context-menu::-webkit-scrollbar-thumb {\n      background: rgba(255, 255, 255, 0.14);\n      border-radius: 999px;\n  }\n\n  .context-menu::-webkit-scrollbar-thumb:hover {\n      background: rgba(255, 255, 255, 0.28);\n  }\n\n  .menu-item {\n      padding: 6px 12px;\n      font-size: 0.75rem;\n      color: var(--graph-text-muted);\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 6px;\n      user-select: none;\n      border-bottom: 1px solid rgba(255, 255, 255, 0.08);\n  }\n\n  .menu-item:last-child {\n      border-bottom: none;\n  }\n\n  .menu-item:hover {\n      background: rgba(255, 255, 255, 0.08);\n  }\n\n  .menu-item:active {\n      background: rgba(255, 255, 255, 0.12);\n  }\n\n  .modal-content {\n      position: absolute;\n      left: 50%;\n      top: 50%;\n      padding: 1rem;\n      border: 1px solid var(--graph-border);\n      border-radius: 18px;\n      background: rgba(0, 0, 0, 0.88);\n      box-shadow: var(--graph-shadow);\n      backdrop-filter: blur(18px);\n      -webkit-backdrop-filter: blur(18px);\n      transform: translate(-50%, -50%);\n      z-index: 2000;\n  }\n\n  .modal-content button {\n      font-size: 0.75rem;\n      color: var(--graph-text);\n      font-weight: 500;\n      cursor: pointer;\n      padding: 4px 12px;\n      border-radius: 10px;\n      transition: all 0.15s ease;\n      width: fit-content;\n      background: rgba(255, 255, 255, 0.08);\n      border: 1px solid var(--graph-border);\n      outline: none;\n      user-select: none;\n  }\n\n  .modal-content button:hover {\n      background: rgba(255, 255, 255, 0.12);\n      border-color: var(--graph-border-active);\n  }\n\n  .modal-content button:active {\n      background: rgba(255, 255, 255, 0.18);\n      transform: scale(0.98);\n  }\n\n  /* Sin color, la acción primaria se distingue por PESO: relleno más claro y\n     borde más marcado. Antes era el único azul de la interfaz. */\n  .modal-content button[data-modal=\"continue\"] {\n      background: rgba(255, 255, 255, 0.2);\n      color: var(--graph-text);\n      border: 1px solid rgba(255, 255, 255, 0.38);\n  }\n\n  .modal-content button[data-modal=\"continue\"]:hover {\n      background: rgba(255, 255, 255, 0.3);\n  }\n\n  .modal-content input {\n      border: 1px solid rgba(255, 255, 255, 0.1);\n      outline: none;\n      padding: 4px 8px;\n      border-radius: 8px;\n      color: var(--graph-text);\n      font-family: inherit;\n      font-size: 1rem;\n      flex: 1;\n      background: rgba(255, 255, 255, 0.06);\n  }\n\n  .modal-content span {\n      font-family: inherit;\n      color: var(--graph-text-muted);\n      font-weight: 100;\n      font-size: smaller;\n      font-style: italic;\n  }\n\n  .modal-buttons {\n      display: flex;\n      gap: 8px;\n      justify-content: space-around;\n      margin-top: 12px;\n  }\n\n  .editor-overlay {\n      position: fixed;\n      top: 0;\n      left: 0;\n      width: 100%;\n      height: 100%;\n      background: rgba(0, 0, 0, 0.22);\n      justify-content: center;\n      align-items: center;\n      z-index: 1000;\n      backdrop-filter: blur(1px) saturate(0.6%);\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n      display: flex;\n  }\n\n  .editor-modal {\n      width: 90%;\n      max-width: 900px;\n      height: 80%;\n      max-height: 700px;\n      border-radius: 18px;\n      background: rgba(0, 0, 0, 0.34);\n      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);\n      border: 1px solid var(--graph-border);\n      backdrop-filter: blur(1px) saturate(0.6%);\n      -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n      display: flex;\n      flex-direction: column;\n      overflow: hidden;\n  }\n\n  .editor-header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      background: rgba(255, 255, 255, 0.06);\n      border-bottom: 1px solid rgba(255, 255, 255, 0.1);\n      padding: 12px 16px;\n      flex-shrink: 0;\n  }\n\n  .editor-title {\n      color: var(--graph-text);\n      font-size: 14px;\n      font-weight: 500;\n      display: flex;\n      align-items: center;\n      gap: 8px;\n  }\n\n  .editor-controls {\n      display: flex;\n      gap: 10px;\n  }\n\n  .close-button,\n  .save-button {\n      border: 1px solid var(--graph-border);\n      border-radius: 6px;\n      color: var(--graph-text);\n      padding: 6px 12px;\n      font-size: 12px;\n      cursor: pointer;\n      transition: all 0.2s;\n      display: flex;\n      align-items: center;\n      gap: 4px;\n      font-family: inherit;\n  }\n\n  /* Cerrar (descarta) va en contorno; guardar (confirma) va relleno. Sin el\n     rojo/gris de antes, el relleno es lo único que separa una de otra. */\n  .close-button {\n      background: transparent;\n  }\n\n  .close-button:hover {\n      background: rgba(255, 255, 255, 0.1);\n      border-color: var(--graph-border-active);\n  }\n\n  .save-button {\n      background: rgba(255, 255, 255, 0.14);\n  }\n\n  .save-button:hover {\n      background: rgba(255, 255, 255, 0.24);\n      border-color: var(--graph-border-active);\n  }\n\n  .monaco-container {\n      flex: 1;\n      width: 100%;\n      height: 100%;\n      background: rgba(255, 255, 255, 0.04);\n      backdrop-filter: blur(8px);\n      -webkit-backdrop-filter: blur(8px);\n  }\n\n  .monaco-container .monaco-editor,\n  .monaco-container .monaco-editor-background,\n  .monaco-container .margin,\n  .monaco-container .monaco-scrollable-element {\n      background: transparent !important;\n  }\n\n  .language-selector {\n      position: relative;\n      display: inline-block;\n  }\n\n  .language-button {\n      background: none;\n      border-radius: 10px;\n      border: none;\n      color: var(--graph-text);\n      padding: 6px 12px;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 8px;\n      font-size: 14px;\n      font-family: inherit;\n      transition: all 0.3s ease;\n  }\n\n  .language-button:hover {\n      background: rgba(255, 255, 255, 0.15);\n  }\n\n  .language-name {\n      flex-grow: 1;\n      text-align: left;\n  }\n\n  .language-dropdown {\n      display: none;\n      position: absolute;\n      top: 100%;\n      left: 0;\n      background: var(--graph-bg-strong);\n      border: 1px solid var(--graph-border-active);\n      border-radius: 4px;\n      min-width: 150px;\n      z-index: 1000;\n      margin-top: 5px;\n      box-shadow: var(--graph-shadow);\n  }\n\n  .language-dropdown.show {\n      display: block;\n  }\n\n  .dropdown-item {\n      width: 100%;\n      padding: 10px 15px;\n      background: none;\n      border: none;\n      color: var(--graph-text);\n      text-align: left;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      gap: 10px;\n      font-family: inherit;\n      transition: background 0.2s ease;\n  }\n\n  .dropdown-item:hover {\n      background: rgba(255, 255, 255, 0.1);\n  }\n\n  .dropdown-item i {\n      width: 20px;\n      text-align: center;\n  }\n\n  /* En modo mover el cursor anuncia que se puede arrastrar, y se desactiva la\n     selección de texto para que arrastrar no seleccione el nombre del chip. */\n  body.moviendo-chips::after {\n      content: \"moviendo chips — «mover !» para salir\";\n      position: fixed;\n      inset: 0;\n      border: 2px solid var(--graph-border-active);\n      border-radius: 6px;\n      pointer-events: none;\n      z-index: 1500;\n      color: var(--graph-text-muted);\n      font-size: 0.7rem;\n      padding: 6px 10px;\n      text-align: right;\n  }\n\n  body.moviendo-chips .object-name { cursor: grab; user-select: none; }\n  body.moviendo-chips .object-name.arrastrando {\n      cursor: grabbing;\n      border-color: rgba(255, 255, 255, 0.7);\n  }\n",
