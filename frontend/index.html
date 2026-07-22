@@ -3,6 +3,16 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- Política de seguridad: diarsaba vive dentro de sí. connect-src 'self'
+         corta que el webview llegue a internet (fetch/XHR/WebSocket externos),
+         que es el canal de exfiltración más obvio. El p2p NO se afecta: va por
+         los bindings de Go, no por la red del webview.
+         'unsafe-eval' es obligatorio — todo el programa es new Function()—, así
+         que el CSP aquí protege la RED, no los scripts (esa es la debilidad
+         inherente de un entorno de programación viva). worker-src blob: lo pide
+         Monaco. Ver la auditoría de seguridad. Falta acotar AIChat (sale por Go,
+         el CSP no lo cubre). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DIARSABA</title>
     <meta name="robots" content="noindex, nofollow">
@@ -260,6 +270,11 @@
             createOverlay(title, initialLanguage) {
                 const overlay = document.createElement("div");
                 overlay.className = "editor-overlay";
+                // El título es el NOMBRE del átomo, que va a innerHTML. Un átomo
+                // llamado "<img onerror=...>" (p. ej. de un programa compartido)
+                // inyectaría HTML aquí; se escapa. Lo demás de la plantilla son
+                // constantes estáticas.
+                const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
                 overlay.innerHTML = `
         <div class="editor-modal">
             <div class="editor-header">
@@ -278,7 +293,7 @@
                             `).join("")}
                         </div>
                     </div>
-                    <span class="modal-title">${title}</span>
+                    <span class="modal-title">${esc(title)}</span>
                 </div>
                 <div class="editor-controls">
                     <button class="ai-button" title="Asistente IA (Ctrl+I)">

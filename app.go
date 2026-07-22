@@ -423,55 +423,6 @@ func (a *App) ExportAtoms() (string, error) {
 	return abs, nil
 }
 
-/*
-func (a *App) SavePredefinedFunctions(jsonData string) (string, error) {
-	// 1. Obtener la ruta del ejecutable actual
-	execPath, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("error obteniendo ruta del ejecutable: %w", err)
-	}
-
-	// 2. Obtener el directorio donde está el ejecutable
-	execDir := filepath.Dir(execPath)
-
-	// 3. Crear una carpeta "data" junto al ejecutable para no ensuciar la raíz
-	dataDir := filepath.Join(execDir, "data")
-
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return "", fmt.Errorf("error creando carpeta de datos: %w", err)
-	}
-
-	baseName := "predefined_functions"
-	ext := ".json"
-	targetPath := filepath.Join(dataDir, baseName+ext)
-
-	// Lógica de versionado (usando dataDir)
-	if _, err := os.Stat(targetPath); err == nil {
-		version := 1
-		for {
-			versionedName := fmt.Sprintf("%s_v%d%s", baseName, version, ext)
-			versionedPath := filepath.Join(dataDir, versionedName)
-
-			if _, err := os.Stat(versionedPath); os.IsNotExist(err) {
-				err = os.Rename(targetPath, versionedPath)
-				if err != nil {
-					return "", fmt.Errorf("error renombrando archivo anterior: %w", err)
-				}
-				break
-			}
-			version++
-		}
-	}
-
-	err = os.WriteFile(targetPath, []byte(jsonData), 0644)
-	if err != nil {
-		return "", fmt.Errorf("error guardando archivo: %w", err)
-	}
-
-	absPath, _ := filepath.Abs(targetPath)
-	return absPath, nil
-}*/
-
 // =====================================================================
 // Integración de IA
 //
