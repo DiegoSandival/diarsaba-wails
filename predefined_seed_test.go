@@ -165,7 +165,7 @@ func TestReseedConservaLoCreadoEnProd(t *testing.T) {
 	if err := app.store.setSeedHash("otro-binario"); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.store.reseedMerge(defaultPredefined); err != nil {
+	if err := app.store.reseedMerge(defaultPredefined, nil); err != nil {
 		t.Fatalf("reseedMerge: %v", err)
 	}
 
@@ -204,7 +204,7 @@ func TestReseedRespetaProtegidos(t *testing.T) {
 	if err := app.store.setSeedHash("otro-binario"); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.store.reseedMerge(defaultPredefined); err != nil {
+	if err := app.store.reseedMerge(defaultPredefined, nil); err != nil {
 		t.Fatalf("reseedMerge: %v", err)
 	}
 
@@ -220,6 +220,98 @@ func TestReseedRespetaProtegidos(t *testing.T) {
 	// la propia lista de protegidos se conserva
 	if lp, _ := json.Marshal(m[atomProtegidos]); string(lp) != `["editables list #"]` {
 		t.Errorf("no se autoprotegió la lista de protegidos: %s", lp)
+	}
+}
+
+// merge3 monta un store en prod con el estado "mine" y corre reseedMerge con la
+// base y el binario dados, devolviendo el mapa resultante.
+func merge3(t *testing.T, mine, theirs, base string) map[string]any {
+	t.Helper()
+	enProd(t)
+	app := NewApp()
+	t.Cleanup(func() { cerrar(t, app) })
+	s, err := app.ensureStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.importJSON([]byte(mine)); err != nil {
+		t.Fatal(err)
+	}
+	var basePtr []byte
+	if base != "" {
+		basePtr = []byte(base)
+	}
+	if err := s.reseedMerge([]byte(theirs), basePtr); err != nil {
+		t.Fatalf("reseedMerge: %v", err)
+	}
+	return atomos(t, mustLoad(t, app))
+}
+
+// TestMergePreservaMiEdicion: edité un átomo que el binario NO tocó → se conserva
+// mi versión, aunque no lo haya protegido. Es lo que aporta el merge sobre el
+// upsert simple.
+func TestMergePreservaMiEdicion(t *testing.T) {
+	base := `{"a §":"v1","b §":"v1","c §":"v1"}`
+	mine := `{"a §":"v2","b §":"v1","c §":"v1"}`   // edité a
+	theirs := `{"a §":"v1","b §":"v2","c §":"v1"}` // el binario tocó b
+	m := merge3(t, mine, theirs, base)
+	if m["a §"] != "v2" {
+		t.Errorf("a: perdió mi edición que el binario no tocó: %v", m["a §"])
+	}
+	if m["b §"] != "v2" {
+		t.Errorf("b: no tomó el cambio del binario: %v", m["b §"])
+	}
+	if m["c §"] != "v1" {
+		t.Errorf("c: cambió algo intacto: %v", m["c §"])
+	}
+}
+
+// TestMergeConflictoGanaBinario: si los dos cambiamos el mismo átomo, gana el
+// binario (queda en el historial) — salvo que lo protejas.
+func TestMergeConflictoGanaBinario(t *testing.T) {
+	base := `{"x §":"v1"}`
+	mine := `{"x §":"mío"}`
+	theirs := `{"x §":"suyo"}`
+	if m := merge3(t, mine, theirs, base); m["x §"] != "suyo" {
+		t.Errorf("conflicto: no ganó el binario: %v", m["x §"])
+	}
+
+	// con protección, gana el mío
+	mineP := `{"x §":"mío","protegidos #":["x §"]}`
+	if m := merge3(t, mineP, theirs, base); m["x §"] != "mío" {
+		t.Errorf("conflicto protegido: no conservó el mío: %v", m["x §"])
+	}
+}
+
+// TestMergeBorraQuitadoNoEditado: un átomo que el binario ELIMINÓ se va si no lo
+// edité; si lo edité, se queda (ya es mío).
+func TestMergeBorraQuitadoNoEditado(t *testing.T) {
+	base := `{"keep §":"v1","gone §":"v1","edited §":"v1"}`
+	mine := `{"keep §":"v1","gone §":"v1","edited §":"mío"}`
+	theirs := `{"keep §":"v1"}` // el binario quitó gone y edited
+	m := merge3(t, mine, theirs, base)
+	if _, sigue := m["gone §"]; sigue {
+		t.Error("gone §: el binario lo quitó y no lo edité, debió borrarse")
+	}
+	if m["edited §"] != "mío" {
+		t.Errorf("edited §: lo edité, debió quedarse: %v", m["edited §"])
+	}
+	if m["keep §"] != "v1" {
+		t.Errorf("keep §: no debió cambiar: %v", m["keep §"])
+	}
+}
+
+// TestMergeSinBaseDegradaAUpsert: sin base guardada, el binario gana en todo
+// (comportamiento anterior), pero lo creado en prod se conserva.
+func TestMergeSinBaseDegradaAUpsert(t *testing.T) {
+	mine := `{"a §":"mío","solo mío §":"x"}`
+	theirs := `{"a §":"suyo"}`
+	m := merge3(t, mine, theirs, "") // base vacía
+	if m["a §"] != "suyo" {
+		t.Errorf("sin base debía ganar el binario: %v", m["a §"])
+	}
+	if m["solo mío §"] != "x" {
+		t.Error("sin base debía conservar lo creado en prod")
 	}
 }
 

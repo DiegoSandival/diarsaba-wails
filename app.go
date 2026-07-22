@@ -152,6 +152,10 @@ func prepareStore() (*atomStore, error) {
 		if err := s.setSeedHash(hashBytes(defaultPredefined)); err != nil {
 			return fallo(err)
 		}
+		// Guardar la semilla como base del primer merge de 3 vías.
+		if err := s.setSeedContent(defaultPredefined); err != nil {
+			return fallo(err)
+		}
 	}
 	return s, nil
 }
@@ -184,12 +188,22 @@ func reseedFromEmbedded(s *atomStore, dir string) error {
 		return fmt.Errorf("no se pudo respaldar antes de actualizar: %w", err)
 	}
 
-	// Upsert, no reemplazo: los átomos que creaste en prod (los que no vienen en
-	// el embebido) se conservan, y "protegidos #" blinda ediciones concretas.
-	if err := s.reseedMerge(defaultPredefined); err != nil {
+	// Merge de 3 vías: la base es el programa del binario ANTERIOR. Preserva tus
+	// ediciones de prod a átomos que el binario nuevo no tocó, sin listarlas;
+	// "protegidos #" sigue blindando lo que quieras explícitamente. Ver
+	// reseedMerge. (Sin base guardada aún, degrada a upsert.)
+	base, err := s.seedContent()
+	if err != nil {
+		return err
+	}
+	if err := s.reseedMerge(defaultPredefined, base); err != nil {
 		return fmt.Errorf("no se pudo actualizar la base al programa del binario: %w", err)
 	}
-	return s.setSeedHash(embHash)
+	if err := s.setSeedHash(embHash); err != nil {
+		return err
+	}
+	// La semilla de este binario es la base del PRÓXIMO merge.
+	return s.setSeedContent(defaultPredefined)
 }
 
 // backupBeforeReseed guarda el programa actual antes de que el binario lo

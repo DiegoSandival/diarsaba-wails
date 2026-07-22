@@ -53,6 +53,12 @@ var (
 	// metaSeedHash guarda el hash del programa embebido con el que se sembró la
 	// base. En prod distingue un binario nuevo (reimportar) del mismo reabierto.
 	metaSeedHash = []byte("seed_hash")
+
+	// metaSeedContent guarda el CONTENIDO de esa semilla (el programa del binario
+	// anterior). Es la "base" del merge de 3 vías: sin él solo se puede comparar
+	// prod contra el binario nuevo; con él se distingue lo que editaste tú de lo
+	// que cambió el binario. Ver reseedMerge.
+	metaSeedContent = []byte("seed_content")
 )
 
 // maxHistoryPerAtom es cuántas versiones anteriores se conservan por átomo. El
@@ -160,23 +166,38 @@ func (s *atomStore) importJSON(data []byte) error {
 // nombra aquí para leerlo desde Go; el usuario lo edita como cualquier lista.
 const atomProtegidos = "protegidos #"
 
-// reseedMerge actualiza la base al programa embebido en el binario SIN borrar lo
-// que no venga en él: los átomos que creaste en prod (no están en el embebido)
-// sobreviven solos. Es un upsert, no el reemplazo total de importJSON.
+// reseedMerge actualiza la base al programa del binario nuevo con un merge de
+// 3 vías, así preserva tus ediciones de prod a átomos que el binario NO tocó
+// sin que las tengas que listar. Las tres referencias por átomo:
+//   - theirs: el programa del binario nuevo (embedded).
+//   - base:   el programa del binario ANTERIOR (metaSeedContent).
+//   - mine:   lo que hay ahora en la base (tus ediciones de prod).
 //
-// Además respeta "protegidos #": un átomo cuyo nombre coincida con —o empiece
-// por— una entrada de esa lista NO se sobrescribe si ya existe, así una
-// personalización tuya en prod le gana al binario. La lista que manda es la de
-// PROD (tu intención); si en prod no hubiera, se usa la del embebido. La propia
-// "protegidos #" se protege siempre a sí misma, para que tus elecciones no las
-// borre justo la instalación que deberían sobrevivir.
+// Reglas:
+//   - protegido y presente en prod → se conserva el tuyo (override explícito).
+//   - no está en prod → entra el del binario.
+//   - lo editaste (mine≠base) y el binario no lo tocó (theirs=base) → tuyo.
+//   - el resto (el binario lo cambió; o conflicto, los dos cambiaron) → suyo.
+//   - un átomo que el binario ELIMINÓ y tú no habías editado (mine=base) → se
+//     borra; si lo habías editado, se queda (ya es tuyo).
+//
+// Sin base (primer merge, o venías de un binario que solo guardaba el hash) no
+// hay con qué clasificar: degrada a upsert tomando el del binario y respetando
+// protegidos, que es el comportamiento anterior. La lista de protegidos que
+// manda es la de PROD; si no hubiera, la del embebido; y se protege a sí misma.
 //
 // Todo en una transacción: un reseed a medias dejaría el programa inconsistente.
-func (s *atomStore) reseedMerge(embedded []byte) error {
-	var atoms map[string]json.RawMessage
-	if err := json.Unmarshal(embedded, &atoms); err != nil {
+func (s *atomStore) reseedMerge(embedded, base []byte) error {
+	var theirs map[string]json.RawMessage
+	if err := json.Unmarshal(embedded, &theirs); err != nil {
 		return fmt.Errorf("semilla embebida inválida: %w", err)
 	}
+	var baseAtoms map[string]json.RawMessage
+	if base != nil {
+		// Una base corrupta se trata como si no hubiera: degrada a upsert.
+		_ = json.Unmarshal(base, &baseAtoms)
+	}
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketAtoms)
 		if b == nil {
@@ -185,21 +206,56 @@ func (s *atomStore) reseedMerge(embedded []byte) error {
 
 		prot := parseProtegidos(b.Get([]byte(atomProtegidos)))
 		if len(prot) == 0 {
-			prot = parseProtegidos(atoms[atomProtegidos])
+			prot = parseProtegidos(theirs[atomProtegidos])
 		}
 
-		for name, value := range atoms {
-			old := b.Get([]byte(name))
-			if old != nil && isProtegido(name, prot) {
-				continue // protegido y ya presente: el binario no lo pisa
+		// 1) Átomos del binario nuevo: añadir o resolver el merge.
+		for name, theirVal := range theirs {
+			mine := b.Get([]byte(name))
+			if mine != nil && isProtegido(name, prot) {
+				continue // protegido: el binario no lo pisa
 			}
-			if bytes.Equal(old, value) {
-				continue // sin cambios
+			if mine == nil {
+				if err := b.Put([]byte(name), theirVal); err != nil {
+					return err
+				}
+				continue // no estaba en prod: entra el del binario
 			}
-			if err := recordHistory(tx, name, old); err != nil {
+			if bytes.Equal(mine, theirVal) {
+				continue // ya coinciden
+			}
+			baseVal := baseAtoms[name]
+			mineChanged := !bytes.Equal(mine, baseVal)
+			theirsChanged := !bytes.Equal(theirVal, baseVal)
+			if mineChanged && !theirsChanged {
+				continue // lo editaste y el binario no lo tocó: se conserva
+			}
+			// binario cambió y tú no; o conflicto: gana el binario.
+			if err := recordHistory(tx, name, mine); err != nil {
 				return err
 			}
-			if err := b.Put([]byte(name), value); err != nil {
+			if err := b.Put([]byte(name), theirVal); err != nil {
+				return err
+			}
+		}
+
+		// 2) Átomos que el binario ELIMINÓ (están en base, no en theirs): si no
+		//    los editaste (mine=base) y no están protegidos, se van con él.
+		for name, baseVal := range baseAtoms {
+			if _, sigue := theirs[name]; sigue {
+				continue
+			}
+			mine := b.Get([]byte(name))
+			if mine == nil || isProtegido(name, prot) {
+				continue
+			}
+			if !bytes.Equal(mine, baseVal) {
+				continue // lo editaste: ya es tuyo, se queda
+			}
+			if err := recordHistory(tx, name, mine); err != nil {
+				return err
+			}
+			if err := b.Delete([]byte(name)); err != nil {
 				return err
 			}
 		}
@@ -444,6 +500,27 @@ func (s *atomStore) seedHash() (string, error) {
 func (s *atomStore) setSeedHash(h string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(bucketMeta).Put(metaSeedHash, []byte(h))
+	})
+}
+
+// seedContent / setSeedContent guardan el CONTENIDO de la semilla con que se
+// sembró: la "base" del merge de 3 vías (el programa del binario anterior).
+// Devuelve nil si nunca se guardó, y ahí el merge degrada a upsert.
+func (s *atomStore) seedContent() ([]byte, error) {
+	var out []byte
+	err := s.db.View(func(tx *bolt.Tx) error {
+		v := tx.Bucket(bucketMeta).Get(metaSeedContent)
+		if v != nil {
+			out = append([]byte(nil), v...)
+		}
+		return nil
+	})
+	return out, err
+}
+
+func (s *atomStore) setSeedContent(data []byte) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketMeta).Put(metaSeedContent, data)
 	})
 }
 
