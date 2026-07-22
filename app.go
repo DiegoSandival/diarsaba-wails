@@ -108,6 +108,9 @@ func (a *App) ensureStore() (*atomStore, error) {
 // prepareStore abre la base y la deja lista:
 //   - En dev, reimporta el JSON del repo si cambió por fuera (git pull, cambio
 //     de rama, edición a mano). Ver atomStore.syncFromFile.
+//   - En prod, si el binario trae un programa distinto al que sembró la base
+//     (otro build), lo reimporta. Sin esto, actualizar el .exe no cambiaba
+//     nada: la base vieja escondía los arreglos. Ver reseedFromEmbedded.
 //   - Si tras eso sigue vacía (primer arranque), la siembra con el embebido.
 func prepareStore() (*atomStore, error) {
 	dbPath, err := storePath()
@@ -124,9 +127,17 @@ func prepareStore() (*atomStore, error) {
 		return nil, err
 	}
 
-	if jsonPath, isDev, err := predefinedPath(); err == nil && isDev {
+	jsonPath, isDev, perr := predefinedPath()
+	switch {
+	case perr == nil && isDev:
+		// Dev: el JSON del repo manda. Es lo que editas en vivo y versionas.
 		if _, err := s.syncFromFile(jsonPath); err != nil {
 			return fallo(fmt.Errorf("no se pudo importar %s: %w", jsonPath, err))
+		}
+	default:
+		// Prod: el programa embebido en el binario manda.
+		if err := reseedFromEmbedded(s, filepath.Dir(dbPath)); err != nil {
+			return fallo(err)
 		}
 	}
 
@@ -138,8 +149,67 @@ func prepareStore() (*atomStore, error) {
 		if err := s.importJSON(defaultPredefined); err != nil {
 			return fallo(fmt.Errorf("no se pudo sembrar la base: %w", err))
 		}
+		if err := s.setSeedHash(hashBytes(defaultPredefined)); err != nil {
+			return fallo(err)
+		}
 	}
 	return s, nil
+}
+
+// reseedFromEmbedded actualiza la base al programa embebido en el binario CUANDO
+// difiere del que la sembró. Es lo que hace que, al instalar un .exe nuevo, sus
+// arreglos ganen a la copia vieja — igual que antes hacía el JSON externo, y que
+// se perdió al migrar a bbolt.
+//
+// El mismo binario reabierto tiene el mismo hash embebido, así que NO reimporta:
+// lo que el usuario haya autoguardado en prod sobrevive entre arranques. Solo un
+// binario con otro programa dispara la reimportación, y antes de pisar se
+// respalda lo que había, por si tenía ediciones de producción.
+func reseedFromEmbedded(s *atomStore, dir string) error {
+	embHash := hashBytes(defaultPredefined)
+	stored, err := s.seedHash()
+	if err != nil {
+		return err
+	}
+	if stored == embHash {
+		return nil
+	}
+
+	// Respaldar antes de pisar. La decisión de si hay algo que guardar la toma
+	// backupBeforeReseed según si la base está vacía — no según el seedHash: una
+	// base de un build ANTERIOR a que existiera el seedHash lo tiene vacío pero
+	// SÍ contiene un programa que merece respaldo. (Confundir ambos casos dejaba
+	// justo la actualización desde build viejo sin copia de seguridad.)
+	if err := backupBeforeReseed(s, dir); err != nil {
+		return fmt.Errorf("no se pudo respaldar antes de actualizar: %w", err)
+	}
+
+	// Upsert, no reemplazo: los átomos que creaste en prod (los que no vienen en
+	// el embebido) se conservan, y "protegidos #" blinda ediciones concretas.
+	if err := s.reseedMerge(defaultPredefined); err != nil {
+		return fmt.Errorf("no se pudo actualizar la base al programa del binario: %w", err)
+	}
+	return s.setSeedHash(embHash)
+}
+
+// backupBeforeReseed guarda el programa actual antes de que el binario lo
+// reemplace, para no perder sin rastro lo que se hubiera autoguardado en
+// producción. Base vacía = nada que respaldar.
+func backupBeforeReseed(s *atomStore, dir string) error {
+	vacia, err := s.isEmpty()
+	if err != nil || vacia {
+		return err
+	}
+	data, err := s.exportJSON()
+	if err != nil {
+		return err
+	}
+	backupDir := filepath.Join(dir, "backups")
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return err
+	}
+	name := fmt.Sprintf("pre-seed-%s.json", time.Now().Format("20060102-150405"))
+	return os.WriteFile(filepath.Join(backupDir, name), data, 0644)
 }
 
 // LoadPredefinedFunctions devuelve el JSON con el que arranca el frontend,

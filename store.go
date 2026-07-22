@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -48,6 +49,10 @@ var (
 	// (un git pull, un checkout de rama, una edición a mano) y reimportarlo sin
 	// que tengas que acordarte de hacerlo.
 	metaFileHash = []byte("file_hash")
+
+	// metaSeedHash guarda el hash del programa embebido con el que se sembró la
+	// base. En prod distingue un binario nuevo (reimportar) del mismo reabierto.
+	metaSeedHash = []byte("seed_hash")
 )
 
 // maxHistoryPerAtom es cuántas versiones anteriores se conservan por átomo. El
@@ -149,6 +154,85 @@ func (s *atomStore) importJSON(data []byte) error {
 		}
 		return nil
 	})
+}
+
+// atomProtegidos es el átomo que lista qué NO debe pisar una instalación. Se
+// nombra aquí para leerlo desde Go; el usuario lo edita como cualquier lista.
+const atomProtegidos = "protegidos #"
+
+// reseedMerge actualiza la base al programa embebido en el binario SIN borrar lo
+// que no venga en él: los átomos que creaste en prod (no están en el embebido)
+// sobreviven solos. Es un upsert, no el reemplazo total de importJSON.
+//
+// Además respeta "protegidos #": un átomo cuyo nombre coincida con —o empiece
+// por— una entrada de esa lista NO se sobrescribe si ya existe, así una
+// personalización tuya en prod le gana al binario. La lista que manda es la de
+// PROD (tu intención); si en prod no hubiera, se usa la del embebido. La propia
+// "protegidos #" se protege siempre a sí misma, para que tus elecciones no las
+// borre justo la instalación que deberían sobrevivir.
+//
+// Todo en una transacción: un reseed a medias dejaría el programa inconsistente.
+func (s *atomStore) reseedMerge(embedded []byte) error {
+	var atoms map[string]json.RawMessage
+	if err := json.Unmarshal(embedded, &atoms); err != nil {
+		return fmt.Errorf("semilla embebida inválida: %w", err)
+	}
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketAtoms)
+		if b == nil {
+			return errors.New("falta el bucket de átomos")
+		}
+
+		prot := parseProtegidos(b.Get([]byte(atomProtegidos)))
+		if len(prot) == 0 {
+			prot = parseProtegidos(atoms[atomProtegidos])
+		}
+
+		for name, value := range atoms {
+			old := b.Get([]byte(name))
+			if old != nil && isProtegido(name, prot) {
+				continue // protegido y ya presente: el binario no lo pisa
+			}
+			if bytes.Equal(old, value) {
+				continue // sin cambios
+			}
+			if err := recordHistory(tx, name, old); err != nil {
+				return err
+			}
+			if err := b.Put([]byte(name), value); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// parseProtegidos lee la lista "protegidos #" (un array JSON de strings). Un
+// valor ausente o mal formado no es un error: simplemente no protege nada.
+func parseProtegidos(raw json.RawMessage) []string {
+	if raw == nil {
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return nil
+	}
+	return list
+}
+
+// isProtegido decide si un átomo está protegido: coincide EXACTO con una entrada
+// o EMPIEZA por ella (para blindar familias enteras, p. ej. "config"). El propio
+// átomo de la lista se protege siempre.
+func isProtegido(name string, prot []string) bool {
+	if name == atomProtegidos {
+		return true
+	}
+	for _, p := range prot {
+		if p != "" && (name == p || strings.HasPrefix(name, p)) {
+			return true
+		}
+	}
+	return false
 }
 
 // exportJSON reconstruye el JSON completo desde la base.
@@ -339,6 +423,27 @@ func (s *atomStore) fileHash() (string, error) {
 func (s *atomStore) setFileHash(h string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(bucketMeta).Put(metaFileHash, []byte(h))
+	})
+}
+
+// seedHash / setSeedHash guardan el hash del programa embebido con el que se
+// sembró la base por última vez. En producción es lo que distingue "el mismo
+// binario reabierto" (no tocar: preserva lo que el usuario haya autoguardado)
+// de "un binario nuevo con otro programa" (reimportar: sus arreglos deben
+// ganarle a la copia vieja). Es el equivalente en bbolt de lo que antes hacía
+// el JSON externo, y sin él actualizar el .exe no cambiaba nada.
+func (s *atomStore) seedHash() (string, error) {
+	var h string
+	err := s.db.View(func(tx *bolt.Tx) error {
+		h = string(tx.Bucket(bucketMeta).Get(metaSeedHash))
+		return nil
+	})
+	return h, err
+}
+
+func (s *atomStore) setSeedHash(h string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketMeta).Put(metaSeedHash, []byte(h))
 	})
 }
 

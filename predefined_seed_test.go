@@ -107,6 +107,158 @@ func TestSiembraCuandoNoExiste(t *testing.T) {
 	}
 }
 
+// TestProdReimportaAlCambiarElBinario: instalar un .exe nuevo cuyo programa
+// embebido difiere del que sembró la base debe actualizarla. Sin esto, la copia
+// vieja escondía los arreglos y actualizar el binario no cambiaba nada — el bug
+// del doble clic que se veía en dev pero no en el .exe.
+func TestProdReimportaAlCambiarElBinario(t *testing.T) {
+	enProd(t)
+
+	// Primer arranque: siembra desde el embebido y registra su hash.
+	app := NewApp()
+	if _, err := app.LoadPredefinedFunctions(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	// Simular una base sembrada por OTRO binario anterior: un átomo propio de
+	// prod y un seedHash distinto al actual.
+	if err := app.SetAtom("mío de prod §", `"creado aquí"`); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.store.setSeedHash("hash-de-otro-binario"); err != nil {
+		t.Fatal(err)
+	}
+	cerrar(t, app)
+
+	// Nuevo arranque = binario actual: refresca el programa embebido (llegan los
+	// arreglos) pero conserva lo creado en prod (upsert, no reemplazo).
+	otra := NewApp()
+	defer cerrar(t, otra)
+	m := atomos(t, mustLoad(t, otra))
+	if _, hay := m["handle click ƒ"]; !hay {
+		t.Error("el programa embebido no se cargó tras el cambio de binario")
+	}
+	if m["mío de prod §"] != "creado aquí" {
+		t.Error("el reseed borró un átomo propio de prod")
+	}
+	// Y se respaldó lo que había antes de pisarlo.
+	respaldos, _ := filepath.Glob(filepath.Join(os.Getenv("APPDATA"), "diarsaba", "backups", "pre-seed-*.json"))
+	if len(respaldos) == 0 {
+		t.Error("no respaldó el programa anterior antes de reimportar")
+	}
+}
+
+// TestReseedConservaLoCreadoEnProd: el upsert no borra lo que el embebido no
+// trae. Un átomo creado en prod (autosave) sobrevive a instalar un exe nuevo.
+func TestReseedConservaLoCreadoEnProd(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+	if _, err := app.LoadPredefinedFunctions(); err != nil {
+		t.Fatal(err)
+	}
+
+	// creado en prod, no existe en el embebido
+	if err := app.SetAtom("mi nota §", `"solo mía"`); err != nil {
+		t.Fatal(err)
+	}
+	// simular binario nuevo
+	if err := app.store.setSeedHash("otro-binario"); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.store.reseedMerge(defaultPredefined); err != nil {
+		t.Fatalf("reseedMerge: %v", err)
+	}
+
+	m := atomos(t, mustLoad(t, app))
+	if m["mi nota §"] != "solo mía" {
+		t.Error("el reseed borró un átomo creado en prod")
+	}
+	// y sí refrescó los átomos del programa
+	if _, hay := m["handle click ƒ"]; !hay {
+		t.Error("no refrescó el programa embebido")
+	}
+}
+
+// TestReseedRespetaProtegidos: un átomo del programa editado en prod y listado
+// en "protegidos #" no lo pisa el binario. Uno NO protegido sí.
+func TestReseedRespetaProtegidos(t *testing.T) {
+	enProd(t)
+	app := NewApp()
+	defer cerrar(t, app)
+	if _, err := app.LoadPredefinedFunctions(); err != nil {
+		t.Fatal(err)
+	}
+
+	// editar en prod dos átomos que SÍ están en el embebido
+	if err := app.SetAtom("editables list #", `["mi","version"]`); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SetAtom("types list #", `["otra"]`); err != nil {
+		t.Fatal(err)
+	}
+	// proteger solo el primero
+	if err := app.SetAtom(atomProtegidos, `["editables list #"]`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := app.store.setSeedHash("otro-binario"); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.store.reseedMerge(defaultPredefined); err != nil {
+		t.Fatalf("reseedMerge: %v", err)
+	}
+
+	m := atomos(t, mustLoad(t, app))
+	// protegido: conserva mi versión
+	if prot, _ := json.Marshal(m["editables list #"]); string(prot) != `["mi","version"]` {
+		t.Errorf("pisó un átomo protegido: %s", prot)
+	}
+	// no protegido: vuelve al del binario (no es ["otra"])
+	if noProt, _ := json.Marshal(m["types list #"]); string(noProt) == `["otra"]` {
+		t.Error("no refrescó un átomo NO protegido")
+	}
+	// la propia lista de protegidos se conserva
+	if lp, _ := json.Marshal(m[atomProtegidos]); string(lp) != `["editables list #"]` {
+		t.Errorf("no se autoprotegió la lista de protegidos: %s", lp)
+	}
+}
+
+// TestProtegidoPorPrefijo: una entrada protege también lo que empieza por ella.
+func TestProtegidoPorPrefijo(t *testing.T) {
+	prot := []string{"config"}
+	if !isProtegido("config baseURL §", prot) {
+		t.Error("el prefijo no protegió a config baseURL §")
+	}
+	if isProtegido("handle click ƒ", prot) {
+		t.Error("protegió de más")
+	}
+	if !isProtegido(atomProtegidos, nil) {
+		t.Error("la lista de protegidos no se autoprotege")
+	}
+}
+
+// TestProdNoReimportaMismoBinario: reabrir el MISMO binario no debe pisar lo que
+// el usuario haya autoguardado en producción.
+func TestProdNoReimportaMismoBinario(t *testing.T) {
+	enProd(t)
+
+	app := NewApp()
+	if _, err := app.LoadPredefinedFunctions(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if err := app.SetAtom("mi edición §", `"hecha en prod"`); err != nil {
+		t.Fatalf("SetAtom: %v", err)
+	}
+	cerrar(t, app)
+
+	otra := NewApp()
+	defer cerrar(t, otra)
+	m := atomos(t, mustLoad(t, otra))
+	if m["mi edición §"] != "hecha en prod" {
+		t.Errorf("reimportó con el mismo binario y perdió la edición: %v", m["mi edición §"])
+	}
+}
+
 // TestNoResiembraSiYaHayAtomos: la semilla embebida es solo para la base vacía.
 // Si resembrara en cada arranque, borraría lo que el usuario haya programado.
 func TestNoResiembraSiYaHayAtomos(t *testing.T) {
