@@ -120,6 +120,39 @@ abre — `dispatch item ƒ` trata el sigilo `@` como los demás. Ojo con un deta
 rama: el texto de un ítem de lista lleva el prefijo `[n] `, así que hay que pasarle a
 `on double tap place ƒ` el nombre ya limpio y no el elemento pulsado.
 
+> ⚠️ Esa trampa mordió de verdad (2026-07): el paso 3.5 de `handle click ƒ` (despacho por
+> sigilo dentro de un menú) interceptaba también los ítems `[n] …` de las **listas** y
+> despachaba con el nombre sucio — pulsar `[1] X @` en una lista abría un place fantasma
+> llamado así. Ahora 3.5 solo toma ítems **sin** prefijo (los de menú); los `[n]` caen al
+> paso 6, que parsea el índice y despacha limpio, con semántica de lista (un `#` ahí abre
+> sublista, no submenú).
+
+### Parentesco: ¿quién tiene a este átomo? (añadido 2026-07)
+
+Un átomo puede vivir en varios places a la vez, y la pregunta inversa —"¿quién me tiene
+como hijo?"— se responde **calculando, no almacenando**: los places ya saben sus hijos, y
+`padres de ƒ` solo los recorre al revés (el mapa vive en memoria; es gratis). No hay un
+índice inverso persistido a propósito: habría que mantenerlo en cada tomar/quitar/eliminar
+y mentiría en cuanto un camino lo olvidara.
+
+Dos opciones de menú (en todos los tipos con familia `· *`):
+
+- **`· * padres`** — lista efímera junto al chip con los places que lo contienen. Sus
+  ítems son places de verdad: pulsar uno viaja allí. Siempre dice la verdad porque se
+  calcula al abrirse.
+- **`· * parents`** — materializa `"<nombre> parents @"` como place navegable con los
+  padres de ese momento. Es una **FOTO a demanda**, no un índice vivo: volver a pulsarla
+  la rehace; el contrato honesto es que puede quedar vieja. Su chip aparece bajo el átomo
+  sin registrarse en el place actual (colocarlo fijo es decisión del usuario: `· * tomar`).
+- **`· * referencias`** — la pregunta general: ¿quién me **referencia**? (`referencias de ƒ`).
+  Recorre TODO el mapa: places que me contienen, listas/acciones/threads que me nombran,
+  funciones cuyo código me menciona, textos/vistas/estilos/mapas donde aparezco. Criterio:
+  igualdad exacta donde la referencia es estructural (elemento de lista, hijo de place) y
+  **subcadena** donde es texto (`ƒ § < { :`) — recall sobre precisión, a cambio de algún
+  falso positivo si un nombre contiene a otro. Misma lista efímera que `· * padres`, y la
+  misma regla de siempre al pulsar ítems: un `@` viaja, un `#` se abre… y un `!` o `~`
+  se **ejecuta**.
+
 > ⚠️ **Los pintores DEBEN registrar `"<nombre> ֎"`.** `create chip ƒ` devuelve el div y hay
 > que guardarlo en el Map: todo lo que ancla a un chip (`· # abrir`, `· § abrir`, `· * ocultar`,
 > `· ֎* padre`) lo busca ahí. Durante un tiempo los dos pintores lo tiraban, así que los chips
@@ -157,6 +190,60 @@ del orden de eventos que se rompería en silencio si algún día reescribes `on 
 
 Sin botón a la vista, la señal de que el modo está activo es un borde en el lienzo
 (`body.moviendo-chips::after`) más el cursor `grab` sobre los chips.
+
+## Escena 3D — los chips sobre three.js (añadida 2026-07)
+
+Los chips ya no van directo al `body`: viven en un lienzo 3D con cámara three.js
+(place **`3d @`**). Siguen siendo divs de verdad —eventos, texto, CSS, doble clic, menús—
+y se dibujan por **proyección billboard**: `3d proyectar ƒ` proyecta la posición de cada
+chip con la cámara y escribe `left/top` (redondeados a píxel) + `font-size` según su
+profundidad. **No se usa CSS3DRenderer a propósito**: un `matrix3d` con perspectiva
+rasteriza el chip a una textura y la remuestrea — el texto pierde el antialiasing nítido.
+Con proyección el navegador hace layout de verdad y rasteriza los glifos a su tamaño
+final (el padding va en `em` para que el chip escale entero con el font). El precio: el
+chip no se inclina — siempre mira a la cámara, como una nube de etiquetas en 3D con
+paralaje y profundidad reales. `index.html` solo expone `window.THREE` (Vite lo empaqueta
+desde node_modules, sin CDN: el CSP no cambia); la escena la montan los átomos.
+
+- **Gestos** (`3d controles ƒ`, solo sobre el fondo): arrastre primario = **pan** (agarra
+  el plano: el punto bajo el cursor se queda bajo el cursor), botón central o Alt+primario
+  = **órbita** alrededor de la mira, rueda = **zoom hacia el cursor**. `3d reset !` (menú →
+  `actions #`) devuelve el encuadre.
+- **Coordenadas**: los places guardan los mismos `{x, y}` de siempre. El encuadre inicial
+  es 1:1 (una unidad del plano z=0 = un píxel), con la y invertida (los places miden hacia
+  abajo, three hacia arriba: el chip va a `(x, -y, 0)`). **No hubo migración de datos.**
+  `open x $`/`open y $` ahora se capturan en coordenadas de MUNDO (`3d punto en plano ƒ`
+  proyecta pantalla→plano), así crear/mover funciona igual con la cámara donde sea.
+- **Menús, listas y modales siguen siendo capas de PANTALLA** sobre la escena (z-index
+  1000/2000 vs 0): se anclan con `getBoundingClientRect()` del chip ya transformado —que
+  devuelve la caja en pantalla, perspectiva incluida— y así su texto nunca se deforma.
+- **Render bajo demanda** (`3d render ƒ` coalesce en rAF y llama a `3d proyectar ƒ`, que
+  es la pasada real, llamable síncrona): la app vive en la bandeja y un bucle rAF perpetuo
+  quemaría CPU de fondo. Se proyecta solo cuando algo cambia (cámara, chips). La pasada va
+  en dos fases —primero todas las lecturas (`offsetWidth`), luego todas las escrituras—
+  para forzar un solo layout por frame.
+- **Lo vivo va en claves `֎`** (`3d escena ֎`, `3d camara ֎`, `3d contenedor ֎`,
+  `3d mira ֎`): guardar/persistir ya las saltan. ⚠️ El barrido de refs `֎` de
+  `on double tap place ƒ` **salta las claves `3d `**: `3d contenedor ֎` es un Element y
+  barrerlo dejaba los chips del place nuevo cayendo al fallback del body plano.
+
+Tres trampas que este diseño esquiva, para quien toque esa rama:
+
+- **`remove()` no basta.** El chip tiene un `Object3D` en el registro que recorre
+  `3d proyectar ƒ`. Por eso `create chip ƒ` **sobreescribe `div.remove`** para sacarlo
+  también de la escena: todo el que borra chips (`· * ocultar`, `· * quitar`…) solo conoce
+  el div y sigue funcionando.
+- **`body.replaceChildren()` arrasaría el lienzo.** Cambiar de place ahora usa
+  `3d limpiar ƒ` + barrido de menús (y resetea la cámara: el place se pintó para el
+  encuadre inicial).
+- **El fondo ya no es `HTML`/`BODY`.** La escena es un div que cubre la ventana; un clic
+  en el vacío aterriza en ella. `es fondo ƒ` es el discriminador que usan `handle click ƒ`
+  y `show context menu ƒ`.
+
+Dos detalles asumidos a propósito: el chip se **centra** en su posición (antes `left/top`
+era la esquina), así que los layouts guardados se corren media medida de chip una sola
+vez; y `.object-name` no transiciona `transform` ni `left/top/font-size` —el render los
+escribe por frame y una transición haría nadar los chips tras la cámara.
 
 ## Capa WebSocket / p2p (backend Go)
 
@@ -308,6 +395,8 @@ Asistente **a demanda dentro del editor**, no chat ni autocompletado estilo Copi
 - `frontend/public/vs/` y `frontend/public/fa/` — Monaco y Font Awesome **vendorizados**
   (sin CDN). Vite los copia a `dist/` y Go los embebe, así que el editor y los íconos
   funcionan sin internet. `MONACO_BASE_URL = window.location.origin`.
+- `three` (npm) — la cámara y la matemática de la escena 3D. Vite lo empaqueta como a
+  msgpack; los átomos lo usan vía `window.THREE`.
 
 ## Carga y guardado del programa (dev vs prod)
 

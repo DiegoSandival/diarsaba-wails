@@ -141,6 +141,15 @@
         };
         window.EventsOn = EventsOn;
 
+        // three.js: SOLO la cámara y la matemática de la escena de chips. No
+        // se usa CSS3DRenderer a propósito — un matrix3d con perspectiva
+        // remuestrea el texto y pierde el antialiasing; los chips se PROYECTAN
+        // a left/top + font-size (billboard, ver el place "3d @"), así el
+        // navegador los rasteriza nítidos a su tamaño final. Vite lo empaqueta
+        // desde node_modules — sin CDN, como Monaco — y el CSP no cambia.
+        import * as THREE from 'three';
+        window.THREE = THREE;
+
         // msgpack: el formato de lo que viaja ENTRE peers. Ojo, no sustituye al
         // base64 — los bindings de Wails vuelven por JSON (dispatcher/calls.go)
         // y encoding/json ya codifica []byte en base64, así que ese salto es
