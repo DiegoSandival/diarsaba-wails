@@ -10,8 +10,8 @@
          'unsafe-eval' es obligatorio — todo el programa es new Function()—, así
          que el CSP aquí protege la RED, no los scripts (esa es la debilidad
          inherente de un entorno de programación viva). worker-src blob: lo pide
-         Monaco. Ver la auditoría de seguridad. Falta acotar AIChat (sale por Go,
-         el CSP no lo cubre). -->
+         Monaco. (La IA se acotó aparte: ver AIEditAtom — sale por Go con config
+         fija, así que el CSP no necesita cubrirla.) -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DIARSABA</title>
@@ -94,11 +94,15 @@
     </style>
 
     <script type="module" >
-        import { SavePredefinedFunctions, AIChat, GetAIConfig, SetAIConfig, LoadPredefinedFunctions, ExportAtoms, SetAtom, DeleteAtom, AtomHistory, RestoreAtomVersion } from './wailsjs/go/main/App';
+        import { SavePredefinedFunctions, GetAIConfig, AIEditAtom, LoadPredefinedFunctions, ExportAtoms, SetAtom, DeleteAtom, AtomHistory, RestoreAtomVersion } from './wailsjs/go/main/App';
         window.SavePredefinedFunctions = SavePredefinedFunctions;
-        window.AIChat = AIChat;
+        // IA: solo AIEditAtom (binding CON PROPÓSITO — edita un átomo de código,
+        // con la config FIJA en Go). Ya NO se expone SetAIConfig: la config vive
+        // en un archivo que los átomos no pueden reescribir, así que no se puede
+        // redirigir el destino ni meter otra key. GetAIConfig es de solo lectura
+        // (key enmascarada) para mostrar el estado. Ver la auditoría de seguridad.
+        window.AIEditAtom = AIEditAtom;
         window.GetAIConfig = GetAIConfig;
-        window.SetAIConfig = SetAIConfig;
         window.LoadPredefinedFunctions = LoadPredefinedFunctions;
         window.ExportAtoms = ExportAtoms;
         // Autosave granular + historial (ver "persistir atomo ƒ" y "· * restaurar
@@ -354,20 +358,6 @@
                 });
             }
 
-            buildMessages(code, language, instruction) {
-                const system = (typeof diarsaba !== "undefined" && diarsaba.get)
-                    ? diarsaba.get("ai system §")
-                    : null;
-                const systemContent = (typeof system === "string" && system.trim())
-                    ? system
-                    : `Eres un asistente de programación integrado en un editor de código. Estás editando un único átomo de código en lenguaje "${language}". Devuelve ÚNICAMENTE el código resultante, sin explicaciones y sin envolverlo en bloques markdown (nada de \`\`\`). Conserva el estilo y las convenciones del código existente.`;
-                const userContent = `Código actual:\n\n${code || "(vacío)"}\n\nInstrucción: ${instruction}`;
-                return [
-                    { role: "system", content: systemContent },
-                    { role: "user", content: userContent },
-                ];
-            }
-
             stripCodeFences(text) {
                 const trimmed = String(text).trim();
                 const match = trimmed.match(/^```[a-zA-Z0-9]*\s*\n([\s\S]*?)\n```$/);
@@ -411,8 +401,11 @@
                 elements.aiButton.disabled = true;
 
                 try {
-                    const messages = this.buildMessages(editor.getValue(), language, instruction);
-                    const raw = await window.AIChat(JSON.stringify(messages));
+                    // El system opcional viene del átomo "ai system §"; el resto
+                    // (destino, key, estructura del prompt) lo pone Go en AIEditAtom.
+                    const system = (typeof diarsaba !== "undefined" && diarsaba.get && typeof diarsaba.get("ai system §") === "string")
+                        ? diarsaba.get("ai system §") : "";
+                    const raw = await window.AIEditAtom(editor.getValue(), language, instruction, system);
                     const result = this.stripCodeFences(raw);
 
                     const selection = editor.getSelection();
@@ -424,7 +417,7 @@
                         editor.setValue(result);
                     }
                 } catch (error) {
-                    console.error("AIChat error", error);
+                    console.error("AIEditAtom error", error);
                     const message = (error && error.message) ? error.message : String(error);
                     if (message.includes("API key") && typeof window.openAIConfig === "function") {
                         await window.openAIConfig();
@@ -541,35 +534,27 @@
         // Abre el editor JSON con la configuración de IA (proveedor, modelo,
         // baseURL, apiKey). La key se muestra enmascarada y vive solo en el
         // backend Go, fuera del repositorio.
+        // Solo lectura: la config de IA vive en Go, en un archivo que los átomos
+        // no pueden reescribir (por seguridad — ver AIEditAtom / la auditoría).
+        // Para cambiar proveedor/modelo/key se edita ese archivo a mano.
         window.openAIConfig = async () => {
-            const template = {
-                provider: "openai",
-                model: "gpt-4o-mini",
-                baseURL: "https://api.openai.com/v1",
-                apiKey: "",
-            };
-            let current = JSON.stringify(template, null, 2);
+            let info;
             try {
                 const loaded = await window.GetAIConfig();
-                const parsed = loaded && loaded.trim() ? JSON.parse(loaded) : {};
-                // Si ya hay algo configurado, mostramos eso; si está todo vacío,
-                // mostramos la plantilla con valores por defecto.
-                if (parsed.provider || parsed.baseURL || parsed.apiKey) {
-                    current = JSON.stringify({ ...template, ...parsed }, null, 2);
-                }
+                const c = loaded && loaded.trim() ? JSON.parse(loaded) : {};
+                info = "Configuración de IA (solo lectura)\n\n" +
+                    `proveedor: ${c.provider || "(sin definir)"}\n` +
+                    `modelo:    ${c.model || "(sin definir)"}\n` +
+                    `baseURL:   ${c.baseURL || "(por defecto: openai)"}\n` +
+                    `apiKey:    ${c.apiKey || "(sin configurar)"}\n\n` +
+                    "Para cambiarla, edita este archivo:\n" +
+                    (c.path || "ai_config.json en la carpeta de datos de diarsaba") +
+                    "\n\n(Vive en Go, fuera del alcance de los átomos, por seguridad.)";
             } catch (e) {
                 console.error("GetAIConfig error", e);
+                info = "No se pudo leer la configuración de IA.";
             }
-
-            const res = await window.codeEditor.open("Configuración de IA", current, "json");
-            if (res != null && res.trim() !== "") {
-                try {
-                    await window.SetAIConfig(res);
-                } catch (e) {
-                    console.error("SetAIConfig error", e);
-                    alert("No se pudo guardar la configuración de IA: " + (e && e.message ? e.message : e));
-                }
-            }
+            alert(info);
         };
 
         function createFunction(functionString) {

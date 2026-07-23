@@ -486,68 +486,39 @@ func maskKey(k string) string {
 	return k[:4] + "..." + k[len(k)-4:]
 }
 
-// GetAIConfig devuelve la configuración actual con la API key ENMASCARADA,
-// segura para mostrar en la interfaz.
+// GetAIConfig devuelve la configuración actual (con la API key ENMASCARADA) y
+// la RUTA del archivo, para mostrarla de solo lectura. Ya no hay forma de
+// escribirla desde el frontend: la config vive en Go y se edita en ese archivo,
+// fuera del alcance de los átomos. Ver AIEditAtom.
 func (a *App) GetAIConfig() (string, error) {
 	cfg, err := loadAIConfig()
 	if err != nil {
 		return "", err
 	}
-	cfg.APIKey = maskKey(cfg.APIKey)
-	out, _ := json.MarshalIndent(cfg, "", "  ")
+	path, _ := aiConfigPath()
+	out, _ := json.MarshalIndent(map[string]string{
+		"provider": cfg.Provider,
+		"model":    cfg.Model,
+		"baseURL":  cfg.BaseURL,
+		"apiKey":   maskKey(cfg.APIKey),
+		"path":     path,
+	}, "", "  ")
 	return string(out), nil
 }
 
-// SetAIConfig guarda la configuración fuera del repo. Si la key viene vacía o
-// enmascarada (contiene "..."), se conserva la key anterior — así el usuario
-// puede editar el modelo/proveedor sin volver a teclear la key.
-func (a *App) SetAIConfig(jsonData string) error {
-	var incoming AIConfig
-	if err := json.Unmarshal([]byte(jsonData), &incoming); err != nil {
-		return fmt.Errorf("JSON inválido: %w", err)
-	}
-	if incoming.APIKey == "" || strings.Contains(incoming.APIKey, "...") {
-		current, _ := loadAIConfig()
-		incoming.APIKey = current.APIKey
-	}
-	path, err := aiConfigPath()
-	if err != nil {
-		return err
-	}
-	out, _ := json.MarshalIndent(incoming, "", "  ")
-	if err := os.WriteFile(path, out, 0600); err != nil {
-		return fmt.Errorf("error guardando configuración: %w", err)
-	}
-	return nil
-}
-
-// AIChat envía una petición de chat compatible con OpenAI. messagesJSON es el
-// array JSON de mensajes [{role, content}, ...] construido por el frontend, y
-// devuelve el texto de la respuesta del asistente.
-func (a *App) AIChat(messagesJSON string) (string, error) {
-	cfg, err := loadAIConfig()
-	if err != nil {
-		return "", err
-	}
-	if cfg.APIKey == "" {
-		return "", fmt.Errorf("falta configurar la API key (abre la configuración de IA)")
-	}
-
-	var messages []map[string]interface{}
-	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
-		return "", fmt.Errorf("mensajes inválidos: %w", err)
-	}
-
+// chatCompletion es el ÚNICO punto que sale a la red por la IA. El destino y la
+// key vienen de la config del archivo (loadAIConfig), NO del frontend, así que
+// un átomo no puede redirigir la llamada ni meter su propia key. Ahí está el
+// candado: aunque código inyectado llame a AIEditAtom, no exfiltra.
+func chatCompletion(cfg AIConfig, messages []map[string]string) (string, error) {
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
-
-	reqBody := map[string]interface{}{
+	bodyBytes, _ := json.Marshal(map[string]interface{}{
 		"model":    cfg.Model,
 		"messages": messages,
-	}
-	bodyBytes, _ := json.Marshal(reqBody)
+	})
 
 	req, err := http.NewRequest("POST", baseURL+"/chat/completions", bytes.NewReader(bodyBytes))
 	if err != nil {
@@ -582,4 +553,36 @@ func (a *App) AIChat(messagesJSON string) (string, error) {
 		return "", fmt.Errorf("el proveedor no devolvió ninguna respuesta")
 	}
 	return parsed.Choices[0].Message.Content, nil
+}
+
+// AIEditAtom es el binding CON PROPÓSITO que reemplaza al AIChat genérico: su
+// único trabajo es ayudar a editar UN átomo de código. El frontend pasa el
+// código actual, el lenguaje, la instrucción y un system opcional (el átomo
+// "ai system §"); Go arma la conversación —system + un solo mensaje de usuario—
+// y llama al proveedor con la config FIJA. No acepta mensajes arbitrarios ni
+// permite cambiar el destino, así que ni siquiera un átomo malicioso lo puede
+// usar como canal de exfiltración.
+func (a *App) AIEditAtom(code, language, instruction, system string) (string, error) {
+	cfg, err := loadAIConfig()
+	if err != nil {
+		return "", err
+	}
+	if cfg.APIKey == "" {
+		path, _ := aiConfigPath()
+		return "", fmt.Errorf("falta la API key: configúrala en %s", path)
+	}
+
+	sys := strings.TrimSpace(system)
+	if sys == "" {
+		sys = fmt.Sprintf("Eres un asistente de programación integrado en un editor de código. Estás editando un único átomo de código en lenguaje %q. Devuelve ÚNICAMENTE el código resultante, sin explicaciones y sin envolverlo en bloques markdown (nada de ```). Conserva el estilo y las convenciones del código existente.", language)
+	}
+	if strings.TrimSpace(code) == "" {
+		code = "(vacío)"
+	}
+
+	messages := []map[string]string{
+		{"role": "system", "content": sys},
+		{"role": "user", "content": fmt.Sprintf("Código actual:\n\n%s\n\nInstrucción: %s", code, instruction)},
+	}
+	return chatCompletion(cfg, messages)
 }
