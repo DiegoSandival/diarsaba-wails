@@ -163,6 +163,38 @@ Dos opciones de menú (en todos los tipos con familia `· *`):
 > `on double tap place ƒ` además limpia las refs antes de `replaceChildren()`, o quedarían
 > apuntando a nodos ya fuera del documento.
 
+### Buscador y bitácora (añadidos 2026-07)
+
+Dos herramientas para habitar el entorno a escala. Cada una en su place: `buscar @` y
+`bitácora @`, y ambas acciones (`buscar !`, `bitácora !`) en `actions #`.
+
+**Buscador** (`buscar ƒ`, atajo **Ctrl/Cmd+K**) — paleta que filtra los átomos por nombre
+y, si no acierta, por el **texto** del átomo (código `ƒ`, `§`, `<`, `{`): el nombre pesa
+más, el contenido es el recurso cuando no recuerdas cómo se llama. Enter o clic
+**teletransporta** (`ir a ƒ`): si es un place, entra; si no, entra al primer place que lo
+contenga (`padres de ƒ`) y **resalta** su chip (`resaltar chip ƒ`); si no vive en ningún
+place, abre su editor. La paleta reutiliza `.modal-content` (así los guardas de
+`handle click ƒ`/`show context menu ƒ` la ignoran) y su input hace `stopPropagation` para
+que teclear dentro no dispare atajos globales.
+
+**Bitácora** (`salida #`, `registrar ejecución ƒ`, `bitácora ƒ`) — hace **visible la
+ejecución**, que antes no daba señal (y en el `.exe` moría en una consola invisible).
+`threads` (bootstrap en `index.html`) envuelve cada `!` en `await`+`try/catch` y llama a
+`registrar ejecución ƒ`, que apila `HH:MM:SS ✓/✗ nombre → valor|error` en `salida #`
+(tope 50, el más reciente primero) y **parpadea el chip** de la acción (ok/error por
+intensidad, monocromo). `bitácora ƒ` muestra el log como panel de solo lectura junto al
+puntero — clase propia, **no** `.context-menu`, porque una línea que acaba en `!` no debe
+despacharse; `clear menus ƒ` lo barre. Dos decisiones:
+
+- **`bitácora ignora #`** (`handle click !`, `show context menu !`) — la fontanería de la
+  UI pasa por `threads` en cada gesto; sin la lista, el log sería una pared de ruido.
+- **`salida #` es efímera** — está en los `skipKeys` de `guardar ! ƒ`: un log no viaja al
+  repo (como `Streams #`). Arranca `[]` desde el seed.
+
+> El `~` sigue disparando sus `!` **sin `await`** (no bloquea entre sí: un `!` que espere
+> un stream no debe congelar la secuencia); cada `!` se registra por dentro. Para un `!`
+> síncrono el efecto ocurre igual en el `apply`; solo el registro se difiere un microtask.
+
 ### Mover chips
 
 **`mover !`** en el menú principal activa un **modo**: mientras está encendido, arrastrar mueve

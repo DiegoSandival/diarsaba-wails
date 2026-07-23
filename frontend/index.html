@@ -618,24 +618,42 @@
         async function threads(e) {
             if (e.endsWith("~")) {
                 const s = diarsaba.get(e);
-                for (let e = 0; e < s.length; e++) threads(s[e]);
+                // Sin await: un ~ dispara sus ! sin bloquear entre sí (un ! que
+                // espere un stream no debe congelar la secuencia). Cada ! se
+                // registra a sí mismo por dentro.
+                for (let i = 0; i < s.length; i++) threads(s[i]);
             } else if (e.endsWith("!")) {
                 const s = diarsaba.get(e);
+                // La bitácora es opcional: si el átomo aún no está (arranque,
+                // frontend suelto), se cae al alert/console de antes.
+                const registrar = diarsaba.get("registrar ejecución ƒ");
                 if (s) {
                     const a = diarsaba.get(s[0]);
 
-                    if (a && typeof a === "function") a.apply(null, s.slice(1));
-                    else {
-                        const a = `\n• Función buscada: "${s[0]
+                    if (a && typeof a === "function") {
+                        // await + try/catch: así el resultado y los errores —antes
+                        // descartados— llegan a la bitácora. Para un ! síncrono el
+                        // efecto sigue ocurriendo en el apply; solo el registro se
+                        // difiere un microtask.
+                        try {
+                            const r = await a.apply(null, s.slice(1));
+                            if (registrar) registrar(e, true, r);
+                        } catch (err) {
+                            if (registrar) registrar(e, false, err);
+                            else console.error(`[diarsaba] "${e}" falló:`, err);
+                        }
+                    } else {
+                        const detalle = `\n• Función buscada: "${s[0]
                             }"\n• Llamada desde: "${e}"\n• Parámetros esperados: [${s
                                 .slice(1)
                                 .map((e) => `"${e}"`)
                                 .join(", ")}]\n  → ${e}\n     → ${s[0]} (NO ENCONTRADO)`.trim();
-                        alert(a);
+                        if (registrar) registrar(e, false, new Error(`"${s[0]}" no encontrado`));
+                        else alert(detalle);
                     }
                 } else {
-                    const s = `• no exist "${e}"`.trim();
-                    alert(s);
+                    if (registrar) registrar(e, false, new Error(`no existe "${e}"`));
+                    else alert(`• no exist "${e}"`.trim());
                 }
             }
         }
