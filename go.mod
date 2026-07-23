@@ -4,8 +4,10 @@ go 1.25.7
 
 require (
 	github.com/DiegoSandival/p2plite v0.1.1-0.20260718191710-d01f8a640828
+	github.com/energye/systray v1.0.3
 	github.com/wailsapp/wails/v2 v2.13.0
 	go.etcd.io/bbolt v1.5.0
+	golang.org/x/sys v0.45.0
 )
 
 require (
@@ -139,7 +141,6 @@ require (
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
 

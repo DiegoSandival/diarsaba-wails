@@ -28,6 +28,10 @@ type App struct {
 	store     *atomStore
 	storeErr  error
 	storeOnce sync.Once
+
+	// reallyQuit distingue "cerrar la ventana" (esconder a la bandeja, el nodo
+	// sigue vivo) de "Salir" del menú (cerrar de verdad). Ver beforeClose.
+	reallyQuit bool
 }
 
 // NewApp creates a new App application struct
@@ -41,6 +45,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.startTray() // icono de bandeja + menú (no bloquea; ver background_*.go)
 }
 
 // defaultPredefined es el JSON base (semilla) embebido en el binario. Se usa en
