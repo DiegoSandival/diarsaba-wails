@@ -536,6 +536,68 @@
                     editor.focus();
                 });
             }
+
+            // Diff de solo lectura para el historial: izquierda = versión
+            // elegida, derecha = valor actual. Resuelve true si se pulsa
+            // "restaurar", false al cerrar. Monta su propio overlay (no reusa
+            // open, que es un editor normal con selector de lenguaje y guardado).
+            async openDiff(title = "Diff", original = "", modified = "", language = "javascript") {
+                await this.loadMonaco();
+                this.ensureTheme();
+
+                return new Promise((resolve) => {
+                    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+                    const overlay = document.createElement("div");
+                    overlay.className = "editor-overlay";
+                    overlay.innerHTML = `
+                        <div class="editor-modal">
+                            <div class="editor-header">
+                                <div class="editor-title">
+                                    <span class="modal-title">${esc(title)}</span>
+                                    <span class="diff-hint">izquierda: versión · derecha: actual</span>
+                                </div>
+                                <div class="editor-controls">
+                                    <button class="restore-button" title="Restaurar esta versión">
+                                        <i class="fas fa-clock-rotate-left"></i> Restaurar
+                                    </button>
+                                    <button class="close-button" title="Cerrar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="monaco-container" style="width:100%;height:100%;"></div>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+
+                    const lang = this.getMonacoLanguage(language);
+                    const originalModel = monaco.editor.createModel(original, lang);
+                    const modifiedModel = monaco.editor.createModel(modified, lang);
+                    const diff = monaco.editor.createDiffEditor(overlay.querySelector(".monaco-container"), {
+                        theme: MONACO_THEME_NAME,
+                        readOnly: true,
+                        automaticLayout: true,
+                        fontSize: 14,
+                        fontFamily: "Fira Code, Consolas, monospace",
+                        minimap: { enabled: false },
+                        renderSideBySide: true,
+                        scrollBeyondLastLine: false,
+                    });
+                    diff.setModel({ original: originalModel, modified: modifiedModel });
+
+                    const cerrar = (result) => {
+                        diff.dispose();
+                        originalModel.dispose();
+                        modifiedModel.dispose();
+                        overlay.remove();
+                        resolve(result);
+                    };
+
+                    overlay.querySelector(".restore-button").addEventListener("click", () => cerrar(true));
+                    overlay.querySelector(".close-button").addEventListener("click", () => cerrar(false));
+                    overlay.addEventListener("click", (e) => { if (e.target === overlay) cerrar(false); });
+                });
+            }
         }
 
         window.codeEditor = new CodeEditor();

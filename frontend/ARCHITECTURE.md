@@ -195,6 +195,35 @@ despacharse; `clear menus ƒ` lo barre. Dos decisiones:
 > un stream no debe congelar la secuencia); cada `!` se registra por dentro. Para un `!`
 > síncrono el efecto ocurre igual en el `apply`; solo el registro se difiere un microtask.
 
+### Renombrar y historial (añadidos 2026-07)
+
+Refactor seguro: reorganizar el mapa sin romper lo que apunta a un átomo. Ambos en el
+menú `· *` de todos los tipos (`· * renombrar`, `· * historial`).
+
+**`· * renombrar ƒ`** — cambia el nombre de un átomo Y **reescribe cada referencia**
+(`referencias de ƒ`): claves de place (conservando `{x,y}`), elementos de listas/acciones/
+threads, y el **código `ƒ`** —recompilado con `createFunction`—, textos `§`, vistas `<`,
+estilos `{` y mapas `:`. También su propia autorreferencia si el código se nombra. Es
+**seguro porque cada átomo tocado se versiona** (el autosave por `SetAtom`): si algo sale
+mal, `· * historial` lo devuelve — ésa es la red que hace posible el refactor. Conserva el
+**sigilo** (rechaza cambiarlo: el último carácter es el tipo) y rechaza nombres con
+comillas/barras/saltos (romperían el código al sustituirse). El chip visible actualiza su
+texto y reapunta su ref en vivo; si renombras el place activo, `current place §` lo sigue.
+
+> `createFunction`, `threads` y `diarsaba` son **globales** (viven en el `<script>` plano,
+> no en el módulo), así que un átomo puede recompilar código con `createFunction` — que es
+> lo que hace posible reescribir funciones al renombrar.
+
+**`· * historial ƒ`** — lista las versiones anteriores del átomo (bbolt las guarda en cada
+autosave; `window.AtomHistory` las trae, más reciente primero) como panel junto al chip.
+Elegir una abre un **diff Monaco** (`codeEditor.openDiff`, side-by-side de solo lectura:
+izquierda la versión, derecha lo actual) con un botón **Restaurar** que aplica esa versión
+**en vivo** (`restaurar version ƒ`: la mete en el mapa recompilando si es `ƒ`, persiste
+—lo que a su vez versiona el valor actual, así que restaurar también se deshace— y repinta
+si es el place activo). El viejo `· * restaurar` (deshacer lo último, requería recarga)
+sigue ahí; esto es su versión navegable. Requiere el backend: en el frontend suelto
+`AtomHistory` no existe y avisa.
+
 ### Mover chips
 
 **`mover !`** en el menú principal activa un **modo**: mientras está encendido, arrastrar mueve
