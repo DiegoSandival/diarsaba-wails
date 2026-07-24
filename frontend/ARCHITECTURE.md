@@ -224,6 +224,32 @@ si es el place activo). El viejo `· * restaurar` (deshacer lo último, requerí
 sigue ahí; esto es su versión navegable. Requiere el backend: en el frontend suelto
 `AtomHistory` no existe y avisa.
 
+### Panorámica — el multiverso de places (añadido 2026-07)
+
+**`panorámica !`** aleja la cámara y muestra **todos los places a la vez** como
+constelaciones: cada uno es un cluster con su etiqueta arriba y sus chips debajo a escala,
+conservando su disposición. Clic en un place **vuela** hacia él y entra; clic en el vacío
+o `Esc` sale. En `panorámica @`.
+
+Es **aditiva a propósito** (fue la decisión de diseño): el núcleo —`current place §`,
+`on double tap place ƒ`, el pintado a z=0— **no se toca**. La clave es que `panorámica
+pintar ƒ` pinta **chips desechables**: llama a `create chip ƒ` pero **no registra**
+`"${name} ֎"`, así un átomo presente en varios places (p. ej. `arbol @` en dos mundos) no
+choca por su ref única. Cada chip lleva `dataset.pano = <place>` para saber a dónde volar.
+Al entrar a un place, `panorámica entrar ƒ` limpia la escena y deja que el núcleo repinte
+normal.
+
+- **Vuelo**: `panorámica entrar ƒ` hace un tween de cámara acotado (~380ms, `requestAnimationFrame`)
+  hacia el cluster y luego entra (que resetea al encuadre 1:1). Acotado y disparado por el
+  usuario, así que no rompe el render bajo demanda.
+- **Dos guardas nuevas en el núcleo**, en el patrón de `mover !`: `handle click ƒ` — en
+  panorámica un clic sobre chip entra a su place, en el vacío sale, y un **arrastre** (pan de
+  cámara, distancia > 6px entre `pointer down/up`) no hace ninguna de las dos; `show context
+  menu ƒ` — el clic derecho no abre menús (se navega con clic). `on start ƒ` mapea `Esc` a
+  salir.
+- **Encuadre**: `panorámica pintar ƒ` calcula la caja de todos los clusters y sitúa la cámara
+  a la distancia que los abarca (por FOV y aspect).
+
 ### Modo grafo — aristas de referencia (añadido 2026-07)
 
 **`grafo !`** activa un **modo** (como `mover !`) que dibuja las **aristas de referencia**
