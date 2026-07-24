@@ -224,6 +224,31 @@ si es el place activo). El viejo `· * restaurar` (deshacer lo último, requerí
 sigue ahí; esto es su versión navegable. Requiere el backend: en el frontend suelto
 `AtomHistory` no existe y avisa.
 
+### Modo grafo — aristas de referencia (añadido 2026-07)
+
+**`grafo !`** activa un **modo** (como `mover !`) que dibuja las **aristas de referencia**
+entre los chips hermanos del place actual: una flecha `A→B` si `A` referencia a `B`
+(`referencias de ƒ` calcula la relación). Hace visual el grafo que ya se calculaba. En
+`grafo @`.
+
+Cómo encaja con el billboard, para quien lo toque:
+
+- **Un `<canvas>` 2D** (`grafo lienzo ֎`, clase `.grafo-lienzo`) va **detrás** de los chips
+  (primer hijo del `body`, `z-index: 0`) y con `pointer-events: none` — las aristas se ven,
+  el ratón sigue llegando a chips y fondo.
+- **Topología cacheada, posición por frame.** `grafo activar ƒ` calcula las aristas UNA vez
+  (al encender o cambiar de place) y las guarda en `grafo aristas ֎`; `grafo dibujar ƒ`
+  —enganchado al final de `3d proyectar ƒ`— solo lee la posición en pantalla de cada chip ya
+  proyectado y traza. La topología no cambia al panear, solo las posiciones.
+- **Solo hermanos visibles.** Se dibuja `A→B` únicamente si ambos están en el place actual
+  (los dos extremos deben verse); las referencias que cruzan places apuntarían fuera de
+  pantalla. En un place de funciones que se llaman entre sí se ve su grafo de llamadas.
+- ⚠️ **El barrido de refs `֎` de `on double tap place ƒ` ahora protege por CLASE, no por
+  prefijo.** El canvas (`grafo lienzo ֎`) y el contenedor de la escena (`3d contenedor ֎`)
+  son Elements que deben sobrevivir al cambio de place; se reconocen por sus clases
+  (`.grafo-lienzo`, `.escena-3d`) en vez de por el viejo `!k.startsWith("3d ")`, que no
+  cubría el canvas. Cualquier infraestructura de lienzo futura se protege dándole su clase.
+
 ### Mover chips
 
 **`mover !`** en el menú principal activa un **modo**: mientras está encendido, arrastrar mueve
