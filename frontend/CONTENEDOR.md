@@ -157,9 +157,17 @@ migración.** Nada se rompe; se migra por pasos verificables.
    `host.picker(items, {anchor, onPick})` (el panel clicable del historial). Se añadió `host.anchorRect(name)`
    —la caja en pantalla de un chip para anclar widgets—; hoy lee la ref del chip del Map (misma-hebra),
    cuando la escena viva en el shell leerá su propio registro.
-   **Pendiente: solo el canal de ESCENA** — `create chip`, ocultar/quitar, resaltar, y la proyección
-   (`3d proyectar/init/render/reset/controles`, `install mover`, que ya son "vista pura"). Con eso,
-   ningún átomo toca el DOM y se puede meter el universo en un worker (Paso 4).
+   **Canal de escena, parte 1/2 (chips EXISTENTES) — HECHO.** `host.scene.remove/removeChild/
+   removeList/removeAll/flash/rename` + `host.anchorRect`. Rewireados: `· * ocultar`/`· []* ocultar`/
+   `· ֎* ocultar`/`eliminar elemento del dom` (quitar), `· * quitar`/`· * eliminar` (removeAll +
+   lógica de place), `resaltar chip`/`registrar ejecución` (flash), `· * renombrar` (rename del chip),
+   y el anclaje de `· # abrir`/`· ! abrir`/`· * padres`/`· * referencias` (anchorRect). Hoy `host.scene`
+   opera sobre las refs `${name} ֎` del Map (misma-hebra); tendrá su propio registro cuando la
+   creación también viva en el shell.
+   **Pendiente: canal de escena, parte 2/2 (CREACIÓN + proyección)** — `create chip`, el pintado de
+   places (`on double tap place`/`on start place`), los chips hijos (`· $/§/ƒ abrir`, `· ֎*/#* padre`),
+   `panorámica`, y mover el subsistema 3d (`3d proyectar/init/render/reset/controles`, `install mover`)
+   al shell. Con eso, ningún átomo toca el DOM y el universo entra en un worker (Paso 4).
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se

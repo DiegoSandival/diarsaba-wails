@@ -831,6 +831,62 @@
                 input.focus();
             },
 
+            // --- ESCENA: operaciones sobre chips existentes ---
+            // Primera mitad del canal de escena (quitar/parpadear/renombrar/anclar).
+            // Hoy (misma-hebra) opera sobre las refs "${name} ֎" del Map; cuando la
+            // CREACIÓN de chips también viva aquí, host.scene tendrá su propio
+            // registro y el Map dejará de guardar refs DOM. La proyección y la
+            // cámara (3d proyectar/…) siguen siendo átomos por ahora.
+            scene: {
+                // Quita el chip principal; si no está, su hijo abierto.
+                remove(name) {
+                    const chip = diarsaba.get(`${name} ֎`);
+                    if (chip && typeof chip.remove === "function") { chip.remove(); diarsaba.delete(`${name} ֎`); return; }
+                    const child = diarsaba.get(`${name} ֎ ֎`);
+                    if (child && typeof child.remove === "function") child.remove();
+                    diarsaba.delete(`${name} ֎ ֎`);
+                },
+                // Quita solo el hijo abierto ("${name} ֎ ֎").
+                removeChild(name) {
+                    const el = diarsaba.get(`${name} ֎ ֎`);
+                    if (el && typeof el.remove === "function") el.remove();
+                    diarsaba.delete(`${name} ֎ ֎`);
+                },
+                // Quita solo la lista abierta ("${name} # ֎").
+                removeList(name) {
+                    const el = diarsaba.get(`${name} # ֎`);
+                    if (el instanceof Element) el.remove();
+                    diarsaba.delete(`${name} # ֎`);
+                },
+                // Quita chip + hijo + lista (quitar/eliminar).
+                removeAll(name) {
+                    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {
+                        const el = diarsaba.get(k);
+                        if (el && typeof el.remove === "function") el.remove();
+                        diarsaba.delete(k);
+                    });
+                },
+                // Parpadea el chip con una clase durante ms (resaltar/bitácora).
+                // Clase, no left/top: el proyector pisa lo inline pero no las clases.
+                flash(name, kind, ms = 700) {
+                    const chip = diarsaba.get(`${name} ֎`);
+                    if (!(chip instanceof Element)) return;
+                    chip.classList.add(kind);
+                    setTimeout(() => chip.classList.remove(kind), ms);
+                },
+                // Renombra el chip visible: texto + tipo, reapunta la ref y tira
+                // las derivadas (se regeneran al reabrirse).
+                rename(viejo, nuevo) {
+                    const chip = diarsaba.get(`${viejo} ֎`);
+                    if (chip instanceof Element) {
+                        chip.textContent = nuevo;
+                        chip.dataset.type = nuevo.slice(-1);
+                        diarsaba.set(`${nuevo} ֎`, chip);
+                    }
+                    [`${viejo} ֎`, `${viejo} ֎ ֎`, `${viejo} # ֎`].forEach((rk) => diarsaba.delete(rk));
+                },
+            },
+
             // ¿Hay backend Go detrás? (algunos átomos degradan sin él.)
             get tieneBackend() { return typeof window.go !== "undefined"; },
         };
