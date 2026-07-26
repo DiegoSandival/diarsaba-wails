@@ -1162,6 +1162,107 @@
                 },
             },
 
+            // Clase de MODO en el body (mover/grafo/panorámica anuncian su estado
+            // con un borde en el lienzo). Es UI del shell, no del universo.
+            mode(cls, on) { document.body.classList.toggle(cls, on); },
+
+            // Las ARISTAS del modo grafo (canvas 2d detrás de los chips). Cuerpos
+            // idénticos a los átomos "grafo init/dibujar ƒ", que ahora son shims.
+            grafo: {
+                init() {
+                    if (diarsaba.get("grafo lienzo ֎")) return;
+                    const canvas = document.createElement("canvas");
+                    canvas.className = "grafo-lienzo";
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    document.body.insertBefore(canvas, document.body.firstChild);
+                    diarsaba.set("grafo lienzo ֎", canvas);
+                    window.addEventListener("resize", () => diarsaba.get("grafo dibujar ƒ")());
+                },
+                draw() {
+                    const canvas = diarsaba.get("grafo lienzo ֎");
+                    if (!canvas) return;
+                    const ctx = canvas.getContext("2d");
+                    if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+                        canvas.width = window.innerWidth;
+                        canvas.height = window.innerHeight;
+                    }
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    if (!diarsaba.get("grafo activo §")) return;
+                    const aristas = diarsaba.get("grafo aristas ֎") || [];
+                    const cache = {};
+                    const centro = (nombre) => {
+                        if (nombre in cache) return cache[nombre];
+                        let c = null;
+                        const chip = diarsaba.get(`${nombre} ֎`);
+                        if (chip instanceof Element && chip.style.visibility !== "hidden") {
+                            const r = chip.getBoundingClientRect();
+                            if (r.width) c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                        }
+                        cache[nombre] = c;
+                        return c;
+                    };
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                    for (const [a, b] of aristas) {
+                        const ca = centro(a), cb = centro(b);
+                        if (!ca || !cb) continue;
+                        ctx.beginPath();
+                        ctx.moveTo(ca.x, ca.y);
+                        ctx.lineTo(cb.x, cb.y);
+                        ctx.stroke();
+                        const ang = Math.atan2(cb.y - ca.y, cb.x - ca.x);
+                        const px = cb.x - Math.cos(ang) * 16;
+                        const py = cb.y - Math.sin(ang) * 16;
+                        ctx.beginPath();
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(px - Math.cos(ang - 0.4) * 8, py - Math.sin(ang - 0.4) * 8);
+                        ctx.lineTo(px - Math.cos(ang + 0.4) * 8, py - Math.sin(ang + 0.4) * 8);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                },
+            },
+
+            // Gestor de estilos: sincroniza los átomos "{" a etiquetas <style>.
+            // Cuerpo idéntico al átomo "install style manager ƒ" (ahora shim).
+            installStyles() {
+                const styleIdFromKey = (k) => {
+                    const base = String(k).replace(/\s*\{$/, "").trim();
+                    return 'diarsaba-style-' + base.replace(/[^\w-]/g, '_').replace(/^_+|_+$/g, '');
+                };
+                for (const [k, v] of diarsaba.entries()) {
+                    if (typeof k === 'string' && k.endsWith('{')) {
+                        const id = styleIdFromKey(k);
+                        if (!document.getElementById(id)) {
+                            const el = document.createElement('style');
+                            el.id = id;
+                            el.textContent = typeof v === 'string' ? v : '';
+                            document.head.appendChild(el);
+                        }
+                    }
+                }
+                const originalSet = diarsaba.set.bind(diarsaba);
+                diarsaba.set = (key, value) => {
+                    originalSet(key, value);
+                    try {
+                        if (typeof key === 'string' && key.endsWith('{')) {
+                            const id = styleIdFromKey(key);
+                            let el = document.getElementById(id);
+                            if (el) el.textContent = typeof value === 'string' ? value : '';
+                            else {
+                                el = document.createElement('style');
+                                el.id = id;
+                                el.textContent = typeof value === 'string' ? value : '';
+                                document.head.appendChild(el);
+                            }
+                        }
+                    } catch (e) { console.error('install style manager error', e); }
+                    return diarsaba;
+                };
+            },
+
             // ¿Hay backend Go detrás? (algunos átomos degradan sin él.)
             get tieneBackend() { return typeof window.go !== "undefined"; },
         };

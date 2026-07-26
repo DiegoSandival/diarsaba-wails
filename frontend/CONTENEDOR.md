@@ -173,11 +173,17 @@ migración.** Nada se rompe; se migra por pasos verificables.
    OCULTO daba innerWidth 0 → aspecto NaN → matriz de proyección NaN → se caían pan y arrastre).
    Verificado: arranque/proyección, place-switch, crear chip, arrastre, pan/zoom/órbita, reset,
    grafo y panorámica.
-   **Pendiente (cleanup de escena):** el subsistema **grafo** (canvas: `grafo dibujar/init/ƒ`),
-   **panorámica** (lee `3d camara/mira ֎` + clases de body), `install style manager` (inyecta
-   `<style>`), unos `classList`/`body` sueltos (`mover ƒ`, `open submenu ƒ`, `on double tap place`),
-   y el **anclaje de chips-hijo** (`· $/§/ƒ abrir`, `· ~ abrir`, `· ֎*/#* padre`, `· * parents` aún
-   leen `getBoundingClientRect` → `host.anchorRect`). Con eso, ningún átomo toca el DOM → worker (Paso 4).
+   **Cleanup de escena — mayor parte HECHA.** Al shell: el subsistema **grafo** (`host.grafo.init/draw`,
+   con `grafo init/dibujar ƒ` como shims); **`install style manager` → `host.installStyles`** (mantiene
+   el override de `diarsaba.set` que sincroniza los `{` a `<style>`); las clases de MODO del body vía
+   **`host.mode(cls, on)`** (`grafo ƒ`, `mover ƒ`, `panorámica ƒ`/`entrar`); y el **anclaje de chips-hijo**
+   (`· $/§/ƒ abrir`, `· ~ abrir`, `· * parents` → `host.anchorRect`).
+   **Pendiente (lo atado al REGISTRO de refs, se remata con el worker):** los barridos de refs que leen
+   `el.classList.contains` (`on double tap place`, `panorámica ƒ`), las marcas de clase en widgets del
+   shell (`open submenu` "submenu", `panorámica pintar` "pano-label"), `clear menus`/`on double tap`
+   (`querySelectorAll` de overlays), `clamp to viewport` (fallback sin escena), y los 2 `padre` (leen
+   `offsetWidth` del chip nuevo). Cuando el registro `${name} ֎` viva en `host.scene` (Paso 4), estos
+   se vuelven llamadas al host de forma natural.
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se
