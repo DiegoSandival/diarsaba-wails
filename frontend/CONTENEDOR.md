@@ -164,10 +164,20 @@ migración.** Nada se rompe; se migra por pasos verificables.
    y el anclaje de `· # abrir`/`· ! abrir`/`· * padres`/`· * referencias` (anchorRect). Hoy `host.scene`
    opera sobre las refs `${name} ֎` del Map (misma-hebra); tendrá su propio registro cuando la
    creación también viva en el shell.
-   **Pendiente: canal de escena, parte 2/2 (CREACIÓN + proyección)** — `create chip`, el pintado de
-   places (`on double tap place`/`on start place`), los chips hijos (`· $/§/ƒ abrir`, `· ֎*/#* padre`),
-   `panorámica`, y mover el subsistema 3d (`3d proyectar/init/render/reset/controles`, `install mover`)
-   al shell. Con eso, ningún átomo toca el DOM y el universo entra en un worker (Paso 4).
+   **Canal de escena, parte 2/2 (MOTOR 3d + create chip) — HECHO.** Los cuerpos de `3d init/
+   proyectar/render/reset/punto en plano/controles/limpiar`, `es fondo`, `create chip` e
+   `install mover` viven ahora en `host.scene` (init/project/render/reset/worldPoint/controls/clear/
+   isBackground/make/installDrag); los átomos son **shims** que delegan ahí, así ningún llamador
+   cambió. El estado (escena/cámara/mira) sigue en refs `3d … ֎` del Map (misma-hebra), que `init`
+   pone y `host.scene`/`panorámica` leen. De paso, `init` endurece el aspecto con `|| 1` (arrancar
+   OCULTO daba innerWidth 0 → aspecto NaN → matriz de proyección NaN → se caían pan y arrastre).
+   Verificado: arranque/proyección, place-switch, crear chip, arrastre, pan/zoom/órbita, reset,
+   grafo y panorámica.
+   **Pendiente (cleanup de escena):** el subsistema **grafo** (canvas: `grafo dibujar/init/ƒ`),
+   **panorámica** (lee `3d camara/mira ֎` + clases de body), `install style manager` (inyecta
+   `<style>`), unos `classList`/`body` sueltos (`mover ƒ`, `open submenu ƒ`, `on double tap place`),
+   y el **anclaje de chips-hijo** (`· $/§/ƒ abrir`, `· ~ abrir`, `· ֎*/#* padre`, `· * parents` aún
+   leen `getBoundingClientRect` → `host.anchorRect`). Con eso, ningún átomo toca el DOM → worker (Paso 4).
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se

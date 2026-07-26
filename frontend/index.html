@@ -885,6 +885,281 @@
                     }
                     [`${viejo} ֎`, `${viejo} ֎ ֎`, `${viejo} # ֎`].forEach((rk) => diarsaba.delete(rk));
                 },
+
+                // --- El MOTOR 3d (antes átomos "3d …ƒ" / create chip / mover) ---
+                // Cuerpos idénticos a los átomos originales; estos siguen existiendo
+                // como shims que delegan aquí. El estado (escena/cámara/mira) sigue
+                // en refs "3d … ֎" del Map por ahora (misma-hebra). Ver CONTENEDOR.md.
+                init() {
+                    if (diarsaba.get("3d escena ֎")) return;
+                    if (!window.THREE) { console.warn("[3d] window.THREE no está: los chips caen al body plano."); return; }
+                    const THREE = window.THREE;
+                    const escena = new THREE.Scene();
+                    // "|| 1": si la app arranca OCULTA (bandeja), innerWidth/Height
+                    // son 0 y el aspecto saldría NaN, envenenando toda la matriz de
+                    // proyección (unproject → NaN, se cae el pan y el arrastre). El
+                    // resize lo corrige al mostrarse; esto evita el estado roto.
+                    const camara = new THREE.PerspectiveCamera(45, (window.innerWidth / window.innerHeight) || 1, 1, 200000);
+                    const contenedor = document.createElement("div");
+                    contenedor.classList.add("escena-3d");
+                    document.body.appendChild(contenedor);
+                    diarsaba.set("3d escena ֎", escena);
+                    diarsaba.set("3d camara ֎", camara);
+                    diarsaba.set("3d contenedor ֎", contenedor);
+                    window.addEventListener("resize", () => {
+                        camara.aspect = window.innerWidth / window.innerHeight;
+                        camara.updateProjectionMatrix();
+                        diarsaba.get("3d render ƒ")();
+                    });
+                    diarsaba.get("3d reset ƒ")();
+                    diarsaba.get("3d controles ƒ")();
+                },
+                project() {
+                    const camara = diarsaba.get("3d camara ֎");
+                    const escena = diarsaba.get("3d escena ֎");
+                    if (!camara || !escena) return;
+                    camara.updateMatrixWorld();
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    const d0 = (h / 2) / Math.tan((camara.fov * Math.PI) / 360);
+                    const visibles = [];
+                    const ocultos = [];
+                    for (const obj of escena.children) {
+                        const el = obj.element;
+                        if (!(el instanceof Element)) continue;
+                        const vista = obj.position.clone().applyMatrix4(camara.matrixWorldInverse);
+                        if (vista.z >= -1) { ocultos.push(el); continue; }
+                        const s = Math.min(Math.round((d0 / -vista.z) * 1000) / 1000, 50);
+                        const p = obj.position.clone().project(camara);
+                        visibles.push({
+                            el,
+                            x: ((p.x + 1) / 2) * w,
+                            y: ((1 - p.y) / 2) * h,
+                            s,
+                            prof: -vista.z,
+                            mw: el.offsetWidth / 2,
+                            mh: el.offsetHeight / 2,
+                        });
+                    }
+                    for (const el of ocultos) el.style.visibility = "hidden";
+                    visibles.sort((a, b) => b.prof - a.prof);
+                    let z = 0;
+                    for (const c of visibles) {
+                        c.el.style.visibility = "";
+                        c.el.style.fontSize = c.s === 1 ? "" : `${c.s}rem`;
+                        c.el.style.left = `${Math.round(c.x - c.mw)}px`;
+                        c.el.style.top = `${Math.round(c.y - c.mh)}px`;
+                        c.el.style.zIndex = String(++z);
+                    }
+                    const grafo = diarsaba.get("grafo dibujar ƒ");
+                    if (grafo) grafo();
+                },
+                render() {
+                    if (diarsaba.get("3d render pendiente ֎")) return;
+                    if (!diarsaba.get("3d camara ֎")) return;
+                    diarsaba.set("3d render pendiente ֎", true);
+                    requestAnimationFrame(() => {
+                        diarsaba.set("3d render pendiente ֎", false);
+                        diarsaba.get("3d proyectar ƒ")();
+                    });
+                },
+                reset() {
+                    const THREE = window.THREE;
+                    const camara = diarsaba.get("3d camara ֎");
+                    if (!THREE || !camara) return;
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    const d = cy / Math.tan((camara.fov * Math.PI) / 360);
+                    camara.position.set(cx, -cy, d);
+                    camara.up.set(0, 1, 0);
+                    camara.lookAt(cx, -cy, 0);
+                    const mira = diarsaba.get("3d mira ֎");
+                    if (mira) mira.set(cx, -cy, 0);
+                    else diarsaba.set("3d mira ֎", new THREE.Vector3(cx, -cy, 0));
+                    diarsaba.get("3d render ƒ")();
+                },
+                worldPoint(clientX, clientY) {
+                    const THREE = window.THREE;
+                    const camara = diarsaba.get("3d camara ֎");
+                    if (!THREE || !camara) return null;
+                    const ndc = new THREE.Vector2(
+                        (clientX / window.innerWidth) * 2 - 1,
+                        -(clientY / window.innerHeight) * 2 + 1
+                    );
+                    const ray = new THREE.Raycaster();
+                    ray.setFromCamera(ndc, camara);
+                    const plano = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+                    return ray.ray.intersectPlane(plano, new THREE.Vector3());
+                },
+                controls() {
+                    if (diarsaba.get("3d controles ֎")) return;
+                    diarsaba.set("3d controles ֎", true);
+                    const THREE = window.THREE;
+                    const punto = (x, y) => diarsaba.get("3d punto en plano ƒ")(x, y);
+                    const pedir = () => diarsaba.get("3d render ƒ")();
+                    let modo = null;
+                    let ancla = null;
+                    let ultimo = null;
+                    window.addEventListener("pointerdown", (e) => {
+                        if (!diarsaba.get("es fondo ƒ")(e.target)) return;
+                        if (e.button === 1 || (e.button === 0 && e.altKey)) modo = "orbita";
+                        else if (e.button === 0) modo = "pan";
+                        else return;
+                        ancla = punto(e.clientX, e.clientY);
+                        ultimo = { x: e.clientX, y: e.clientY };
+                        e.preventDefault();
+                    }, true);
+                    window.addEventListener("pointermove", (e) => {
+                        if (!modo) return;
+                        const camara = diarsaba.get("3d camara ֎");
+                        const mira = diarsaba.get("3d mira ֎");
+                        if (!camara || !mira) return;
+                        if (modo === "pan" && ancla) {
+                            const ahora = punto(e.clientX, e.clientY);
+                            if (!ahora) return;
+                            const delta = ancla.clone().sub(ahora);
+                            camara.position.add(delta);
+                            mira.add(delta);
+                            pedir();
+                        } else if (modo === "orbita" && ultimo) {
+                            const dx = e.clientX - ultimo.x;
+                            const dy = e.clientY - ultimo.y;
+                            ultimo = { x: e.clientX, y: e.clientY };
+                            const offset = camara.position.clone().sub(mira);
+                            const esf = new THREE.Spherical().setFromVector3(offset);
+                            esf.theta -= dx * 0.005;
+                            esf.phi -= dy * 0.005;
+                            esf.phi = Math.max(0.05, Math.min(Math.PI - 0.05, esf.phi));
+                            offset.setFromSpherical(esf);
+                            camara.position.copy(mira).add(offset);
+                            camara.lookAt(mira);
+                            pedir();
+                        }
+                    }, true);
+                    window.addEventListener("pointerup", () => { modo = null; ancla = null; ultimo = null; }, true);
+                    window.addEventListener("wheel", (e) => {
+                        const camara = diarsaba.get("3d camara ֎");
+                        const mira = diarsaba.get("3d mira ֎");
+                        if (!camara || !mira) return;
+                        if (e.target.closest && e.target.closest(".context-menu, .modal-content, .editor-overlay")) return;
+                        const factor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
+                        const foco = punto(e.clientX, e.clientY) || mira.clone();
+                        camara.position.sub(foco).multiplyScalar(factor).add(foco);
+                        mira.sub(foco).multiplyScalar(factor).add(foco);
+                        pedir();
+                        e.preventDefault();
+                    }, { passive: false, capture: true });
+                },
+                clear() {
+                    const escena = diarsaba.get("3d escena ֎");
+                    if (!escena) return;
+                    [...escena.children].forEach((obj) => {
+                        if (obj.element instanceof Element && obj.element.parentNode) {
+                            obj.element.parentNode.removeChild(obj.element);
+                        }
+                        escena.remove(obj);
+                    });
+                    diarsaba.get("3d render ƒ")();
+                },
+                isBackground(target) {
+                    if (!target || !(target instanceof Element)) return true;
+                    const n = target.nodeName;
+                    if (n === "HTML" || n === "BODY") return true;
+                    if (target.closest(".object-name, .context-menu, .modal-content, .editor-overlay")) return false;
+                    return !!target.closest(".escena-3d");
+                },
+                make(x, y, text, parent = "", type = "") {
+                    const div = document.createElement("div");
+                    div.classList = "object-name";
+                    div.textContent = text;
+                    div.spellcheck = false;
+                    div.dataset.parent = parent;
+                    div.dataset.type = type;
+                    const escena = diarsaba.get("3d escena ֎");
+                    const contenedor = diarsaba.get("3d contenedor ֎");
+                    if (!escena || !contenedor) {
+                        div.style.left = `${x}px`;
+                        div.style.top = `${y}px`;
+                        document.body.appendChild(div);
+                        diarsaba.get("clamp to viewport ƒ")(div);
+                        return div;
+                    }
+                    const obj = new window.THREE.Object3D();
+                    obj.position.set(x, -y, 0);
+                    obj.element = div;
+                    escena.add(obj);
+                    div._obj3d = obj;
+                    contenedor.appendChild(div);
+                    const removeDom = div.remove.bind(div);
+                    div.remove = () => {
+                        escena.remove(obj);
+                        removeDom();
+                        diarsaba.get("3d render ƒ")();
+                    };
+                    diarsaba.get("3d render ƒ")();
+                    return div;
+                },
+                installDrag() {
+                    if (diarsaba.get("mover instalado ֎")) return;
+                    diarsaba.set("mover instalado ֎", true);
+                    let arrastrando = null;
+                    let desfase = null;
+                    let dx = 0;
+                    let dy = 0;
+                    window.addEventListener("pointerdown", (e) => {
+                        if (!diarsaba.get("moviendo chips §")) return;
+                        if (e.button !== 0) return;
+                        const chip = e.target.closest(".object-name");
+                        if (!chip) return;
+                        arrastrando = chip;
+                        const obj = chip._obj3d;
+                        const p = obj ? diarsaba.get("3d punto en plano ƒ")(e.clientX, e.clientY) : null;
+                        if (obj && p) {
+                            desfase = obj.position.clone().sub(p);
+                        } else {
+                            desfase = null;
+                            const r = chip.getBoundingClientRect();
+                            dx = e.clientX - r.left;
+                            dy = e.clientY - r.top;
+                        }
+                        chip.setPointerCapture?.(e.pointerId);
+                        chip.classList.add("arrastrando");
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }, true);
+                    window.addEventListener("pointermove", (e) => {
+                        if (!arrastrando) return;
+                        const obj = arrastrando._obj3d;
+                        if (obj && desfase) {
+                            const p = diarsaba.get("3d punto en plano ƒ")(e.clientX, e.clientY);
+                            if (p) { obj.position.copy(p.add(desfase)); diarsaba.get("3d render ƒ")(); }
+                        } else {
+                            arrastrando.style.left = `${e.clientX - dx}px`;
+                            arrastrando.style.top = `${e.clientY - dy}px`;
+                        }
+                        e.stopPropagation();
+                    }, true);
+                    window.addEventListener("pointerup", (e) => {
+                        if (!arrastrando) return;
+                        const chip = arrastrando;
+                        arrastrando = null;
+                        desfase = null;
+                        chip.classList.remove("arrastrando");
+                        const nombre = chip.textContent;
+                        const placeName = diarsaba.get("current place §");
+                        const place = diarsaba.get(placeName);
+                        if (place && typeof place === "object" && nombre in place) {
+                            const obj = chip._obj3d;
+                            const pos = obj
+                                ? { x: obj.position.x, y: -obj.position.y }
+                                : { x: parseFloat(chip.style.left) || 0, y: parseFloat(chip.style.top) || 0 };
+                            diarsaba.set(placeName, { ...place, [nombre]: pos });
+                            diarsaba.get("persistir atomo ƒ")(placeName);
+                        }
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }, true);
+                },
             },
 
             // ¿Hay backend Go detrás? (algunos átomos degradan sin él.)
