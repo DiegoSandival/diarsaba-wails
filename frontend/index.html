@@ -643,9 +643,104 @@
             get p2p() { return window.p2p; },
             reload() { return window.location.reload(); },
 
+            // --- WIDGETS (el shell dibuja; el layout es suyo) ---
+            // Por ahora RENDERIZAN y devuelven el elemento (o, el modal, una
+            // promesa del texto). El clic sobre los ítems de menú/lista lo sigue
+            // despachando "handle click ƒ" leyendo este DOM; convertir eso a
+            // request/reply (host.menu → elección) es la pasada que desacopla
+            // de verdad para el worker.
+            _px: 20, _py: 20,
+            _clamp(el) {
+                // Reposiciona para que no se salga de la ventana. Mide en (0,0):
+                // el ancho shrink-to-fit se comprimiría si se coloca desbordando.
+                const margin = 8, vw = window.innerWidth, vh = window.innerHeight;
+                const dl = parseFloat(el.style.left) || 0, dt = parseFloat(el.style.top) || 0;
+                el.style.left = "0px"; el.style.top = "0px";
+                const w = el.offsetWidth, h = el.offsetHeight;
+                let left = dl, top = dt;
+                if (left + w > vw - margin) left = vw - margin - w;
+                if (top + h > vh - margin) top = vh - margin - h;
+                if (left < margin) left = margin;
+                if (top < margin) top = margin;
+                el.style.left = `${left}px`; el.style.top = `${top}px`;
+            },
+            _render(v) {
+                // No-string → JSON (para el payload de un peer, p.ej.); escapa &<>
+                // para que un dato ajeno no inyecte HTML en el menú.
+                const t = typeof v === "string" ? v : (() => { try { return JSON.stringify(v); } catch (_) { return String(v); } })();
+                return t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+            },
+            // Menú de opciones (ítems sin prefijo). x/y null → junto al puntero.
+            menu(list, parent = "", current = "", x = null, y = null) {
+                const div = document.createElement("div");
+                div.className = "context-menu";
+                for (const key of list) div.innerHTML += `<span class="menu-item">${this._render(key)}</span>`;
+                div.style.left = `${x === null ? this._px : x}px`;
+                div.style.top = `${y === null ? this._py : y}px`;
+                div.dataset.parent = parent;
+                div.dataset.current = current;
+                document.body.appendChild(div);
+                this._clamp(div);
+                return div;
+            },
+            // Lista con ítems "[n] valor" (la abren · # abrir, padres, referencias…).
+            list(x, y, list, parent) {
+                const div = document.createElement("div");
+                div.className = "context-menu";
+                if (list.length == 0) div.innerHTML += `<span class="menu-item">[0]</span>`;
+                else for (const key in list) div.innerHTML += `<span class="menu-item">[${key}] ${this._render(list[key])}</span>`;
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+                div.dataset.parent = parent;
+                document.body.appendChild(div);
+                this._clamp(div);
+                return div;
+            },
+            // Pide un nombre. Resuelve el texto (Continue) o null (Cancel).
+            async modal(pre = "") {
+                return new Promise((resolve) => {
+                    const div = document.createElement("div");
+                    div.className = "modal-content";
+                    const input = document.createElement("input");
+                    input.type = "text"; input.value = pre || ""; input.spellcheck = false;
+                    const bc = document.createElement("div");
+                    bc.className = "modal-buttons";
+                    ["Cancel", "Continue"].forEach((text) => {
+                        const btn = document.createElement("button");
+                        btn.textContent = text;
+                        btn.dataset.modal = text.toLowerCase();
+                        btn.onclick = () => { div.remove(); resolve(text === "Cancel" ? null : input.value.trim()); };
+                        bc.append(btn);
+                    });
+                    div.append(input, bc);
+                    document.body.append(div);
+                    input.focus();
+                });
+            },
+            // Panel de solo lectura junto al puntero (la bitácora). Uno a la vez.
+            panel(lines) {
+                document.querySelectorAll(".bitacora-panel").forEach((e) => e.remove());
+                const div = document.createElement("div");
+                div.className = "bitacora-panel";
+                div.innerHTML = ((lines && lines.length) ? lines : ["(sin ejecuciones aún)"])
+                    .map((l) => `<div class="bitacora-linea">${this._render(l)}</div>`).join("");
+                div.style.left = `${this._px}px`;
+                div.style.top = `${this._py}px`;
+                document.body.appendChild(div);
+                this._clamp(div);
+                return div;
+            },
+
             // ¿Hay backend Go detrás? (algunos átomos degradan sin él.)
             get tieneBackend() { return typeof window.go !== "undefined"; },
         };
+
+        // El shell sigue el puntero para anclar los widgets (menús, panel) sin
+        // depender del Map del universo. (Evento del shell, ver CONTENEDOR.md.)
+        window.addEventListener("pointermove", (e) => {
+            window.host._px = e.clientX;
+            window.host._py = e.clientY;
+        });
 
         // Abre el editor JSON con la configuración de IA (proveedor, modelo,
         // baseURL, apiKey). La key se muestra enmascarada y vive solo en el

@@ -137,9 +137,15 @@ migración.** Nada se rompe; se migra por pasos verificables.
    `exportar`, `reload`, los `alert`, y el broker de Go). Cero formas crudas (`window.SetAtom`,
    `window.codeEditor`, `alert(`…) quedan en código. El port solo tocó líneas de código, no
    comentarios (la recuperación-por-consola de `· * restaurar` sigue citando las bindings crudas).
-   **Pendiente:** portar los átomos de la cubeta C que usan escena/widgets (menús, listas, buscador,
-   bitácora, historial-panel, modal, `create chip`, ocultar/quitar, resaltar) cuando esos verbos
-   existan.
+   **Widgets — primera pasada hecha (rendering):** `host.menu`/`list`/`modal`/`panel` viven en el
+   shell (con `_clamp` y un seguidor de puntero propios, sin depender del `Map`). `create list menu ƒ`,
+   `create list ƒ`, `modal input ƒ` y `bitácora ƒ` son ahora **shims** sobre ellos: el DOM se movió
+   al shell sin que ningún llamador cambie. El despacho por clic sigue en `handle click ƒ` leyendo
+   ese DOM.
+   **Pendiente:** (a) convertir menú/lista a **request/reply** (`host.menu(...) → elección`) —
+   reescribe `handle click ƒ`/`show options list ƒ`/`dispatch item ƒ`, es lo que desacopla de verdad
+   para el worker; (b) el canal de **escena** (`create chip`, ocultar/quitar, resaltar, la proyección);
+   (c) el buscador y el panel del historial (widgets con interacción propia).
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se
