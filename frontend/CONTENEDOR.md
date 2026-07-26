@@ -127,13 +127,19 @@ Regla de oro: **el programa actual sigue funcionando como "universo 0 / casa" du
 migración.** Nada se rompe; se migra por pasos verificables.
 
 1. **Auditar el borde** — hecho (este documento).
-2. **Definir el protocolo con implementación *misma-hebra*.** Un objeto `host` que los átomos
-   llaman en vez de tocar el DOM (`host.menu(...)`, `host.kv.set(...)`, …). Al principio el `host`
-   solo llama al código DOM/Go actual: la app se comporta **idéntica**, pero cada toque al exterior
-   ya pasa por el borde. Desacopla sin worker todavía.
-3. **Portar los átomos al borde (el grueso, ~55 de la cubeta C).** Reemplazar los toques directos
-   por `host.*`, feature por feature, con la app funcionando en cada paso. Al terminar, ningún
-   átomo toca el DOM.
+2. **Definir el protocolo con implementación *misma-hebra*.** — **hecho para UI/editor/broker.**
+   El objeto `host` vive en `index.html` (global, como `diarsaba`) y cada verbo reenvía al código
+   DOM/Go actual. Cubiertos: `notify`/`confirm`, `editor`/`diff`, `kv.set/del/history/restore`,
+   `save`/`export`/`load`/`ai`, `events`, `p2p`, `reload`. Faltan los canales de **escena** y
+   **widgets** (`menu`/`list`/`modal`/`panel`), que no son un simple reenvío.
+3. **Portar los átomos al borde.** — **hecho para UI/editor/broker** (31 átomos, 55 llamadas: todos
+   los `· <tipo> editor ƒ`, `open general editor`, `ver version`, `persistir atomo`, `guardar`,
+   `exportar`, `reload`, los `alert`, y el broker de Go). Cero formas crudas (`window.SetAtom`,
+   `window.codeEditor`, `alert(`…) quedan en código. El port solo tocó líneas de código, no
+   comentarios (la recuperación-por-consola de `· * restaurar` sigue citando las bindings crudas).
+   **Pendiente:** portar los átomos de la cubeta C que usan escena/widgets (menús, listas, buscador,
+   bitácora, historial-panel, modal, `create chip`, ocultar/quitar, resaltar) cuando esos verbos
+   existan.
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se

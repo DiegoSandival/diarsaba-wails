@@ -602,6 +602,51 @@
 
         window.codeEditor = new CodeEditor();
 
+        // --- EL BORDE (host) — ver frontend/CONTENEDOR.md ---
+        // Fachada del shell que los átomos llaman en vez de tocar el DOM/Go
+        // directo. HOY es MISMA-HEBRA: cada verbo reenvía al código actual, así
+        // que el comportamiento no cambia. Cuando cada universo sea un worker,
+        // estas mismas llamadas se volverán postMessage al shell y los átomos
+        // NO cambiarán. Este primer corte cubre los canales de REENVÍO PURO —
+        // UI (aviso), EDITOR y BROKER (Go). Los canales de ESCENA y WIDGETS
+        // (menús, listas, modales, panel), que no son un simple forward, se
+        // construyen en pasadas siguientes.
+        //
+        // OJO: la recuperación por consola sigue siendo con las bindings CRUDAS
+        // (window.AtomHistory / window.RestoreAtomVersion), no con host: el host
+        // es del shell y, con workers, no vivirá en la consola de la ventana.
+        window.host = {
+            // UI del host
+            notify(msg) { return alert(msg); },
+            async confirm(msg) { return window.confirm(msg); },
+
+            // Editor (Monaco vive en el shell)
+            async editor(nombre, src = "", lang = "javascript") {
+                return window.codeEditor.open(nombre, src, lang);
+            },
+            async diff(titulo, versionSrc, actualSrc, lang = "javascript") {
+                return window.codeEditor.openDiff(titulo, versionSrc, actualSrc, lang);
+            },
+
+            // Broker hacia Go: store de átomos (KV), persistencia, IA, red
+            kv: {
+                async set(nombre, valueJSON) { return window.SetAtom(nombre, valueJSON); },
+                async del(nombre) { return window.DeleteAtom(nombre); },
+                async history(nombre) { return window.AtomHistory(nombre); },
+                async restore(nombre, seq) { return window.RestoreAtomVersion(nombre, seq); },
+            },
+            async save(json) { return window.SavePredefinedFunctions(json); },
+            async export() { return window.ExportAtoms(); },
+            async load() { return window.LoadPredefinedFunctions(); },
+            async ai(code, lang, instruction, system) { return window.AIEditAtom(code, lang, instruction, system); },
+            events(nombre, cb) { return window.EventsOn(nombre, cb); },
+            get p2p() { return window.p2p; },
+            reload() { return window.location.reload(); },
+
+            // ¿Hay backend Go detrás? (algunos átomos degradan sin él.)
+            get tieneBackend() { return typeof window.go !== "undefined"; },
+        };
+
         // Abre el editor JSON con la configuración de IA (proveedor, modelo,
         // baseURL, apiKey). La key se muestra enmascarada y vive solo en el
         // backend Go, fuera del repositorio.
