@@ -152,9 +152,14 @@ migración.** Nada se rompe; se migra por pasos verificables.
    hace early-return en `.context-menu`; conserva el doble-clic de chip y la limpieza de fondo.
    Verificado: submenús (padre se queda), acciones, viajar con `@`, opciones de chip, listas `[n]`,
    opciones `[]` (con `current`), creador vía modal, doble-clic de chip.
-   **Pendiente:** (a) el canal de **escena** (`create chip`, ocultar/quitar, resaltar, la proyección);
-   (b) el buscador y el panel del historial (widgets con interacción propia). Con eso, ningún átomo
-   toca el DOM y se puede meter el universo en un worker (Paso 4).
+   **Buscador e historial — HECHO.** `host.palette({onQuery, onPick})` (el buscador: el shell lleva
+   el overlay/teclado/resultados; el átomo `buscar ƒ` provee la lógica de filtrar y a dónde ir) y
+   `host.picker(items, {anchor, onPick})` (el panel clicable del historial). Se añadió `host.anchorRect(name)`
+   —la caja en pantalla de un chip para anclar widgets—; hoy lee la ref del chip del Map (misma-hebra),
+   cuando la escena viva en el shell leerá su propio registro.
+   **Pendiente: solo el canal de ESCENA** — `create chip`, ocultar/quitar, resaltar, y la proyección
+   (`3d proyectar/init/render/reset/controles`, `install mover`, que ya son "vista pura"). Con eso,
+   ningún átomo toca el DOM y se puede meter el universo en un worker (Paso 4).
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se

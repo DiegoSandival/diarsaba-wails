@@ -754,6 +754,82 @@
                 this._clamp(div);
                 return div;
             },
+            // Caja en pantalla de un chip, para anclar widgets. Hoy (misma-hebra)
+            // lee la ref del chip del Map; cuando la escena viva en el shell,
+            // leerá su propio registro. Fallback al puntero si no está visible.
+            anchorRect(name) {
+                const chip = diarsaba.get(`${name} ֎`);
+                if (chip instanceof Element) {
+                    const r = chip.getBoundingClientRect();
+                    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+                }
+                return { left: this._px, top: this._py, right: this._px, bottom: this._py, width: 0, height: 0 };
+            },
+            // Panel de ítems CLICABLES junto a un ancla (el historial). onPick
+            // recibe {index, label}. Uno a la vez.
+            picker(items, { anchor = null, onPick = null } = {}) {
+                document.querySelectorAll(".historial-panel").forEach((e) => e.remove());
+                const div = document.createElement("div");
+                div.className = "historial-panel";
+                items.forEach((label, i) => {
+                    const it = document.createElement("div");
+                    it.className = "historial-item";
+                    it.textContent = label;
+                    it.addEventListener("mousedown", (e) => {
+                        e.preventDefault();
+                        div.remove();
+                        if (onPick) onPick({ index: i, label });
+                    });
+                    div.appendChild(it);
+                });
+                const rect = (anchor && anchor.chip) ? this.anchorRect(anchor.chip)
+                    : { left: this._px, top: this._py, width: 0 };
+                div.style.left = `${rect.left + (rect.width || 0) + 10}px`;
+                div.style.top = `${rect.top}px`;
+                document.body.appendChild(div);
+                this._clamp(div);
+                return div;
+            },
+            // Paleta de búsqueda (el buscador). El universo provee la LÓGICA:
+            // onQuery(texto) → lista de resultados, onPick(item) al elegir. El
+            // overlay, el teclado y el resaltado los lleva el shell.
+            _paletteOpen: null,
+            palette({ onQuery, onPick }) {
+                if (this._paletteOpen) return;
+                const overlay = document.createElement("div");
+                overlay.className = "modal-content buscador";
+                overlay.innerHTML = `
+                    <input class="buscador-input" type="text" spellcheck="false" placeholder="Buscar átomo… (nombre o contenido)" />
+                    <div class="buscador-resultados"></div>
+                `;
+                document.body.appendChild(overlay);
+                this._paletteOpen = overlay;
+                const input = overlay.querySelector(".buscador-input");
+                const cont = overlay.querySelector(".buscador-resultados");
+                let items = [];
+                let sel = 0;
+                const pintar = () => {
+                    cont.replaceChildren();
+                    items.forEach((k, i) => {
+                        const el = document.createElement("div");
+                        el.className = "buscador-item" + (i === sel ? " sel" : "");
+                        el.textContent = k;
+                        el.addEventListener("mousedown", (ev) => { ev.preventDefault(); elegir(k); });
+                        cont.appendChild(el);
+                    });
+                };
+                const cerrar = () => { overlay.remove(); this._paletteOpen = null; };
+                const elegir = (k) => { cerrar(); onPick(k); };
+                input.addEventListener("input", () => { items = onQuery(input.value) || []; sel = 0; pintar(); });
+                input.addEventListener("keydown", (e) => {
+                    e.stopPropagation();
+                    if (e.key === "Escape") cerrar();
+                    else if (e.key === "Enter") { if (items[sel]) elegir(items[sel]); }
+                    else if (e.key === "ArrowDown") { sel = Math.min(sel + 1, items.length - 1); pintar(); e.preventDefault(); }
+                    else if (e.key === "ArrowUp") { sel = Math.max(sel - 1, 0); pintar(); e.preventDefault(); }
+                });
+                input.focus();
+            },
 
             // ¿Hay backend Go detrás? (algunos átomos degradan sin él.)
             get tieneBackend() { return typeof window.go !== "undefined"; },
