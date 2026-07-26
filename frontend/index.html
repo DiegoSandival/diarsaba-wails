@@ -670,30 +670,54 @@
                 const t = typeof v === "string" ? v : (() => { try { return JSON.stringify(v); } catch (_) { return String(v); } })();
                 return t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
             },
+            // Cablea el CLIC de un menú/lista: al pulsar un ítem (botón primario)
+            // llama onPick con DATOS semánticos —no el DOM— para que el universo
+            // despache sin tocar la vista. stopPropagation corta el manejador
+            // global (handle click ƒ) para que no lo procese dos veces. En el
+            // worker, onPick se volverá un postMessage; el payload ya es data.
+            _wirePick(div, onPick) {
+                div.addEventListener("pointerup", (e) => {
+                    if (e.button !== 0) return; // el clic derecho abre menú, no elige
+                    const item = e.target.closest && e.target.closest(".menu-item");
+                    if (!item || !div.contains(item)) return;
+                    e.stopPropagation();
+                    const r = item.getBoundingClientRect();
+                    onPick({
+                        label: item.textContent,
+                        index: Number(item.dataset.idx),
+                        parent: div.dataset.parent || "",
+                        current: div.dataset.current || "",
+                        rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height },
+                    });
+                });
+            },
             // Menú de opciones (ítems sin prefijo). x/y null → junto al puntero.
-            menu(list, parent = "", current = "", x = null, y = null) {
+            menu(list, parent = "", current = "", x = null, y = null, onPick = null) {
                 const div = document.createElement("div");
                 div.className = "context-menu";
-                for (const key of list) div.innerHTML += `<span class="menu-item">${this._render(key)}</span>`;
+                let i = 0;
+                for (const key of list) div.innerHTML += `<span class="menu-item" data-idx="${i++}">${this._render(key)}</span>`;
                 div.style.left = `${x === null ? this._px : x}px`;
                 div.style.top = `${y === null ? this._py : y}px`;
                 div.dataset.parent = parent;
                 div.dataset.current = current;
                 document.body.appendChild(div);
                 this._clamp(div);
+                if (onPick) this._wirePick(div, onPick);
                 return div;
             },
             // Lista con ítems "[n] valor" (la abren · # abrir, padres, referencias…).
-            list(x, y, list, parent) {
+            list(x, y, list, parent, onPick = null) {
                 const div = document.createElement("div");
                 div.className = "context-menu";
-                if (list.length == 0) div.innerHTML += `<span class="menu-item">[0]</span>`;
-                else for (const key in list) div.innerHTML += `<span class="menu-item">[${key}] ${this._render(list[key])}</span>`;
+                if (list.length == 0) div.innerHTML += `<span class="menu-item" data-idx="0">[0]</span>`;
+                else { let i = 0; for (const key in list) div.innerHTML += `<span class="menu-item" data-idx="${i++}">[${key}] ${this._render(list[key])}</span>`; }
                 div.style.left = `${x}px`;
                 div.style.top = `${y}px`;
                 div.dataset.parent = parent;
                 document.body.appendChild(div);
                 this._clamp(div);
+                if (onPick) this._wirePick(div, onPick);
                 return div;
             },
             // Pide un nombre. Resuelve el texto (Continue) o null (Cancel).

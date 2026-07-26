@@ -142,10 +142,19 @@ migración.** Nada se rompe; se migra por pasos verificables.
    `create list ƒ`, `modal input ƒ` y `bitácora ƒ` son ahora **shims** sobre ellos: el DOM se movió
    al shell sin que ningún llamador cambie. El despacho por clic sigue en `handle click ƒ` leyendo
    ese DOM.
-   **Pendiente:** (a) convertir menú/lista a **request/reply** (`host.menu(...) → elección`) —
-   reescribe `handle click ƒ`/`show options list ƒ`/`dispatch item ƒ`, es lo que desacopla de verdad
-   para el worker; (b) el canal de **escena** (`create chip`, ocultar/quitar, resaltar, la proyección);
-   (c) el buscador y el panel del historial (widgets con interacción propia).
+   **Menú/lista → despacho por datos, HECHO.** `host.menu`/`host.list` emiten al clic un payload
+   semántico `{label, index, rect, parent, current}` (vía `onPick`, con `stopPropagation`); un
+   **`despachar menú ƒ`** nuevo contiene las ramas de menú/lista que vivían en `handle click ƒ`,
+   pero leyendo del payload —no del DOM—, así el despacho ya no toca la vista. `dispatch item ƒ` y
+   `open submenu ƒ` reciben `rect` (dato) en vez del elemento. Los shims `create list menu ƒ`/
+   `create list ƒ` cablean `despachar menú ƒ` por defecto, así que ningún llamador (show context
+   menu, options, abrir, padres, referencias) cambió. `handle click ƒ` perdió las ramas de menú y
+   hace early-return en `.context-menu`; conserva el doble-clic de chip y la limpieza de fondo.
+   Verificado: submenús (padre se queda), acciones, viajar con `@`, opciones de chip, listas `[n]`,
+   opciones `[]` (con `current`), creador vía modal, doble-clic de chip.
+   **Pendiente:** (a) el canal de **escena** (`create chip`, ocultar/quitar, resaltar, la proyección);
+   (b) el buscador y el panel del historial (widgets con interacción propia). Con eso, ningún átomo
+   toca el DOM y se puede meter el universo en un worker (Paso 4).
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se
