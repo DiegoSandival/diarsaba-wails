@@ -857,6 +857,22 @@
                     this._child.set(name, div);
                 },
                 child(name) { return this._child.get(name); },
+                // Edición inline del hijo abierto ("֎ ֎"): · ֎ editar lo vuelve
+                // editable; · ֎x guardar lo cierra y DEVUELVE su texto (el átomo
+                // lo parsea por tipo: Number, createFunction, o tal cual). Así el
+                // átomo no toca el DOM — el shell lee el textContent.
+                editChild(name) {
+                    const el = this._child.get(name);
+                    if (!(el instanceof Element)) return;
+                    el.contentEditable = true;
+                    el.focus();
+                },
+                commitChild(name) {
+                    const el = this._child.get(name);
+                    if (!(el instanceof Element)) return "";
+                    el.contentEditable = false;
+                    return el.textContent;
+                },
                 openList(name, el) {
                     const prev = this._list.get(name);
                     if (prev && typeof prev.remove === "function") prev.remove();
@@ -920,6 +936,27 @@
                     this._chips.delete(viejo);
                     this._child.delete(viejo);
                     this._list.delete(viejo);
+                },
+                // Materializa el chip de `name` pegado a la IZQUIERDA de su hijo
+                // ("child") o lista ("list") abierta, corrido medio ancho para
+                // quedar a ras. Toda la geometría —medir la caja del ancla,
+                // proyectar a mundo, colocar y medir el chip nuevo— es del shell;
+                // el átomo (· ֎* padre / · #* padre) solo dice el nombre y el ancla.
+                spawnChipLeftOf(name, anchorKind) {
+                    const anchor = (anchorKind === "list" ? this._list : this._child).get(name);
+                    if (!(anchor instanceof Element)) return;
+                    const rect = anchor.getBoundingClientRect();
+                    const sx = rect.left - 10;
+                    const sy = rect.top + rect.height / 2;
+                    const mundo = this.worldPoint(sx, sy);
+                    const chip = this.make(mundo ? mundo.x : sx, mundo ? -mundo.y : sy, name, "", name.slice(0, 1));
+                    if (chip._obj3d) {
+                        chip._obj3d.position.x -= chip.offsetWidth / 2;
+                        this.render();
+                    } else {
+                        chip.style.left = `${sx - chip.offsetWidth - 10}px`;
+                    }
+                    this.register(name, chip);
                 },
 
                 // --- El MOTOR 3d (antes átomos "3d …ƒ" / create chip / mover) ---

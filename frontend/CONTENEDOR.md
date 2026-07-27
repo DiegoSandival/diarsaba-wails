@@ -170,12 +170,24 @@ así los shims `3d punto en plano ƒ`/`es fondo ƒ` quedan **solo de cara a los 
 en el worker). Verificado: los átomos devuelven Promise y resuelven; `isBackground` bien; el único
 `null` de `worldPoint` es artefacto del pane oculto (`innerWidth 0`), con su fallback a pantalla.
 
-**Lo que resta del Paso 4:** (1) los pocos átomos que aún **leen el DOM del elemento devuelto**
-(`· ֎ editar`/`· ֎x guardar` con `contentEditable`/`textContent`, `· ֎* padre`/`· #* padre` con
-`getBoundingClientRect`): ahora que el registro es de `host.scene`, se vuelven verbos del host de
-forma natural; (2) el shell aún llama a algún átomo VOID (`grafo dibujar ƒ`, `3d render ƒ` desde el
-bucle de render) — decoplarlos a `host.grafo`/`host.scene` directo. Luego, el transporte worker
-(los `host.*` se vuelven `postMessage`).
+**De-DOM del elemento devuelto — HECHO.** Los átomos que aún introspeccionaban el DOM del
+elemento (`· ֎ editar`/`· ֎x guardar` leían `contentEditable`/`textContent`; `· ֎* padre`/`· #* padre`
+medían `getBoundingClientRect`/`offsetWidth` y ajustaban `_obj3d`/`style.left`) ahora hablan verbos
+nuevos de `host.scene`: **`editChild`** (vuelve editable + foco), **`commitChild`** (cierra y DEVUELVE
+el texto — el átomo lo parsea por tipo: `Number`/`createFunction`/tal cual, y lo awaita), y
+**`spawnChipLeftOf(name, "child"|"list")`** que encapsula toda la geometría (medir el ancla,
+proyectar a mundo, crear, correr medio ancho, registrar). Los 8 átomos quedan sin DOM: `· ֎ editar`
+es una línea void; los 5 `· ֎x guardar` son `async` (awaitan `commitChild`); `· ֎*/#* padre` vuelven
+a ser void (la geometría, con su `worldPoint` interno, es del shell). Verificado: editar (editable+
+foco), guardar (valor al Map, Promise), spawn (chip registrado, void).
+
+**Lo que resta del Paso 4:** (1) los átomos de DESPACHO de eventos (`handle click ƒ`, `show context
+menu ƒ`, `on double tap place ƒ`) aún leen `event.target.textContent`/`.closest` — eso lo resuelve
+el **canal de eventos** (el shell manda el clic con datos ya calculados: chip/fondo + coords de
+mundo); (2) marcas de clase de widgets del shell (`open submenu` "submenu", `panorámica pintar`
+"pano-label") y el `clamp to viewport ƒ` del fallback sin escena; (3) el shell aún llama a algún
+átomo VOID (`grafo dibujar ƒ`, `3d render ƒ` desde el bucle de render) — decoplarlos a `host.grafo`/
+`host.scene` directo. Luego, el transporte worker (los `host.*` se vuelven `postMessage`).
 
 ### Pasos
 
@@ -243,8 +255,10 @@ bucle de render) — decoplarlos a `host.grafo`/`host.scene` directo. Luego, el 
    **Arranque HECHO:** el registro `${name} ֎` ya vive en `host.scene` (26 átomos funneleados, el
    `Map` sin refs DOM). **Pase a async HECHO:** las 3 llamadas host que devuelven valor
    (`anchorRect`/`worldPoint`/`isBackground`) se awaitan en 13 átomos `async`; el shell (pointer
-   handlers) las llama directo (sync). Resta: volver verbos del host las últimas lecturas de DOM
-   (`· ֎ editar`/`guardar`/`padre`), decoplar los átomos VOID que el shell aún llama (`grafo
+   handlers) las llama directo (sync). **De-DOM del elemento devuelto HECHO:** `· ֎ editar`/`guardar`/
+   `· ֎*/#* padre` (8 átomos) hablan `host.scene.editChild`/`commitChild`/`spawnChipLeftOf`. Resta: el
+   canal de EVENTOS (despacho `handle click`/`show context menu` que leen `event.target`), las marcas
+   de clase de widgets + `clamp` sin escena, decoplar los átomos VOID que el shell aún llama (`grafo
    dibujar`, `3d render`), y ya el transporte worker.
 5. **Store por universo + semilla del núcleo.** El shell gestiona un bbolt por universo (Go),
    sembrado desde un `core.json` embebido (la semilla mínima) — o, para el universo 0, el programa
