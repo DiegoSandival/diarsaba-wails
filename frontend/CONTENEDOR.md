@@ -159,12 +159,23 @@ chip** — solo estado vivo (`3d … ֎`, `mover instalado ֎`, `grafo aristas �
 Verificado en el frontend suelto: arranque, cambio de place (registro vaciado y repoblado 2→56),
 lista/hijo/submenú abrir sin apilar, ocultar/renombrar.
 
-**Lo que resta del Paso 4:** (1) pasar a **async** las llamadas `host` que hoy devuelven valor
-síncrono (`anchorRect`, `worldPoint`, `isBackground`) — el worker las exige por `postMessage`;
-(2) los pocos átomos que aún **leen el DOM del elemento devuelto** (`· ֎ editar`/`· ֎x guardar` con
-`contentEditable`/`textContent`, `· ֎* padre`/`· #* padre` con `getBoundingClientRect`): ahora que
-el registro es de `host.scene`, se vuelven verbos del host de forma natural. Luego, el transporte
-worker (los `host.*` se vuelven `postMessage`).
+**Pase a async — HECHO.** Las tres llamadas `host` que devuelven valor (`anchorRect`, `worldPoint`
+vía `3d punto en plano ƒ`, `isBackground` vía `es fondo ƒ`) se **awaitan** en los átomos que las
+usan; **13 átomos marcados `async`** (`· !/#/~/$/§/ƒ abrir`, `· */#* /֎* padre`, `· * padres/
+referencias/parents`, `show context menu ƒ`; `handle click ƒ`/`· * parents` ya lo eran). Así el flip
+a `postMessage` del worker es transparente: el await ya está. Los **callers síncronos de verdad**
+—los manejadores de puntero del shell (`controls`/`installDrag`), que usan `preventDefault` y no
+pueden esperar— se **desacoplaron**: llaman directo a `host.scene.worldPoint`/`isBackground` (sync),
+así los shims `3d punto en plano ƒ`/`es fondo ƒ` quedan **solo de cara a los átomos** (serán Promise
+en el worker). Verificado: los átomos devuelven Promise y resuelven; `isBackground` bien; el único
+`null` de `worldPoint` es artefacto del pane oculto (`innerWidth 0`), con su fallback a pantalla.
+
+**Lo que resta del Paso 4:** (1) los pocos átomos que aún **leen el DOM del elemento devuelto**
+(`· ֎ editar`/`· ֎x guardar` con `contentEditable`/`textContent`, `· ֎* padre`/`· #* padre` con
+`getBoundingClientRect`): ahora que el registro es de `host.scene`, se vuelven verbos del host de
+forma natural; (2) el shell aún llama a algún átomo VOID (`grafo dibujar ƒ`, `3d render ƒ` desde el
+bucle de render) — decoplarlos a `host.grafo`/`host.scene` directo. Luego, el transporte worker
+(los `host.*` se vuelven `postMessage`).
 
 ### Pasos
 
@@ -230,8 +241,11 @@ worker (los `host.*` se vuelven `postMessage`).
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se
    verifica que se comporta igual.
    **Arranque HECHO:** el registro `${name} ֎` ya vive en `host.scene` (26 átomos funneleados, el
-   `Map` sin refs DOM). Resta: pasar a `async` (`anchorRect`/`worldPoint`/`isBackground`), volver
-   verbos del host las últimas lecturas de DOM (`· ֎ editar`/`guardar`/`padre`), y ya el transporte.
+   `Map` sin refs DOM). **Pase a async HECHO:** las 3 llamadas host que devuelven valor
+   (`anchorRect`/`worldPoint`/`isBackground`) se awaitan en 13 átomos `async`; el shell (pointer
+   handlers) las llama directo (sync). Resta: volver verbos del host las últimas lecturas de DOM
+   (`· ֎ editar`/`guardar`/`padre`), decoplar los átomos VOID que el shell aún llama (`grafo
+   dibujar`, `3d render`), y ya el transporte worker.
 5. **Store por universo + semilla del núcleo.** El shell gestiona un bbolt por universo (Go),
    sembrado desde un `core.json` embebido (la semilla mínima) — o, para el universo 0, el programa
    actual. Aquí se define **el núcleo**: los átomos mínimos que hacen un universo vacío construible.

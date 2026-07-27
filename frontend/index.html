@@ -1031,13 +1031,17 @@
                     if (diarsaba.get("3d controles ֎")) return;
                     diarsaba.set("3d controles ֎", true);
                     const THREE = window.THREE;
-                    const punto = (x, y) => diarsaba.get("3d punto en plano ƒ")(x, y);
+                    // Directo a host.scene (sync): estos manejadores de puntero
+                    // usan preventDefault y no pueden esperar. Los shims
+                    // "3d punto en plano ƒ" / "es fondo ƒ" quedan solo de cara a
+                    // los ÁTOMOS, que los awaitan (serán postMessage en el worker).
+                    const punto = (x, y) => window.host.scene.worldPoint(x, y);
                     const pedir = () => diarsaba.get("3d render ƒ")();
                     let modo = null;
                     let ancla = null;
                     let ultimo = null;
                     window.addEventListener("pointerdown", (e) => {
-                        if (!diarsaba.get("es fondo ƒ")(e.target)) return;
+                        if (!window.host.scene.isBackground(e.target)) return;
                         if (e.button === 1 || (e.button === 0 && e.altKey)) modo = "orbita";
                         else if (e.button === 0) modo = "pan";
                         else return;
@@ -1152,7 +1156,7 @@
                         if (!chip) return;
                         arrastrando = chip;
                         const obj = chip._obj3d;
-                        const p = obj ? diarsaba.get("3d punto en plano ƒ")(e.clientX, e.clientY) : null;
+                        const p = obj ? window.host.scene.worldPoint(e.clientX, e.clientY) : null;
                         if (obj && p) {
                             desfase = obj.position.clone().sub(p);
                         } else {
@@ -1170,7 +1174,7 @@
                         if (!arrastrando) return;
                         const obj = arrastrando._obj3d;
                         if (obj && desfase) {
-                            const p = diarsaba.get("3d punto en plano ƒ")(e.clientX, e.clientY);
+                            const p = window.host.scene.worldPoint(e.clientX, e.clientY);
                             if (p) { obj.position.copy(p.add(desfase)); diarsaba.get("3d render ƒ")(); }
                         } else {
                             arrastrando.style.left = `${e.clientX - dx}px`;
