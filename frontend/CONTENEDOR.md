@@ -126,6 +126,38 @@ borde solo lleva *cambios* de átomos (poco frecuentes) + eventos + llamadas a G
 Regla de oro: **el programa actual sigue funcionando como "universo 0 / casa" durante toda la
 migración.** Nada se rompe; se migra por pasos verificables.
 
+### Estado actual (de una ojeada) — 2026-07-27
+
+**Hecho: todo el `host` misma-hebra (Pasos 1–3).** Todo el DOM/Go de interacción pasa por el
+objeto `host` en `index.html` (global, como `diarsaba`), que hoy reenvía al código actual —la app
+se comporta idéntica— y mañana se volverá `postMessage` sin que los átomos cambien. Cubierto:
+
+- **UI** (`notify`/`confirm`), **editor** (`editor`/`diff`), **broker Go** (`kv.*`, `save`/`export`/
+  `load`/`ai`, `events`, `p2p`, `reload`).
+- **Widgets**: `menu`/`list`/`modal`/`panel`/`palette`/`picker`, con `_clamp`, seguidor de puntero
+  y `anchorRect` propios. Los átomos que los creaban son shims.
+- **Despacho de menú/lista por DATOS** (`despachar menú ƒ` lee `{label,index,rect,parent,current}`,
+  no el DOM).
+- **Escena**: `host.scene` con el motor 3d completo (`init/project/render/reset/worldPoint/controls/
+  clear/isBackground/make/installDrag`) + operaciones sobre chips (`remove*/flash/rename`); `host.grafo`
+  (aristas), `host.installStyles`, `host.mode`. Los átomos `3d …ƒ`/`create chip`/`grafo …`/`install
+  style manager` son shims.
+
+**Verificado** a lo largo de 7 commits (arranque, place-switch, crear/mover/quitar/renombrar chip,
+menús/submenús/listas/opciones, buscador, historial, editores, pan/zoom/órbita/reset, grafo,
+panorámica). Único error en consola: p2p sin backend (esperado en el frontend suelto).
+
+**Lo que queda para "ningún átomo toca el DOM" → es el Paso 4.** El DOM restante en átomos está
+**atado al registro de refs `${name} ֎`** (que aún vive en el `Map`): ~50 sitios dispersos en ~15
+átomos leen/escriben `${name} ֎` / `${name} ֎ ֎` / `${name} # ֎` (los barridos con `classList.contains`,
+las marcas `submenu`/`pano-label`, `querySelectorAll` de overlays, `clamp` fallback, los 2 `padre`
+con `offsetWidth`). **No se pueden de-DOMar hasta mover ese registro a `host.scene`**, que es el
+arranque del Paso 4. Además, el worker exige convertir a **async** las llamadas `host` que hoy
+devuelven valor síncrono (`anchorRect`, `worldPoint`, `isBackground`). Es la fase más grande;
+empezar por mover el registro (`host.scene` dueño de `name → {div, obj}`) + funnelar los ~50 sitios.
+
+### Pasos
+
 1. **Auditar el borde** — hecho (este documento).
 2. **Definir el protocolo con implementación *misma-hebra*.** — **hecho para UI/editor/broker.**
    El objeto `host` vive en `index.html` (global, como `diarsaba`) y cada verbo reenvía al código
