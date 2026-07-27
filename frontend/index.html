@@ -805,6 +805,28 @@
                 if (window.host.scene.isBackground(t)) p.kind = "background";
                 return p;
             },
+            // El menú de fondo (main) y el de opciones de chip (chip) los rastrea
+            // el SHELL (antes vivían en el Map como "current menu"/"current chip
+            // menu", refs DOM). set* cierra el anterior de su ranura; clearMenus
+            // barre todo lo transitorio (es el cuerpo de "clear menus ƒ", ahora
+            // shim). Con alsoModals (cambio de place) barre además todo menú/modal.
+            _menuMain: null,
+            _menuChip: null,
+            setMenu(el) {
+                if (this._menuMain && typeof this._menuMain.remove === "function") this._menuMain.remove();
+                this._menuMain = el instanceof Element ? el : null;
+            },
+            setChipMenu(el) {
+                if (this._menuChip && typeof this._menuChip.remove === "function") this._menuChip.remove();
+                this._menuChip = el instanceof Element ? el : null;
+            },
+            clearMenus(alsoModals) {
+                if (this._menuMain && typeof this._menuMain.remove === "function") this._menuMain.remove();
+                if (this._menuChip && typeof this._menuChip.remove === "function") this._menuChip.remove();
+                this._menuMain = this._menuChip = null;
+                document.querySelectorAll(".context-menu.submenu, .bitacora-panel, .historial-panel").forEach((el) => el.remove());
+                if (alsoModals) document.querySelectorAll(".context-menu, .modal-content").forEach((el) => el.remove());
+            },
             // Panel de ítems CLICABLES junto a un ancla (el historial). onPick
             // recibe {index, label}. Uno a la vez.
             picker(items, { anchor = null, onPick = null } = {}) {
@@ -922,7 +944,19 @@
                 openSubmenu(name, el) {
                     const prev = this._submenu.get(name);
                     if (prev && typeof prev.remove === "function") prev.remove();
+                    // La marca "submenu" permite a host.clearMenus barrerlos todos
+                    // por clase sin llevar la cuenta (se abren en cadena).
+                    if (el instanceof Element) el.classList.add("submenu");
                     this._submenu.set(name, el);
+                },
+                // Marca un chip DESECHABLE de la panorámica: dataset.pano (a qué
+                // place vuela un clic; lo lee host.hit) y, si es la etiqueta del
+                // cluster, la clase "pano-label". El átomo (panorámica pintar ƒ)
+                // ya no toca el elemento devuelto por make.
+                tagPano(chip, place, isLabel) {
+                    if (!(chip instanceof Element)) return;
+                    chip.dataset.pano = place;
+                    if (isLabel) chip.classList.add("pano-label");
                 },
                 // Olvida las refs de chips/hijos/listas (cambio de place /
                 // panorámica). Antes lo hacía un barrido de claves "֎" del Map.
@@ -1022,10 +1056,10 @@
                     window.addEventListener("resize", () => {
                         camara.aspect = window.innerWidth / window.innerHeight;
                         camara.updateProjectionMatrix();
-                        diarsaba.get("3d render ƒ")();
+                        window.host.scene.render();
                     });
-                    diarsaba.get("3d reset ƒ")();
-                    diarsaba.get("3d controles ƒ")();
+                    window.host.scene.reset();
+                    window.host.scene.controls();
                 },
                 project() {
                     const camara = diarsaba.get("3d camara ֎");
@@ -1064,8 +1098,7 @@
                         c.el.style.top = `${Math.round(c.y - c.mh)}px`;
                         c.el.style.zIndex = String(++z);
                     }
-                    const grafo = diarsaba.get("grafo dibujar ƒ");
-                    if (grafo) grafo();
+                    window.host.grafo.draw();
                 },
                 render() {
                     if (diarsaba.get("3d render pendiente ֎")) return;
@@ -1073,7 +1106,7 @@
                     diarsaba.set("3d render pendiente ֎", true);
                     requestAnimationFrame(() => {
                         diarsaba.set("3d render pendiente ֎", false);
-                        diarsaba.get("3d proyectar ƒ")();
+                        window.host.scene.project();
                     });
                 },
                 reset() {
@@ -1089,7 +1122,7 @@
                     const mira = diarsaba.get("3d mira ֎");
                     if (mira) mira.set(cx, -cy, 0);
                     else diarsaba.set("3d mira ֎", new THREE.Vector3(cx, -cy, 0));
-                    diarsaba.get("3d render ƒ")();
+                    window.host.scene.render();
                 },
                 worldPoint(clientX, clientY) {
                     const THREE = window.THREE;
@@ -1113,7 +1146,7 @@
                     // "3d punto en plano ƒ" / "es fondo ƒ" quedan solo de cara a
                     // los ÁTOMOS, que los awaitan (serán postMessage en el worker).
                     const punto = (x, y) => window.host.scene.worldPoint(x, y);
-                    const pedir = () => diarsaba.get("3d render ƒ")();
+                    const pedir = () => window.host.scene.render();
                     let modo = null;
                     let ancla = null;
                     let ultimo = null;
@@ -1179,7 +1212,7 @@
                         }
                         escena.remove(obj);
                     });
-                    diarsaba.get("3d render ƒ")();
+                    window.host.scene.render();
                 },
                 isBackground(target) {
                     if (!target || !(target instanceof Element)) return true;
@@ -1201,7 +1234,7 @@
                         div.style.left = `${x}px`;
                         div.style.top = `${y}px`;
                         document.body.appendChild(div);
-                        diarsaba.get("clamp to viewport ƒ")(div);
+                        window.host._clamp(div);
                         return div;
                     }
                     const obj = new window.THREE.Object3D();
@@ -1214,9 +1247,9 @@
                     div.remove = () => {
                         escena.remove(obj);
                         removeDom();
-                        diarsaba.get("3d render ƒ")();
+                        window.host.scene.render();
                     };
-                    diarsaba.get("3d render ƒ")();
+                    window.host.scene.render();
                     return div;
                 },
                 installDrag() {
@@ -1252,7 +1285,7 @@
                         const obj = arrastrando._obj3d;
                         if (obj && desfase) {
                             const p = window.host.scene.worldPoint(e.clientX, e.clientY);
-                            if (p) { obj.position.copy(p.add(desfase)); diarsaba.get("3d render ƒ")(); }
+                            if (p) { obj.position.copy(p.add(desfase)); window.host.scene.render(); }
                         } else {
                             arrastrando.style.left = `${e.clientX - dx}px`;
                             arrastrando.style.top = `${e.clientY - dy}px`;
@@ -1297,7 +1330,7 @@
                     canvas.height = window.innerHeight;
                     document.body.insertBefore(canvas, document.body.firstChild);
                     diarsaba.set("grafo lienzo ֎", canvas);
-                    window.addEventListener("resize", () => diarsaba.get("grafo dibujar ƒ")());
+                    window.addEventListener("resize", () => window.host.grafo.draw());
                 },
                 draw() {
                     const canvas = diarsaba.get("grafo lienzo ֎");

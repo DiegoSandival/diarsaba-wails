@@ -195,12 +195,23 @@ Verificado con eventos DOM REALES: `host.hit` clasifica chip/fondo/modal; clic d
 menú de fondo; doble clic en place → cambia de place; clic derecho en chip → menú de opciones;
 `ir a` viaja.
 
-**Lo que resta del Paso 4:** (1) marcas de clase de widgets del shell (`open submenu` "submenu",
-`panorámica pintar` "pano-label"), el `document.querySelectorAll` de overlays en `on double tap` /
-`clear menus`, y el `clamp to viewport ƒ` del fallback sin escena; (2) el shell aún llama a algún
-átomo VOID (`grafo dibujar ƒ`, `3d render ƒ` desde el bucle de render) — decoplarlos a `host.grafo`/
-`host.scene` directo, y mudar al shell la registración de listeners de `on start ƒ`. Luego, el
-transporte worker (los `host.*` se vuelven `postMessage`).
+**Limpieza final de DOM — HECHA.** Los últimos átomos que tocaban el DOM hablan verbos del shell:
+`clear menus ƒ` → shim de **`host.clearMenus(alsoModals)`** (el shell rastrea el menú de fondo y el
+de chip en `host._menuMain`/`_menuChip` con **`host.setMenu`/`setChipMenu`** — antes eran refs DOM
+`current menu`/`current chip menu` en el Map); `on double tap place ƒ` usa `host.clearMenus(true)`
+(barre menús+modales en cambio de place); `open submenu ƒ` ya no pone la clase — la pone
+`host.scene.openSubmenu`; `panorámica pintar ƒ` marca sus chips con **`host.scene.tagPano`** (antes
+`dataset.pano`/`classList`); `clamp to viewport ƒ` → shim de **`host._clamp`**. Y el **shell dejó de
+llamar átomos** en el bucle de render: `host.scene` invoca directo `render/reset/controles/project`
+y `host.grafo.draw`/`host._clamp` (antes `diarsaba.get("3d …ƒ")()` / `grafo dibujar ƒ` / `clamp to
+viewport ƒ`). **Resultado: ningún átomo toca el DOM** salvo el `window.addEventListener` de bootstrap
+en `on start ƒ`. Verificado con eventos reales: menú de fondo/chip (rastreo+cierre), submenú (clase),
+panorámica (tagPano: 221 chips + 19 labels), bucle de render decoplado.
+
+**Lo que resta del Paso 4 — solo el transporte worker.** Falta mudar al shell la registración de
+listeners de `on start ƒ` (el único DOM que queda en un átomo) — va junto con el transporte, porque
+ahí la ENTREGA del evento al universo se vuelve `postMessage` en vez de `threads(...)`. Con eso, los
+`host.*` pasan a `postMessage` y el universo 0 corre en un worker.
 
 ### Pasos
 
@@ -274,8 +285,12 @@ transporte worker (los `host.*` se vuelven `postMessage`).
    de clase de widgets + `clamp` sin escena, decoplar los átomos VOID que el shell aún llama (`grafo
    dibujar`, `3d render`), y ya el transporte worker. **Canal de EVENTOS HECHO:** `host.hit(e)`
    clasifica el clic en un payload semántico (`kind/name/type/parent/pano/world`); los 4 lectores y
-   los 5 setters sintéticos ya no tocan `event.target`. Resta: marcas de clase de widgets + `clamp`,
-   los átomos VOID del bucle de render, mudar los listeners de `on start ƒ` al shell, y el transporte.
+   los 5 setters sintéticos ya no tocan `event.target`. **Limpieza final HECHA:** `host.clearMenus`/
+   `setMenu`/`setChipMenu` (menús rastreados por el shell), `host.scene.tagPano`, `openSubmenu` marca
+   la clase, `clamp` → `host._clamp`; y el shell dejó de llamar átomos en el bucle de render
+   (`render/reset/project/grafo.draw` directos). Ningún átomo toca el DOM salvo el `addEventListener`
+   de `on start ƒ`. **Resta solo el transporte worker** (que muda esos listeners y vuelve `host.*` en
+   `postMessage`).
 5. **Store por universo + semilla del núcleo.** El shell gestiona un bbolt por universo (Go),
    sembrado desde un `core.json` embebido (la semilla mínima) — o, para el universo 0, el programa
    actual. Aquí se define **el núcleo**: los átomos mínimos que hacen un universo vacío construible.
