@@ -208,10 +208,26 @@ viewport ƒ`). **Resultado: ningún átomo toca el DOM** salvo el `window.addEve
 en `on start ƒ`. Verificado con eventos reales: menú de fondo/chip (rastreo+cierre), submenú (clase),
 panorámica (tagPano: 221 chips + 19 labels), bucle de render decoplado.
 
-**Lo que resta del Paso 4 — solo el transporte worker.** Falta mudar al shell la registración de
-listeners de `on start ƒ` (el único DOM que queda en un átomo) — va junto con el transporte, porque
-ahí la ENTREGA del evento al universo se vuelve `postMessage` en vez de `threads(...)`. Con eso, los
-`host.*` pasan a `postMessage` y el universo 0 corre en un worker.
+**El transporte worker — descubierto que son 3 sub-pasos, NO un switch.** Una auditoría al empezarlo
+mostró acoplamiento que el worker no tolera: 2 átomos (`panorámica pintar`/`entrar`) usaban
+`window.THREE` y la cámara directo, y el shell hace ~49 lecturas del `Map` de objetos Three/canvas
+(`3d camara/escena/mira ֎`, `grafo … ֎`, `mover instalado ֎`) que son SUYOS pero viven en el `Map`.
+
+- **T1 — panorámica → `host.scene` — HECHO.** La cámara de panorámica pasó a `host.scene.frameClusters`
+  (encuadra + guarda los centros en `host.scene._panoCenters`, antes `panorámica centros ֎` en el Map)
+  y `host.scene.flyToCluster(place, onArrive)` (el tween; la ENTRADA queda como lógica del universo en
+  `panorámica entrar ƒ`). Los átomos ya no usan `THREE` ni leen `3d camara/mira`/`centros`. Verificado:
+  panorámica pinta (221 chips + 19 labels), centros en el shell y NO en el Map, `flyToCluster` sin
+  destino llama `onArrive`.
+- **T2 — mudar el estado Three/canvas del `Map` a `host.scene`/`host.grafo` privados** (como el registro
+  de chips): `3d escena/camara/mira/contenedor/controles/render pendiente ֎`, `grafo lienzo/aristas ֎`,
+  `mover instalado ֎`. Tras T2 el `Map` queda como DATOS PUROS del universo. Ojo: `grafo aristas ֎` lo
+  escribe `grafo activar ƒ` (átomo) → necesita `host.grafo.setEdges`.
+- **T3 — el boundary del worker**: montar el Worker (Map+createFunction+threads+semilla), `host.*` →
+  `postMessage`, mudar los listeners de `on start ƒ` al shell (la ENTREGA del evento se vuelve
+  `postMessage` en vez de `threads`), y un mirror de los flags del universo que el shell lee en los
+  manejadores de puntero (`current place §`, `moviendo chips §`, `panorámica activa §`, `grafo activo §`).
+  Es la pieza grande y la más difícil de verificar en el frontend suelto (pane oculto, sin backend Go).
 
 ### Pasos
 

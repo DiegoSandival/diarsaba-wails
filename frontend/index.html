@@ -1124,6 +1124,53 @@
                     else diarsaba.set("3d mira ֎", new THREE.Vector3(cx, -cy, 0));
                     window.host.scene.render();
                 },
+                // PANORÁMICA — cámara (antes en los átomos, que usaban THREE y la
+                // cámara directo). El átomo da la GEOMETRÍA (centros + caja); el
+                // shell encuadra y vuela. Los centros se guardan aquí para el vuelo.
+                _panoCenters: {},
+                frameClusters(centers, minX, maxX, minY, maxY) {
+                    this._panoCenters = centers || {};
+                    const THREE = window.THREE;
+                    const camara = diarsaba.get("3d camara ֎");
+                    if (THREE && camara && isFinite(minX)) {
+                        const bcx = (minX + maxX) / 2, bcy = (minY + maxY) / 2;
+                        const bw = (maxX - minX) + 500, bh = (maxY - minY) + 500;
+                        const fov = (camara.fov * Math.PI) / 180;
+                        const distH = (bh / 2) / Math.tan(fov / 2);
+                        const distW = (bw / 2) / (Math.tan(fov / 2) * camara.aspect);
+                        const dist = Math.max(distH, distW) * 1.08;
+                        const mira = new THREE.Vector3(bcx, -bcy, 0);
+                        camara.position.set(bcx, -bcy, dist);
+                        camara.up.set(0, 1, 0);
+                        camara.lookAt(mira);
+                        diarsaba.set("3d mira ֎", mira);
+                    }
+                    this.render();
+                },
+                flyToCluster(placeName, onArrive) {
+                    const THREE = window.THREE;
+                    const camara = diarsaba.get("3d camara ֎");
+                    const destino = this._panoCenters && this._panoCenters[placeName];
+                    if (!THREE || !camara || !destino) { onArrive(); return; }
+                    const desde = camara.position.clone();
+                    const miraDesde = (diarsaba.get("3d mira ֎") || new THREE.Vector3()).clone();
+                    const posObj = new THREE.Vector3(destino.x, -destino.y, 640);
+                    const miraObj = new THREE.Vector3(destino.x, -destino.y, 0);
+                    const t0 = performance.now();
+                    const dur = 380;
+                    const paso = () => {
+                        const t = Math.min((performance.now() - t0) / dur, 1);
+                        const e = t * t * (3 - 2 * t); // smoothstep
+                        camara.position.lerpVectors(desde, posObj, e);
+                        const m = miraDesde.clone().lerp(miraObj, e);
+                        camara.lookAt(m);
+                        diarsaba.set("3d mira ֎", m);
+                        this.project();
+                        if (t < 1) requestAnimationFrame(paso);
+                        else onArrive();
+                    };
+                    requestAnimationFrame(paso);
+                },
                 worldPoint(clientX, clientY) {
                     const THREE = window.THREE;
                     const camara = diarsaba.get("3d camara ֎");
