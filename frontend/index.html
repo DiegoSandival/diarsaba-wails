@@ -765,6 +765,46 @@
                 }
                 return { left: this._px, top: this._py, right: this._px, bottom: this._py, width: 0, height: 0 };
             },
+            // Canal de EVENTOS: clasifica un evento de puntero en un payload
+            // SEMÁNTICO — lo que antes cada átomo sacaba de event.target. El shell
+            // mira el DOM UNA vez y entrega DATOS (tipo de blanco, nombre, átomo
+            // dueño, coords de mundo); los átomos (handle click / show context
+            // menu / on double tap / show options list) ya no tocan el evento. En
+            // el worker esto se calcula aquí y viaja por postMessage.
+            hit(e) {
+                const t = e && e.target;
+                const world = window.host.scene.worldPoint(e.clientX, e.clientY);
+                const p = {
+                    button: e.button ?? 0,
+                    clientX: e.clientX, clientY: e.clientY,
+                    world: world ? { x: world.x, y: world.y } : null,
+                    kind: "other", name: "", type: "", parent: "", pano: null,
+                };
+                if (t && t.closest) {
+                    if (t.closest(".editor-overlay, .modal-content")) { p.kind = "modal"; return p; }
+                    const item = t.closest(".menu-item");
+                    if (item) {
+                        const cm = t.closest(".context-menu");
+                        p.kind = "menu";
+                        p.name = item.textContent;
+                        p.type = item.textContent.slice(-1);
+                        p.parent = (cm && cm.dataset.parent) || "";
+                        return p;
+                    }
+                    if (t.closest(".context-menu")) { p.kind = "menu"; return p; }
+                    const chip = t.closest(".object-name");
+                    if (chip) {
+                        p.kind = "chip";
+                        p.name = chip.textContent;
+                        p.type = chip.textContent.slice(-1);
+                        p.parent = chip.dataset.parent || "";
+                        p.pano = chip.dataset.pano || null;
+                        return p;
+                    }
+                }
+                if (window.host.scene.isBackground(t)) p.kind = "background";
+                return p;
+            },
             // Panel de ítems CLICABLES junto a un ancla (el historial). onPick
             // recibe {index, label}. Uno a la vez.
             picker(items, { anchor = null, onPick = null } = {}) {

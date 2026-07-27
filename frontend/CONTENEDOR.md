@@ -181,13 +181,26 @@ es una línea void; los 5 `· ֎x guardar` son `async` (awaitan `commitChild`); 
 a ser void (la geometría, con su `worldPoint` interno, es del shell). Verificado: editar (editable+
 foco), guardar (valor al Map, Promise), spawn (chip registrado, void).
 
-**Lo que resta del Paso 4:** (1) los átomos de DESPACHO de eventos (`handle click ƒ`, `show context
-menu ƒ`, `on double tap place ƒ`) aún leen `event.target.textContent`/`.closest` — eso lo resuelve
-el **canal de eventos** (el shell manda el clic con datos ya calculados: chip/fondo + coords de
-mundo); (2) marcas de clase de widgets del shell (`open submenu` "submenu", `panorámica pintar`
-"pano-label") y el `clamp to viewport ƒ` del fallback sin escena; (3) el shell aún llama a algún
+**Canal de EVENTOS — HECHO.** `pointer up/down event` deja de ser un evento DOM crudo y pasa a ser
+un **payload semántico** que el shell calcula una vez con **`host.hit(e)`**: `{ kind (chip|
+background|menu|modal|other), name, type, parent, pano, button, clientX/Y, world }`. El shell mira
+el DOM UNA vez y entrega DATOS; los átomos ya no tocan `event.target`. Reescritos: `handle click ƒ`
+(kind en vez de `.closest`), `show context menu ƒ` (kind + `event.world`, vuelve a `sync`),
+`on double tap place ƒ` (`event.name`), `show options list ƒ` (`event.parent` en vez de
+`target.parentElement.dataset`/`target.dataset`). Los **setters sintéticos** (`ir a`, `dispatch
+item`, `panorámica`, `panorámica entrar`, `restaurar version`) ponen `{ name }` en vez del
+`{ target: { textContent } }` falso. Los listeners de `on start ƒ` envuelven el evento con
+`host.hit(e)` (bridge misma-hebra; la registración de listeners se muda al shell en el transporte).
+Verificado con eventos DOM REALES: `host.hit` clasifica chip/fondo/modal; clic derecho en fondo →
+menú de fondo; doble clic en place → cambia de place; clic derecho en chip → menú de opciones;
+`ir a` viaja.
+
+**Lo que resta del Paso 4:** (1) marcas de clase de widgets del shell (`open submenu` "submenu",
+`panorámica pintar` "pano-label"), el `document.querySelectorAll` de overlays en `on double tap` /
+`clear menus`, y el `clamp to viewport ƒ` del fallback sin escena; (2) el shell aún llama a algún
 átomo VOID (`grafo dibujar ƒ`, `3d render ƒ` desde el bucle de render) — decoplarlos a `host.grafo`/
-`host.scene` directo. Luego, el transporte worker (los `host.*` se vuelven `postMessage`).
+`host.scene` directo, y mudar al shell la registración de listeners de `on start ƒ`. Luego, el
+transporte worker (los `host.*` se vuelven `postMessage`).
 
 ### Pasos
 
@@ -259,7 +272,10 @@ mundo); (2) marcas de clase de widgets del shell (`open submenu` "submenu", `pan
    `· ֎*/#* padre` (8 átomos) hablan `host.scene.editChild`/`commitChild`/`spawnChipLeftOf`. Resta: el
    canal de EVENTOS (despacho `handle click`/`show context menu` que leen `event.target`), las marcas
    de clase de widgets + `clamp` sin escena, decoplar los átomos VOID que el shell aún llama (`grafo
-   dibujar`, `3d render`), y ya el transporte worker.
+   dibujar`, `3d render`), y ya el transporte worker. **Canal de EVENTOS HECHO:** `host.hit(e)`
+   clasifica el clic en un payload semántico (`kind/name/type/parent/pano/world`); los 4 lectores y
+   los 5 setters sintéticos ya no tocan `event.target`. Resta: marcas de clase de widgets + `clamp`,
+   los átomos VOID del bucle de render, mudar los listeners de `on start ƒ` al shell, y el transporte.
 5. **Store por universo + semilla del núcleo.** El shell gestiona un bbolt por universo (Go),
    sembrado desde un `core.json` embebido (la semilla mínima) — o, para el universo 0, el programa
    actual. Aquí se define **el núcleo**: los átomos mínimos que hacen un universo vacío construible.
