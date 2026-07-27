@@ -758,7 +758,7 @@
             // lee la ref del chip del Map; cuando la escena viva en el shell,
             // leerá su propio registro. Fallback al puntero si no está visible.
             anchorRect(name) {
-                const chip = diarsaba.get(`${name} ֎`);
+                const chip = window.host.scene.ref(name);
                 if (chip instanceof Element) {
                     const r = chip.getBoundingClientRect();
                     return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
@@ -831,45 +831,79 @@
                 input.focus();
             },
 
-            // --- ESCENA: operaciones sobre chips existentes ---
-            // Primera mitad del canal de escena (quitar/parpadear/renombrar/anclar).
-            // Hoy (misma-hebra) opera sobre las refs "${name} ֎" del Map; cuando la
-            // CREACIÓN de chips también viva aquí, host.scene tendrá su propio
-            // registro y el Map dejará de guardar refs DOM. La proyección y la
-            // cámara (3d proyectar/…) siguen siendo átomos por ahora.
+            // --- ESCENA: el REGISTRO de refs DOM de los chips + operaciones ---
+            // El registro "nombre → elemento" vive AQUÍ (antes en el Map como
+            // claves "${name} ֎"). host.scene es su dueño: la creación de chips
+            // lo llena vía register, y todo lo que ancla/quita/renombra/parpadea
+            // lo consulta. Cuando los átomos corran en un worker no podrán tener
+            // refs DOM — ya no las tienen: hablan con estos verbos y el Map deja
+            // de acumular claves "֎" de chips (solo quedan las de INFRAESTRUCTURA
+            // viva: "3d … ֎", "grafo … ֎", etc.). Tres familias, como las claves
+            // derivadas de antes: chip ("֎"), hijo abierto ("֎ ֎") y lista
+            // abierta ("# ֎"); los submenús ("submenu ֎") aparte.
             scene: {
+                _chips: new Map(),
+                _child: new Map(),
+                _list: new Map(),
+                _submenu: new Map(),
+                // La creación registra aquí (antes: diarsaba.set("${name} ֎")).
+                register(name, div) { if (div instanceof Element) this._chips.set(name, div); },
+                ref(name) { return this._chips.get(name); },
+                // Abre el hijo/lista/submenú de un nombre, cerrando el anterior
+                // (colapsa el patrón "si hay previo, .remove(); luego set").
+                openChild(name, div) {
+                    const prev = this._child.get(name);
+                    if (prev && typeof prev.remove === "function") prev.remove();
+                    this._child.set(name, div);
+                },
+                child(name) { return this._child.get(name); },
+                openList(name, el) {
+                    const prev = this._list.get(name);
+                    if (prev && typeof prev.remove === "function") prev.remove();
+                    this._list.set(name, el);
+                },
+                listRef(name) { return this._list.get(name); },
+                openSubmenu(name, el) {
+                    const prev = this._submenu.get(name);
+                    if (prev && typeof prev.remove === "function") prev.remove();
+                    this._submenu.set(name, el);
+                },
+                // Olvida las refs de chips/hijos/listas (cambio de place /
+                // panorámica). Antes lo hacía un barrido de claves "֎" del Map.
+                // Los submenús son overlays de menú: los cierra "clear menus ƒ".
+                forgetChips() { this._chips.clear(); this._child.clear(); this._list.clear(); },
                 // Quita el chip principal; si no está, su hijo abierto.
                 remove(name) {
-                    const chip = diarsaba.get(`${name} ֎`);
-                    if (chip && typeof chip.remove === "function") { chip.remove(); diarsaba.delete(`${name} ֎`); return; }
-                    const child = diarsaba.get(`${name} ֎ ֎`);
+                    const chip = this._chips.get(name);
+                    if (chip && typeof chip.remove === "function") { chip.remove(); this._chips.delete(name); return; }
+                    const child = this._child.get(name);
                     if (child && typeof child.remove === "function") child.remove();
-                    diarsaba.delete(`${name} ֎ ֎`);
+                    this._child.delete(name);
                 },
-                // Quita solo el hijo abierto ("${name} ֎ ֎").
+                // Quita solo el hijo abierto.
                 removeChild(name) {
-                    const el = diarsaba.get(`${name} ֎ ֎`);
+                    const el = this._child.get(name);
                     if (el && typeof el.remove === "function") el.remove();
-                    diarsaba.delete(`${name} ֎ ֎`);
+                    this._child.delete(name);
                 },
-                // Quita solo la lista abierta ("${name} # ֎").
+                // Quita solo la lista abierta.
                 removeList(name) {
-                    const el = diarsaba.get(`${name} # ֎`);
+                    const el = this._list.get(name);
                     if (el instanceof Element) el.remove();
-                    diarsaba.delete(`${name} # ֎`);
+                    this._list.delete(name);
                 },
                 // Quita chip + hijo + lista (quitar/eliminar).
                 removeAll(name) {
-                    [`${name} ֎`, `${name} ֎ ֎`, `${name} # ֎`].forEach((k) => {
-                        const el = diarsaba.get(k);
+                    for (const reg of [this._chips, this._child, this._list]) {
+                        const el = reg.get(name);
                         if (el && typeof el.remove === "function") el.remove();
-                        diarsaba.delete(k);
-                    });
+                        reg.delete(name);
+                    }
                 },
                 // Parpadea el chip con una clase durante ms (resaltar/bitácora).
                 // Clase, no left/top: el proyector pisa lo inline pero no las clases.
                 flash(name, kind, ms = 700) {
-                    const chip = diarsaba.get(`${name} ֎`);
+                    const chip = this._chips.get(name);
                     if (!(chip instanceof Element)) return;
                     chip.classList.add(kind);
                     setTimeout(() => chip.classList.remove(kind), ms);
@@ -877,13 +911,15 @@
                 // Renombra el chip visible: texto + tipo, reapunta la ref y tira
                 // las derivadas (se regeneran al reabrirse).
                 rename(viejo, nuevo) {
-                    const chip = diarsaba.get(`${viejo} ֎`);
+                    const chip = this._chips.get(viejo);
                     if (chip instanceof Element) {
                         chip.textContent = nuevo;
                         chip.dataset.type = nuevo.slice(-1);
-                        diarsaba.set(`${nuevo} ֎`, chip);
+                        this._chips.set(nuevo, chip);
                     }
-                    [`${viejo} ֎`, `${viejo} ֎ ֎`, `${viejo} # ֎`].forEach((rk) => diarsaba.delete(rk));
+                    this._chips.delete(viejo);
+                    this._child.delete(viejo);
+                    this._list.delete(viejo);
                 },
 
                 // --- El MOTOR 3d (antes átomos "3d …ƒ" / create chip / mover) ---
@@ -1051,6 +1087,9 @@
                     }, { passive: false, capture: true });
                 },
                 clear() {
+                    // El registro de chips se vacía siempre (antes lo barría el
+                    // bucle de claves "֎" del Map en on double tap / panorámica).
+                    this.forgetChips();
                     const escena = diarsaba.get("3d escena ֎");
                     if (!escena) return;
                     [...escena.children].forEach((obj) => {
@@ -1194,7 +1233,7 @@
                     const centro = (nombre) => {
                         if (nombre in cache) return cache[nombre];
                         let c = null;
-                        const chip = diarsaba.get(`${nombre} ֎`);
+                        const chip = window.host.scene.ref(nombre);
                         if (chip instanceof Element && chip.style.visibility !== "hidden") {
                             const r = chip.getBoundingClientRect();
                             if (r.width) c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };

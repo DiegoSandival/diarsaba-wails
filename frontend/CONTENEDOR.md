@@ -147,14 +147,24 @@ se comporta idéntica— y mañana se volverá `postMessage` sin que los átomos
 menús/submenús/listas/opciones, buscador, historial, editores, pan/zoom/órbita/reset, grafo,
 panorámica). Único error en consola: p2p sin backend (esperado en el frontend suelto).
 
-**Lo que queda para "ningún átomo toca el DOM" → es el Paso 4.** El DOM restante en átomos está
-**atado al registro de refs `${name} ֎`** (que aún vive en el `Map`): ~50 sitios dispersos en ~15
-átomos leen/escriben `${name} ֎` / `${name} ֎ ֎` / `${name} # ֎` (los barridos con `classList.contains`,
-las marcas `submenu`/`pano-label`, `querySelectorAll` de overlays, `clamp` fallback, los 2 `padre`
-con `offsetWidth`). **No se pueden de-DOMar hasta mover ese registro a `host.scene`**, que es el
-arranque del Paso 4. Además, el worker exige convertir a **async** las llamadas `host` que hoy
-devuelven valor síncrono (`anchorRect`, `worldPoint`, `isBackground`). Es la fase más grande;
-empezar por mover el registro (`host.scene` dueño de `name → {div, obj}`) + funnelar los ~50 sitios.
+**Paso 4 arrancado: el registro `${name} ֎` ya vive en `host.scene`.** Era el bloqueo — hecho.
+`host.scene` es dueño de cuatro registros privados (`_chips`/`_child`/`_list`/`_submenu`, Maps
+`nombre → elemento`) con su API: `register/ref`, `openChild/child`, `openList/listRef`,
+`openSubmenu`, `forgetChips`; y `remove*/flash/rename` + `anchorRect` + `grafo.draw` operan sobre
+ellos. `clear()` hace `forgetChips()` (vaciar el registro en cada cambio de place). **26 átomos
+funneleados**: dejaron de hacer `diarsaba.get/set(\`${name} ֎\`)` y hablan verbos de `host.scene`;
+los **dos barridos de claves `֎` del Map** (`on double tap place`, `panorámica`) desaparecieron
+(los sustituye `clear → forgetChips`). Consecuencia: **el `Map` ya no guarda NINGUNA ref DOM de
+chip** — solo estado vivo (`3d … ֎`, `mover instalado ֎`, `grafo aristas ֎`, `p2p … conns ֎`).
+Verificado en el frontend suelto: arranque, cambio de place (registro vaciado y repoblado 2→56),
+lista/hijo/submenú abrir sin apilar, ocultar/renombrar.
+
+**Lo que resta del Paso 4:** (1) pasar a **async** las llamadas `host` que hoy devuelven valor
+síncrono (`anchorRect`, `worldPoint`, `isBackground`) — el worker las exige por `postMessage`;
+(2) los pocos átomos que aún **leen el DOM del elemento devuelto** (`· ֎ editar`/`· ֎x guardar` con
+`contentEditable`/`textContent`, `· ֎* padre`/`· #* padre` con `getBoundingClientRect`): ahora que
+el registro es de `host.scene`, se vuelven verbos del host de forma natural. Luego, el transporte
+worker (los `host.*` se vuelven `postMessage`).
 
 ### Pasos
 
@@ -210,16 +220,18 @@ empezar por mover el registro (`host.scene` dueño de `name → {div, obj}`) + f
    el override de `diarsaba.set` que sincroniza los `{` a `<style>`); las clases de MODO del body vía
    **`host.mode(cls, on)`** (`grafo ƒ`, `mover ƒ`, `panorámica ƒ`/`entrar`); y el **anclaje de chips-hijo**
    (`· $/§/ƒ abrir`, `· ~ abrir`, `· * parents` → `host.anchorRect`).
-   **Pendiente (lo atado al REGISTRO de refs, se remata con el worker):** los barridos de refs que leen
-   `el.classList.contains` (`on double tap place`, `panorámica ƒ`), las marcas de clase en widgets del
-   shell (`open submenu` "submenu", `panorámica pintar` "pano-label"), `clear menus`/`on double tap`
-   (`querySelectorAll` de overlays), `clamp to viewport` (fallback sin escena), y los 2 `padre` (leen
-   `offsetWidth` del chip nuevo). Cuando el registro `${name} ֎` viva en `host.scene` (Paso 4), estos
-   se vuelven llamadas al host de forma natural.
+   **Registro `${name} ֎` → `host.scene` — HECHO (arranque del Paso 4).** El registro de refs DOM de
+   los chips salió del `Map` a cuatro Maps privados de `host.scene` (`_chips`/`_child`/`_list`/
+   `_submenu`) con API (`register/ref`, `openChild/child`, `openList/listRef`, `openSubmenu`,
+   `forgetChips`); 26 átomos funneleados y los dos barridos de claves `֎` eliminados (los sustituye
+   `clear → forgetChips`). El `Map` ya no guarda refs DOM de chip. Ver el bloque "Estado actual".
 4. **Partir shell/worker: el transporte worker.** Como los átomos ya solo hablan `host.*`, se
    añade un segundo transporte: los átomos corren en un worker; `host.*` se vuelve `postMessage`.
    El shell posee el bucle de render, Three, Monaco y Go. Se voltea el universo 0 a un worker y se
    verifica que se comporta igual.
+   **Arranque HECHO:** el registro `${name} ֎` ya vive en `host.scene` (26 átomos funneleados, el
+   `Map` sin refs DOM). Resta: pasar a `async` (`anchorRect`/`worldPoint`/`isBackground`), volver
+   verbos del host las últimas lecturas de DOM (`· ֎ editar`/`guardar`/`padre`), y ya el transporte.
 5. **Store por universo + semilla del núcleo.** El shell gestiona un bbolt por universo (Go),
    sembrado desde un `core.json` embebido (la semilla mínima) — o, para el universo 0, el programa
    actual. Aquí se define **el núcleo**: los átomos mínimos que hacen un universo vacío construible.
