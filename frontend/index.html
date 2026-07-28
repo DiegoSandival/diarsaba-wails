@@ -675,6 +675,14 @@
             // despache sin tocar la vista. stopPropagation corta el manejador
             // global (handle click ƒ) para que no lo procese dos veces. En el
             // worker, onPick se volverá un postMessage; el payload ya es data.
+            // Despacho POR DEFECTO de un ítem elegido. El átomo ya NO pasa una
+            // función por el borde (un postMessage no puede llevarla): pasa null
+            // y el shell entrega el payload al universo. Hoy (misma-hebra) lo
+            // llama directo; en el worker será un postMessage al universo.
+            _deliverPick(payload) {
+                const despachar = diarsaba.get("despachar menú ƒ");
+                if (typeof despachar === "function") despachar(payload);
+            },
             _wirePick(div, onPick) {
                 div.addEventListener("pointerup", (e) => {
                     if (e.button !== 0) return; // el clic derecho abre menú, no elige
@@ -682,13 +690,15 @@
                     if (!item || !div.contains(item)) return;
                     e.stopPropagation();
                     const r = item.getBoundingClientRect();
-                    onPick({
+                    const payload = {
                         label: item.textContent,
                         index: Number(item.dataset.idx),
                         parent: div.dataset.parent || "",
                         current: div.dataset.current || "",
                         rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height },
-                    });
+                    };
+                    if (onPick) onPick(payload);
+                    else window.host._deliverPick(payload);
                 });
             },
             // Menú de opciones (ítems sin prefijo). x/y null → junto al puntero.
@@ -703,7 +713,7 @@
                 div.dataset.current = current;
                 document.body.appendChild(div);
                 this._clamp(div);
-                if (onPick) this._wirePick(div, onPick);
+                this._wirePick(div, onPick);
                 // "slot": el shell guarda el widget en su ranura, así el átomo no
                 // recibe el elemento (requisito del worker). main/chip = los dos
                 // menús rastreados; cualquier otro valor = submenú de ese nombre.
@@ -723,7 +733,7 @@
                 div.dataset.parent = parent;
                 document.body.appendChild(div);
                 this._clamp(div);
-                if (onPick) this._wirePick(div, onPick);
+                this._wirePick(div, onPick);
                 // "slot": nombre del átomo cuya lista abierta es ésta; el shell la
                 // guarda (cerrando la anterior) sin devolver el elemento al átomo.
                 if (slot) window.host.scene.openList(slot, div);
