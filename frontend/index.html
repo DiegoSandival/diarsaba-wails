@@ -908,6 +908,16 @@
                 _child: new Map(),
                 _list: new Map(),
                 _submenu: new Map(),
+                // Estado del motor 3d, ahora PRIVADO del shell (antes "3d … ֎" en el
+                // Map). Son objetos de Three/DOM: en el worker el Map no puede
+                // tenerlos. Ningún átomo los toca ya (T1 sacó la cámara de panorámica).
+                _escena: null,
+                _camara: null,
+                _mira: null,
+                _contenedor: null,
+                _controlsInstalled: false,
+                _renderPending: false,
+                _dragInstalled: false,
                 // La creación registra aquí (antes: diarsaba.set("${name} ֎")).
                 register(name, div) { if (div instanceof Element) this._chips.set(name, div); },
                 ref(name) { return this._chips.get(name); },
@@ -1038,7 +1048,7 @@
                 // como shims que delegan aquí. El estado (escena/cámara/mira) sigue
                 // en refs "3d … ֎" del Map por ahora (misma-hebra). Ver CONTENEDOR.md.
                 init() {
-                    if (diarsaba.get("3d escena ֎")) return;
+                    if (window.host.scene._escena) return;
                     if (!window.THREE) { console.warn("[3d] window.THREE no está: los chips caen al body plano."); return; }
                     const THREE = window.THREE;
                     const escena = new THREE.Scene();
@@ -1050,9 +1060,9 @@
                     const contenedor = document.createElement("div");
                     contenedor.classList.add("escena-3d");
                     document.body.appendChild(contenedor);
-                    diarsaba.set("3d escena ֎", escena);
-                    diarsaba.set("3d camara ֎", camara);
-                    diarsaba.set("3d contenedor ֎", contenedor);
+                    window.host.scene._escena = escena;
+                    window.host.scene._camara = camara;
+                    window.host.scene._contenedor = contenedor;
                     window.addEventListener("resize", () => {
                         camara.aspect = window.innerWidth / window.innerHeight;
                         camara.updateProjectionMatrix();
@@ -1062,8 +1072,8 @@
                     window.host.scene.controls();
                 },
                 project() {
-                    const camara = diarsaba.get("3d camara ֎");
-                    const escena = diarsaba.get("3d escena ֎");
+                    const camara = window.host.scene._camara;
+                    const escena = window.host.scene._escena;
                     if (!camara || !escena) return;
                     camara.updateMatrixWorld();
                     const w = window.innerWidth;
@@ -1101,17 +1111,17 @@
                     window.host.grafo.draw();
                 },
                 render() {
-                    if (diarsaba.get("3d render pendiente ֎")) return;
-                    if (!diarsaba.get("3d camara ֎")) return;
-                    diarsaba.set("3d render pendiente ֎", true);
+                    if (window.host.scene._renderPending) return;
+                    if (!window.host.scene._camara) return;
+                    window.host.scene._renderPending = true;
                     requestAnimationFrame(() => {
-                        diarsaba.set("3d render pendiente ֎", false);
+                        window.host.scene._renderPending = false;
                         window.host.scene.project();
                     });
                 },
                 reset() {
                     const THREE = window.THREE;
-                    const camara = diarsaba.get("3d camara ֎");
+                    const camara = window.host.scene._camara;
                     if (!THREE || !camara) return;
                     const cx = window.innerWidth / 2;
                     const cy = window.innerHeight / 2;
@@ -1119,9 +1129,9 @@
                     camara.position.set(cx, -cy, d);
                     camara.up.set(0, 1, 0);
                     camara.lookAt(cx, -cy, 0);
-                    const mira = diarsaba.get("3d mira ֎");
+                    const mira = window.host.scene._mira;
                     if (mira) mira.set(cx, -cy, 0);
-                    else diarsaba.set("3d mira ֎", new THREE.Vector3(cx, -cy, 0));
+                    else window.host.scene._mira = new THREE.Vector3(cx, -cy, 0);
                     window.host.scene.render();
                 },
                 // PANORÁMICA — cámara (antes en los átomos, que usaban THREE y la
@@ -1131,7 +1141,7 @@
                 frameClusters(centers, minX, maxX, minY, maxY) {
                     this._panoCenters = centers || {};
                     const THREE = window.THREE;
-                    const camara = diarsaba.get("3d camara ֎");
+                    const camara = window.host.scene._camara;
                     if (THREE && camara && isFinite(minX)) {
                         const bcx = (minX + maxX) / 2, bcy = (minY + maxY) / 2;
                         const bw = (maxX - minX) + 500, bh = (maxY - minY) + 500;
@@ -1143,17 +1153,17 @@
                         camara.position.set(bcx, -bcy, dist);
                         camara.up.set(0, 1, 0);
                         camara.lookAt(mira);
-                        diarsaba.set("3d mira ֎", mira);
+                        window.host.scene._mira = mira;
                     }
                     this.render();
                 },
                 flyToCluster(placeName, onArrive) {
                     const THREE = window.THREE;
-                    const camara = diarsaba.get("3d camara ֎");
+                    const camara = window.host.scene._camara;
                     const destino = this._panoCenters && this._panoCenters[placeName];
                     if (!THREE || !camara || !destino) { onArrive(); return; }
                     const desde = camara.position.clone();
-                    const miraDesde = (diarsaba.get("3d mira ֎") || new THREE.Vector3()).clone();
+                    const miraDesde = (window.host.scene._mira || new THREE.Vector3()).clone();
                     const posObj = new THREE.Vector3(destino.x, -destino.y, 640);
                     const miraObj = new THREE.Vector3(destino.x, -destino.y, 0);
                     const t0 = performance.now();
@@ -1164,7 +1174,7 @@
                         camara.position.lerpVectors(desde, posObj, e);
                         const m = miraDesde.clone().lerp(miraObj, e);
                         camara.lookAt(m);
-                        diarsaba.set("3d mira ֎", m);
+                        window.host.scene._mira = m;
                         this.project();
                         if (t < 1) requestAnimationFrame(paso);
                         else onArrive();
@@ -1173,7 +1183,7 @@
                 },
                 worldPoint(clientX, clientY) {
                     const THREE = window.THREE;
-                    const camara = diarsaba.get("3d camara ֎");
+                    const camara = window.host.scene._camara;
                     if (!THREE || !camara) return null;
                     const ndc = new THREE.Vector2(
                         (clientX / window.innerWidth) * 2 - 1,
@@ -1185,8 +1195,8 @@
                     return ray.ray.intersectPlane(plano, new THREE.Vector3());
                 },
                 controls() {
-                    if (diarsaba.get("3d controles ֎")) return;
-                    diarsaba.set("3d controles ֎", true);
+                    if (window.host.scene._controlsInstalled) return;
+                    window.host.scene._controlsInstalled = true;
                     const THREE = window.THREE;
                     // Directo a host.scene (sync): estos manejadores de puntero
                     // usan preventDefault y no pueden esperar. Los shims
@@ -1208,8 +1218,8 @@
                     }, true);
                     window.addEventListener("pointermove", (e) => {
                         if (!modo) return;
-                        const camara = diarsaba.get("3d camara ֎");
-                        const mira = diarsaba.get("3d mira ֎");
+                        const camara = window.host.scene._camara;
+                        const mira = window.host.scene._mira;
                         if (!camara || !mira) return;
                         if (modo === "pan" && ancla) {
                             const ahora = punto(e.clientX, e.clientY);
@@ -1235,8 +1245,8 @@
                     }, true);
                     window.addEventListener("pointerup", () => { modo = null; ancla = null; ultimo = null; }, true);
                     window.addEventListener("wheel", (e) => {
-                        const camara = diarsaba.get("3d camara ֎");
-                        const mira = diarsaba.get("3d mira ֎");
+                        const camara = window.host.scene._camara;
+                        const mira = window.host.scene._mira;
                         if (!camara || !mira) return;
                         if (e.target.closest && e.target.closest(".context-menu, .modal-content, .editor-overlay")) return;
                         const factor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
@@ -1251,7 +1261,7 @@
                     // El registro de chips se vacía siempre (antes lo barría el
                     // bucle de claves "֎" del Map en on double tap / panorámica).
                     this.forgetChips();
-                    const escena = diarsaba.get("3d escena ֎");
+                    const escena = window.host.scene._escena;
                     if (!escena) return;
                     [...escena.children].forEach((obj) => {
                         if (obj.element instanceof Element && obj.element.parentNode) {
@@ -1275,8 +1285,8 @@
                     div.spellcheck = false;
                     div.dataset.parent = parent;
                     div.dataset.type = type;
-                    const escena = diarsaba.get("3d escena ֎");
-                    const contenedor = diarsaba.get("3d contenedor ֎");
+                    const escena = window.host.scene._escena;
+                    const contenedor = window.host.scene._contenedor;
                     if (!escena || !contenedor) {
                         div.style.left = `${x}px`;
                         div.style.top = `${y}px`;
@@ -1300,8 +1310,8 @@
                     return div;
                 },
                 installDrag() {
-                    if (diarsaba.get("mover instalado ֎")) return;
-                    diarsaba.set("mover instalado ֎", true);
+                    if (window.host.scene._dragInstalled) return;
+                    window.host.scene._dragInstalled = true;
                     let arrastrando = null;
                     let desfase = null;
                     let dx = 0;
@@ -1369,18 +1379,24 @@
             // Las ARISTAS del modo grafo (canvas 2d detrás de los chips). Cuerpos
             // idénticos a los átomos "grafo init/dibujar ƒ", que ahora son shims.
             grafo: {
+                // Estado del modo grafo, ahora PRIVADO del shell (antes "grafo
+                // lienzo/aristas ֎" en el Map): el canvas 2d y las aristas cacheadas.
+                // setEdges lo llama el átomo "grafo activar ƒ" (calcula la topología).
+                _canvas: null,
+                _edges: [],
+                setEdges(edges) { this._edges = Array.isArray(edges) ? edges : []; },
                 init() {
-                    if (diarsaba.get("grafo lienzo ֎")) return;
+                    if (window.host.grafo._canvas) return;
                     const canvas = document.createElement("canvas");
                     canvas.className = "grafo-lienzo";
                     canvas.width = window.innerWidth;
                     canvas.height = window.innerHeight;
                     document.body.insertBefore(canvas, document.body.firstChild);
-                    diarsaba.set("grafo lienzo ֎", canvas);
+                    window.host.grafo._canvas = canvas;
                     window.addEventListener("resize", () => window.host.grafo.draw());
                 },
                 draw() {
-                    const canvas = diarsaba.get("grafo lienzo ֎");
+                    const canvas = window.host.grafo._canvas;
                     if (!canvas) return;
                     const ctx = canvas.getContext("2d");
                     if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
@@ -1389,7 +1405,7 @@
                     }
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     if (!diarsaba.get("grafo activo §")) return;
-                    const aristas = diarsaba.get("grafo aristas ֎") || [];
+                    const aristas = window.host.grafo._edges;
                     const cache = {};
                     const centro = (nombre) => {
                         if (nombre in cache) return cache[nombre];
