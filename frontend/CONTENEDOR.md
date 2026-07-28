@@ -223,11 +223,47 @@ mostró acoplamiento que el worker no tolera: 2 átomos (`panorámica pintar`/`e
   de chips): `3d escena/camara/mira/contenedor/controles/render pendiente ֎`, `grafo lienzo/aristas ֎`,
   `mover instalado ֎`. Tras T2 el `Map` queda como DATOS PUROS del universo. Ojo: `grafo aristas ֎` lo
   escribe `grafo activar ƒ` (átomo) → necesita `host.grafo.setEdges`.
-- **T3 — el boundary del worker**: montar el Worker (Map+createFunction+threads+semilla), `host.*` →
-  `postMessage`, mudar los listeners de `on start ƒ` al shell (la ENTREGA del evento se vuelve
-  `postMessage` en vez de `threads`), y un mirror de los flags del universo que el shell lee en los
-  manejadores de puntero (`current place §`, `moviendo chips §`, `panorámica activa §`, `grafo activo §`).
-  Es la pieza grande y la más difícil de verificar en el frontend suelto (pane oculto, sin backend Go).
+- **T2 — estado Three/canvas fuera del `Map` — HECHO.** `host.scene._escena/_camara/_mira/_contenedor/
+  _controlsInstalled/_renderPending/_dragInstalled` y `host.grafo._canvas/_edges` (+ `setEdges`, que
+  llama el átomo `grafo activar ƒ`). ~34 accesos del shell al `Map` eliminados: **el `Map` ya no guarda
+  ningún objeto vivo de vista**, es datos del universo.
+- **T2.5 — ningún átomo recibe ya un ELEMENTO — HECHO.** Era el bloqueo de fondo: `create chip/list/
+  list menu` DEVOLVÍAN un nodo DOM que el átomo pasaba de vuelta (`register`/`openChild`/`openList`/
+  `openSubmenu`/`setMenu`), y un `postMessage` no puede llevar un nodo. Ahora el átomo dice QUÉ crear
+  y en qué **ranura**: **`host.scene.spawn(text, x, y, {parent, type, slot, key, pano, label})`** con
+  `slot` = `chip` | `child` | `pano` | `""`, y **`host.menu`/`host.list` toman un `slot` final**
+  (`main`/`chip` = los dos menús rastreados, o un nombre = submenú/lista de ese átomo). 20 átomos
+  reescritos. De paso, `new place ƒ` creaba su chip sin registrarlo (el bug que advierte
+  ARCHITECTURE.md); con `spawn` queda registrado.
+- **T2.6 — el `onPick` deja de cruzar el borde — HECHO.** Un `postMessage` tampoco lleva una FUNCIÓN.
+  Los shims de menú/lista pasan `null` y el shell entrega el payload al universo por
+  **`host._deliverPick`** (hoy llama directo a `despachar menú ƒ`; en el worker será el `postMessage`).
+
+### T3 — el boundary del worker (lo único que resta del Paso 4)
+
+Con T1/T2/T2.5/T2.6 el borde ya es **serializable**: ningún átomo toca el DOM (salvo el
+`addEventListener` de bootstrap), ninguno recibe elementos, ninguno pasa funciones por menú/lista, y
+todo lo que devuelve valor se awaita. Lo que falta:
+
+1. **El worker** (`universo.js`): `Map` + `createFunction` + `threads` + semilla, y un `host` proxy
+   cuyos verbos hagan `postMessage({id, path, args})` y devuelvan una promesa.
+2. **El router del shell**: recibe `{id, path, args}`, resuelve `host.<path>(...args)`, responde
+   `{id, ok, value}`. Solo puede devolver DATOS (ya se cumple).
+3. **Callbacks que aún cruzan** (los pocos que quedan): `host.palette({onQuery,onPick})` —`onQuery`
+   se llama por tecleo y devuelve resultados, así que el shell tendrá que **awaitarlo**—,
+   `host.picker(items,{onPick})`, `host.scene.flyToCluster(place,onArrive)` y `host.events(name,cb)`
+   (p2p). Patrón: registro de callbacks por id, como `_deliverPick`.
+4. **Entrega de eventos**: los listeners de `on start ƒ` se mudan al shell; `host.hit(e)` ya produce
+   el payload semántico, y la entrega pasa de `threads(...)` a `postMessage`.
+5. **Mirror de flags**: el shell lee `current place §`, `moviendo chips §`, `panorámica activa §` y
+   `grafo activo §` en sus manejadores de puntero/render; con el `Map` en el worker necesita una copia
+   local que el universo actualice al cambiarlos.
+6. **El kernel**: `createFunction`/`threads`/`diarsaba` son globales del `<script>` plano y hoy los usan
+   tanto el shell (`registrar ejecución`, `persistir atomo`, `ai system §`, el override de
+   `diarsaba.set` de `installStyles`) como los átomos. Hay que decidir qué se queda de cada lado.
+
+⚠️ **T3 no se puede verificar en el frontend suelto** (el pane oculto no compone frames y no hay
+backend Go): hay que probarlo en la app Wails real (`wails dev`).
 
 ### Pasos
 
