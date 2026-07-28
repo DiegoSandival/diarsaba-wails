@@ -692,7 +692,7 @@
                 });
             },
             // Menú de opciones (ítems sin prefijo). x/y null → junto al puntero.
-            menu(list, parent = "", current = "", x = null, y = null, onPick = null) {
+            menu(list, parent = "", current = "", x = null, y = null, onPick = null, slot = "") {
                 const div = document.createElement("div");
                 div.className = "context-menu";
                 let i = 0;
@@ -704,10 +704,16 @@
                 document.body.appendChild(div);
                 this._clamp(div);
                 if (onPick) this._wirePick(div, onPick);
+                // "slot": el shell guarda el widget en su ranura, así el átomo no
+                // recibe el elemento (requisito del worker). main/chip = los dos
+                // menús rastreados; cualquier otro valor = submenú de ese nombre.
+                if (slot === "main") this.setMenu(div);
+                else if (slot === "chip") this.setChipMenu(div);
+                else if (slot) window.host.scene.openSubmenu(slot, div);
                 return div;
             },
             // Lista con ítems "[n] valor" (la abren · # abrir, padres, referencias…).
-            list(x, y, list, parent, onPick = null) {
+            list(x, y, list, parent, onPick = null, slot = "") {
                 const div = document.createElement("div");
                 div.className = "context-menu";
                 if (list.length == 0) div.innerHTML += `<span class="menu-item" data-idx="0">[0]</span>`;
@@ -718,6 +724,9 @@
                 document.body.appendChild(div);
                 this._clamp(div);
                 if (onPick) this._wirePick(div, onPick);
+                // "slot": nombre del átomo cuya lista abierta es ésta; el shell la
+                // guarda (cerrando la anterior) sin devolver el elemento al átomo.
+                if (slot) window.host.scene.openList(slot, div);
                 return div;
             },
             // Pide un nombre. Resuelve el texto (Continue) o null (Cancel).
@@ -1277,6 +1286,20 @@
                     if (n === "HTML" || n === "BODY") return true;
                     if (target.closest(".object-name, .context-menu, .modal-content, .editor-overlay")) return false;
                     return !!target.closest(".escena-3d");
+                },
+                // CREAR + REGISTRAR en un solo verbo, sin devolver el elemento.
+                // Es lo que hace posible el worker: un postMessage no puede llevar
+                // un nodo DOM, así que el átomo ya no recibe el chip — dice qué
+                // crear y en qué ranura va, y el shell lo guarda en su registro.
+                //   slot "chip"  → registro principal (key || text)
+                //   slot "child" → hijo abierto del átomo (key || parent)
+                //   slot "pano"  → chip DESECHABLE de panorámica (no se registra)
+                spawn(text, x, y, { parent = "", type = "", slot = "chip", key = "", pano = null, label = false } = {}) {
+                    const div = this.make(x, y, text, parent, type);
+                    if (slot === "chip") this.register(key || text, div);
+                    else if (slot === "child") this.openChild(key || parent, div);
+                    else if (slot === "pano") this.tagPano(div, pano, label);
+                    // Nada cruza el borde: el elemento se queda en el shell.
                 },
                 make(x, y, text, parent = "", type = "") {
                     const div = document.createElement("div");
