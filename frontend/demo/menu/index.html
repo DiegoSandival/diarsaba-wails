@@ -55,6 +55,18 @@
       user-select: none;
       border-bottom: 1px solid rgba(255,255,255,.08);
   }
+  /* El nombre del átomo que el menú muestra. No es un ítem: no se pulsa, no
+     cuenta para los índices. Con varios menús abiertos, es lo que distingue
+     uno de otro. */
+  .menu-titulo {
+      display: block;
+      padding: 5px 12px;
+      font-size: .68rem;
+      color: rgba(255, 255, 255, .38);
+      border-bottom: 1px solid rgba(255, 255, 255, .16);
+      user-select: none;
+  }
+
   .menu-item:last-child { border-bottom: none; }
   .menu-item:hover  { background: rgba(255,255,255,.08); }
   .menu-item:active { background: rgba(255,255,255,.12); }
@@ -302,8 +314,14 @@ window.host = {
     // Pinta los ítems dentro de un menú ya creado. El manejador de clic está
     // DELEGADO en el contenedor, así que reemplazar los ítems no lo rompe: por
     // eso repintar puede conservar el mismo menú (su id, su sitio, sus hijos).
+    // Encabeza con el NOMBRE de lo que el menú muestra: con varios abiertos, es
+    // lo que dice cuál es cuál — y es donde se pulsa para las acciones del menú.
+    // No es un ítem, así que no altera los índices.
+    // Un menú de opciones va de UN elemento (dataset.current), no de la lista.
     _paint(div, list) {
         let i = 0, html = "";
+        const nombre = div.dataset.current || div.dataset.parent;
+        if (nombre) html += `<span class="menu-titulo">${this._render(nombre)}</span>`;
         for (const key of list)
             html += `<span class="menu-item" data-idx="${i++}">${this._render(key)}</span>`;
         div.innerHTML = html;
@@ -316,9 +334,23 @@ window.host = {
     // —mismo id, mismo sitio, mismos hijos—, solo cambian sus ítems.
     redrawAll(nombre, list) {
         let n = 0;
-        for (const [, w] of this.scene._menu)
-            if (w.el && w.el.dataset.parent === nombre) { this._paint(w.el, list); this._clamp(w.el); n++; }
+        for (const [, w] of this.scene._menu) {
+            // Solo los que MUESTRAN la lista: un menú de opciones cuelga de ella
+            // pero enseña otra cosa, y no debe repintarse con sus datos.
+            if (!w.el || w.el.dataset.parent !== nombre || w.el.dataset.current) continue;
+            this._paint(w.el, list);
+            this._clamp(w.el);
+            n++;
+        }
         return n;
+    },
+
+    // Qué lista está mostrando un menú abierto. El universo pregunta por id y
+    // recibe un nombre: no ve el elemento, y no necesita que se lo arrastren
+    // por el dataset.
+    listaDe(id) {
+        const w = this.scene._menu.get(id);
+        return (w && w.el && w.el.dataset.parent) || "";
     },
 
     // La caja de un ítem de un menú abierto, por su ÍNDICE. Es el ancla que el
@@ -494,13 +526,13 @@ window.host = {
     menu(list, parent = "", current = "", x = null, y = null, onPick = null, desde = "") {
         const div = document.createElement("div");
         div.className = "context-menu";
-        this._paint(div, list);
         div.style.left = `${x === null ? this._px : x}px`;
         div.style.top  = `${y === null ? this._py : y}px`;
         div.dataset.parent = parent;
         div.dataset.current = current;
         div.dataset.menu = window.host.scene.nuevoId();
         div.dataset.desde = desde;
+        this._paint(div, list);          // después del dataset: el título lo lee de ahí
         // La marca "submenu" distingue lo que cuelga de otro menú de lo que
         // nació del fondo.
         if (desde) div.classList.add("submenu");
@@ -566,6 +598,8 @@ window.host = {
             // el universo para abrir las opciones de ese elemento.
             const item = t.closest(".menu-item");
             if (item) { p.name = item.textContent; p.index = Number(item.dataset.idx); }
+            // El TÍTULO no es un elemento de la lista: pulsarlo va del MENÚ.
+            else if (t.closest(".menu-titulo")) p.titulo = true;
             return p;
         }
         if (!t || t.nodeName === "HTML" || t.nodeName === "BODY") p.kind = "background";
@@ -642,6 +676,8 @@ const ATOMOS = {
   // thread y una acción se ejecutan—, no qué se puede hacer con su contenido.
   "sigilos lista #": ["#", "~", "!"],
 
+  // El menú principal (clic derecho en el fondo). Cualquier átomo puesto aquí
+  // "funciona solo": un # se despliega, un ! se ejecuta, un @ viaja.
   // El menú principal (clic derecho en el fondo). Cualquier átomo puesto aquí
   // "funciona solo": un # se despliega, un ! se ejecuta, un @ viaja.
   "atom name list #": ["ciudad #", "anidada #", "colores #", "acciones #",
@@ -726,6 +762,8 @@ const ATOMOS = {
 
   // Las acciones que TODO menú lleva por el hecho de ser un menú (no son datos
   // de ninguna lista: se añaden al pintar).
+  // El menú del clic derecho sobre el TÍTULO: las acciones del menú COMO TAL,
+  // frente a "list option [] #", que son las de un elemento suyo.
   "menu acciones #": ["· + nuevo", "· cerrar"],
 
   
@@ -763,6 +801,8 @@ const ATOMOS = {
   // cambió, no qué menú: quién la esté mostrando es cosa del shell.
   "rect de ítem ƒ": `(id, index) => host.itemRect(id, index)`,
 
+  "lista de menú ƒ": `(id) => host.listaDe(id)`,
+
   "repintar lista ƒ": `(nombre) => {
       return host.redrawAll(nombre, diarsaba.get("ítems de menú ƒ")(nombre));
   }`,
@@ -797,19 +837,16 @@ const ATOMOS = {
       return Array.isArray(lista) ? lista : null;
   }`,
 
-  // Los datos, más las acciones del propio menú. La lista de datos NO las
-  // contiene: son del menú, no del contenido. De aquí sale que los ítems con
-  // índice >= al largo de la lista sean acciones, y no elementos editables.
-  // Una lista vacía sigue trayendo sus acciones: siempre hay con qué empezar.
-  "ítems de menú ƒ": `(nombre) => {
-      const lista = diarsaba.get("lista de ƒ")(nombre);
-      return [...(lista || []), ...diarsaba.get("menu acciones #")];
-  }`,
+  // Lo que un menú dibuja es la lista y NADA MÁS. Sus propias acciones no se
+  // cuelan entre los datos: viven en el clic derecho sobre su título. Así todo
+  // ítem de un menú es un elemento de verdad, y el índice que se ve es el índice
+  // que es.
+  "ítems de menú ƒ": `(nombre) => diarsaba.get("lista de ƒ")(nombre) || []`,
 
   // Las opciones de UN elemento, por capas:
   //   1. si tiene NATURALEZA DE LISTA, las de toda lista (abrirla),
   //   2. las propias de su sigilo, si su tipo tiene alguna,
-  //   3. las comunes a cualquier elemento, y las acciones del menú.
+  //   3. las comunes a cualquier elemento.
   // Un elemento sin tipo conocido cae en las comunes y ya está.
   // (Se mira con get y no con "lista de ƒ": si "list option x #" no existe, NO
   //  debe nacer por preguntar.)
@@ -819,8 +856,7 @@ const ATOMOS = {
       const propias = diarsaba.get("list option " + tipo + " #");
       return [...(esLista ? diarsaba.get("list option lista #") : []),
               ...(Array.isArray(propias) ? propias : []),
-              ...diarsaba.get("list option [] #"),
-              ...diarsaba.get("menu acciones #")];
+              ...diarsaba.get("list option [] #")];
   }`,
 
   /* ── leer y escribir el VALOR de un átomo ────────────────────────────────── */
@@ -1008,8 +1044,11 @@ const ATOMOS = {
       diarsaba.get("repintar lista ƒ")(dataset.parent);
   }`,
 
-  // Un elemento NUEVO. Vive en el menú de la lista (no en las opciones de un
-  // ítem), así que repinta SU PROPIO menú.
+  // OJO: éstas viven en el menú del TÍTULO, que CUELGA del menú al que se
+  // refieren. Por eso el menú sobre el que actúan es "dataset.desde", no
+  // "dataset.menu" (que es el menú de acciones, el de usar y tirar).
+  //
+  // Un elemento NUEVO al final de la lista que el menú muestra.
   // Es async porque el nombre lo pide el MODAL del shell: el átomo espera el
   // valor y no sabe cómo se dibujó (ni le importa).
   "· + nuevo ƒ": `async (dataset) => {
@@ -1019,6 +1058,7 @@ const ATOMOS = {
       if (texto === null || texto === "") return;
       lista.push(texto);
       host.log("▶ <b>nuevo</b> «" + texto + "» en «" + dataset.parent + "»");
+      diarsaba.get("close menu ƒ")(dataset.menu);
       diarsaba.get("repintar lista ƒ")(dataset.parent);
   }`,
 
@@ -1076,8 +1116,8 @@ const ATOMOS = {
       } catch (err) { /* parseo inválido: se ignora */ }
   }`,
 
-  // Dibuja el contenido de una lista "#" como SUBMENÚ, con la misma función que
-  // los menús raíz — un submenú ES un menú: sus ítems se pulsan igual, y una
+  // Dibuja el contenido de una colección como menú, con la misma función que los
+  // menús del fondo — un submenú ES un menú: sus ítems se pulsan igual, y una
   // lista dentro de otra vuelve a caer aquí, ANIDANDO SOLA.
   // Se ancla a la derecha del ítem (rect.right + 6) y a su misma altura.
   "open submenu ƒ": `(nombre, rect, desde = "") => {
@@ -1085,7 +1125,6 @@ const ATOMOS = {
       if (!lista) return false;
       // "desde" = el menú del que cuelga: con eso el shell cierra el submenú que
       // ese mismo menú tuviera abierto, y no se amontonan unos sobre otros.
-      // Lleva sus acciones como cualquier menú: se AÑADEN al dibujar.
       diarsaba.get("create list menu ƒ")(
           diarsaba.get("ítems de menú ƒ")(nombre), nombre, "",
           rect.right + 6, rect.top, null, desde);
@@ -1145,15 +1184,25 @@ const ATOMOS = {
               diarsaba.get("ítems de menú ƒ")(nombre), nombre, "", null, null, null, "");
           return;
       }
+      if (event.kind !== "menu") return;
 
-      // Sobre un ÍTEM de un menú: sus opciones (tomar / antes / despues /
+      // Sobre el TÍTULO: las acciones del MENÚ (nuevo / cerrar).
+      if (event.titulo) {
+          diarsaba.get("create list menu ƒ")(
+              diarsaba.get("menu acciones #"),
+              event.parent, "", null, null, null, event.menu);
+          return;
+      }
+
+      // Sobre un ÍTEM: las opciones de ESE elemento (tomar / antes / despues /
       // eliminar). El menú de opciones cuelga de aquél, así que se cierra con
       // él, y lleva en su dataset a QUÉ elemento se refiere.
-      if (event.kind === "menu" && event.name) {
-          const lista = diarsaba.get(event.parent);
-          // Los ítems de índice >= al largo son las ACCIONES del menú, no datos:
-          // no tienen opciones que ofrecer.
-          if (!Array.isArray(lista) || event.index >= lista.length) return;
+      if (event.name) {
+          const lista = diarsaba.get("lista de ƒ")(event.parent);
+          // Que el ítem SEA de verdad ese elemento de esa lista. Un menú de
+          // acciones u opciones cuelga de una lista pero no la muestra, y sus
+          // ítems no son elementos: aquí es donde se quedan fuera.
+          if (!Array.isArray(lista) || lista[event.index] !== event.name) return;
           diarsaba.get("create list menu ƒ")(
               diarsaba.get("opciones de ƒ")(event.name),
               event.parent,                                  // la lista
@@ -1162,11 +1211,12 @@ const ATOMOS = {
       }
   }`,
 
-  // Cierra el menú donde se pulsó (y lo que colgara de él). El dataset trae el
-  // id que puso el shell: el átomo decide QUÉ cerrar sin ver ningún elemento.
+  // Cierra el menú del que cuelga esto (y todo lo que colgara de él, incluido
+  // este mismo menú de acciones). El átomo decide QUÉ cerrar por su id, sin ver
+  // ningún elemento.
   "· cerrar ƒ": `(dataset) => {
-      host.log("▶ <b>cerrar</b> el menú");
-      diarsaba.get("close menu ƒ")(dataset.menu);
+      host.log("▶ <b>cerrar</b> «" + dataset.parent + "»");
+      diarsaba.get("close menu ƒ")(dataset.desde);
   }`,
 
   // Clic izquierdo en el fondo: ya NO cierra nada — los menús se cierran uno a
