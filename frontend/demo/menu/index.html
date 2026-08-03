@@ -31,6 +31,65 @@
             color: var(--graph-text);
         }
 
+        /* ── EL LIENZO DE UN PLACE ("@") ──────────────────────────────────────
+     Un place es un LIENZO entero: viajar a él lo borra y lo vuelve a pintar.
+     Es un escenario de 200×200 unidades que se escala a la ventana, así que
+     las coordenadas de la escena son % del place y los tamaños son px de ese
+     escenario: la misma escena se ve igual en cualquier pantalla.
+     z-index: 0 hace del lienzo un contexto de apilado propio, y por eso un
+     "z" negativo (el suelo) queda detrás de lo demás pero delante del fondo,
+     y nunca por encima de un menú. */
+        #lienzo {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 200px;
+            height: 200px;
+            z-index: 0;
+            transform: translate(-50%, -50%) scale(var(--escala, 3));
+            pointer-events: none;
+        }
+
+        /* Un círculo: se ancla por su CENTRO, para que (x, y) sea el punto que
+     dice la escena y no su esquina. */
+        .escena-circulo {
+            position: absolute;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Un trazo: su propio <svg> del tamaño del lienzo, en coordenadas 0..100
+     (las mismas que la escena). "non-scaling-stroke" mantiene el grosor en px
+     aunque el viewBox se estire, así una línea no engorda al escalar. */
+        .escena-trazo {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        /* Un texto de la escena. Se ancla por su izquierda y su medio vertical, así
+     (x, y) es donde empieza la línea. */
+        .escena-texto {
+            position: absolute;
+            transform: translateY(-50%);
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        /* El nombre del place al que se ha viajado. */
+        #place-nombre {
+            position: fixed;
+            left: 12px;
+            bottom: 10px;
+            font-size: .7rem;
+            color: rgba(255, 255, 255, .38);
+            user-select: none;
+            pointer-events: none;
+        }
+
         /* El menú y la lista son EL MISMO widget: .context-menu con .menu-item.
      Lo que cambia es la SEMÁNTICA del despacho, no el dibujo. */
         .context-menu {
@@ -265,6 +324,11 @@
 </head>
 
 <body>
+
+    <!-- El lienzo del place activo. Está vacío: lo pinta el shell cuando el
+         universo dice a qué "@" se viaja. -->
+    <div id="lienzo"></div>
+    <span id="place-nombre"></span>
 
     <script>
 
@@ -617,6 +681,158 @@
                 return div;
             },
 
+            /* ── EL LIENZO ─────────────────────────────────────────────────────────
+               Tres verbos y nada más: borrar el lienzo, poner un círculo, poner un
+               trazo. El shell no sabe qué es un árbol ni qué es el sol: recibe un
+               color CSS ya resuelto, unas coordenadas en % y un z, y dibuja. Quién
+               decide que "amarillo" es #ffd21e, o que el follaje son veinte círculos
+               esparcidos, es el universo.                                            */
+
+            _lienzo() { return document.getElementById("lienzo"); },
+
+            // El escenario mide 200×200 y se escala a la ventana: así una escena
+            // escrita en % y px se ve igual en cualquier pantalla.
+            _escalar() {
+                const escala = Math.min(innerWidth, innerHeight) * 0.86 / 200;
+                document.documentElement.style.setProperty("--escala", escala.toFixed(3));
+            },
+
+            // Vaciar el lienzo. Es lo primero que pasa al viajar a un place.
+            limpiarLienzo(nombre = "") {
+                const el = this._lienzo();
+                if (el) el.innerHTML = "";
+                this._escalar();
+                document.getElementById("place-nombre").textContent = nombre;
+            },
+
+            // Un círculo, anclado por su centro en (x%, y%) del lienzo.
+            circulo(color, tamano, x, y, z) {
+                const el = this._lienzo();
+                if (!el) return;
+                const d = document.createElement("div");
+                d.className = "escena-circulo";
+                d.style.left = `${x}%`;
+                d.style.top = `${y}%`;
+                d.style.width = tamano;
+                d.style.height = tamano;
+                d.style.background = color;
+                d.style.zIndex = String(z);
+                el.appendChild(d);
+            },
+
+            // Una línea continua que une los puntos [[x,y], ...], en las mismas
+            // coordenadas 0..100 de la escena.
+            trazo(color, grosor, z, puntos) {
+                const el = this._lienzo();
+                if (!el || !Array.isArray(puntos) || puntos.length < 2) return;
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute("class", "escena-trazo");
+                svg.setAttribute("viewBox", "0 0 100 100");
+                svg.setAttribute("preserveAspectRatio", "none");
+                svg.style.zIndex = String(z);
+                const linea = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+                linea.setAttribute("points", puntos.map((p) => p[0] + "," + p[1]).join(" "));
+                linea.setAttribute("fill", "none");
+                linea.setAttribute("stroke", color);
+                linea.setAttribute("stroke-width", grosor);
+                linea.setAttribute("stroke-linecap", "round");
+                linea.setAttribute("stroke-linejoin", "round");
+                // El grosor no se estira con el viewBox: se queda en px del escenario.
+                linea.setAttribute("vector-effect", "non-scaling-stroke");
+                svg.appendChild(linea);
+                el.appendChild(svg);
+            },
+
+            // Una línea de texto en el lienzo. El shell escapa lo que le llegue: un
+            // texto que viene de fuera (del sandbox, por ejemplo) es un dato, no HTML.
+            texto(color, tamano, x, y, z, contenido) {
+                const el = this._lienzo();
+                if (!el) return;
+                const d = document.createElement("div");
+                d.className = "escena-texto";
+                d.style.left = `${x}%`;
+                d.style.top = `${y}%`;
+                d.style.fontSize = tamano;
+                d.style.color = color;
+                d.style.zIndex = String(z);
+                d.textContent = String(contenido);
+                el.appendChild(d);
+            },
+
+            /* ── EL AISLAMIENTO (worker) ───────────────────────────────────────────
+               Correr un átomo que NO es de fiar: puede colgarse, reventar o intentar
+               tocar lo que no es suyo. Vive en un worker, que es un mundo aparte —sin
+               document, sin el Map, sin nada de aquí—, y con un reloj encima: si no
+               contesta a tiempo se le termina y ya está. Aquí es un Web Worker; en la
+               app (Go/Wails) el mismo verbo lo cumple workerd.
+
+               Lo que vuelve son DATOS. Si el átomo quiere dibujar, devuelve una lista
+               de acciones y las pinta el universo de casa: nada del sandbox llega al
+               DOM, ni siquiera indirectamente.                                       */
+
+            // El único código que se le confía al worker: recibe una fuente, la
+            // compila allí dentro y devuelve lo que salga —o el error.
+            _sandbox: `
+        self.onmessage = (e) => {
+            const { src, args } = e.data;
+            try {
+                const f = (new Function("return (" + src + ")"))();
+                if (typeof f !== "function") { self.postMessage({ ok: false, motivo: "no es función" }); return; }
+                const valor = f.apply(null, args || []);
+                // Sólo lo estructurable cruza de vuelta: una función o un elemento
+                // no pueden viajar por un postMessage, y eso es una garantía, no un
+                // límite.
+                self.postMessage({ ok: true, valor: JSON.parse(JSON.stringify(valor ?? null)) });
+            } catch (err) {
+                self.postMessage({ ok: false, motivo: "reventó", error: String((err && err.message) || err) });
+            }
+        };`,
+
+            // Corre una fuente aislada y resuelve SIEMPRE, con un veredicto:
+            //   { ok:true, valor }                        · contestó
+            //   { ok:false, motivo:"colgada" }            · se le terminó el tiempo
+            //   { ok:false, motivo:"reventó", error }     · lanzó
+            //   { ok:false, motivo:"sin aislamiento" }    · no hay worker: NO se ejecuta
+            // Nunca lanza y nunca se queda esperando: por eso un while(true) no se
+            // lleva por delante la página.
+            async worker(src, args = [], ms = 800) {
+                // El reloj se pone en marcha DESPUÉS de tener el worker: arrancarlo cuesta
+                // unos milisegundos que no son del átomo. Aun así lo que se mide es tiempo
+                // de pared, así que un "colgada" puede pasarse del plazo: el aviso llega
+                // cuando el hilo de casa vuelve a mirar.
+                let t0 = performance.now();
+                const tiempo = () => Math.round(performance.now() - t0);
+                let w = null, url = null;
+                try {
+                    url = URL.createObjectURL(new Blob([this._sandbox], { type: "text/javascript" }));
+                    w = new Worker(url);
+                } catch (e) {
+                    // Sin sandbox no se ejecuta NADA. Correr en el hilo principal algo
+                    // que puede no terminar sería exactamente lo que se quiere evitar.
+                    if (url) URL.revokeObjectURL(url);
+                    return { ok: false, motivo: "sin aislamiento", error: String(e.message || e), ms: tiempo() };
+                }
+                t0 = performance.now();
+                return new Promise((resolve) => {
+                    let cerrado = false;
+                    const cerrar = (r) => {
+                        if (cerrado) return;
+                        cerrado = true;
+                        clearTimeout(reloj);
+                        w.terminate();                 // esto es lo que mata un bucle infinito
+                        URL.revokeObjectURL(url);
+                        resolve({ ...r, ms: tiempo() });
+                    };
+                    const reloj = setTimeout(() => cerrar({ ok: false, motivo: "colgada" }), ms);
+                    w.onmessage = (e) => cerrar(e.data);
+                    w.onerror = (e) => {
+                        if (e.preventDefault) e.preventDefault();
+                        cerrar({ ok: false, motivo: "reventó", error: e.message || "error en el worker" });
+                    };
+                    w.postMessage({ src, args });
+                });
+            },
+
             // Cierra UN menú (y lo que colgara de él). Es lo que pide "cerrar ƒ".
             closeMenu(id) { this.scene.close(id); },
 
@@ -739,9 +955,19 @@
             // Lo que muestra un menú nacido del fondo: la puerta de entrada al programa.
             // Desde aquí se llega a TODO lo que hay, por temas y también en crudo.
             "sys #": ["todos #", "sigilos #", "opciones #", "borde #",
-                "despacho #", "listas #", "valores #", "logs #"],
+                "despacho #", "listas #", "valores #", "places ƒ #", "logs #"],
 
-            "diarsaba #": ["sys #"],
+            "diarsaba #": ["sys #", "places #", "escena #", "aislamiento #"],
+
+            // Los PLACES que hay. Pulsar uno VIAJA a él: le entrega el lienzo entero.
+            "places #": ["escena @", "pruebas @"],
+
+            // Correr un átomo sin dejarle tocar nada. El banco de pruebas es un place
+            // como otro cualquiera: lo que lo hace un banco es que sus átomos se
+            // ejecutan aislados.
+            "aislamiento #": ["pruebas @", "pruebas #", "probar átomo ƒ", "probar aislado ƒ",
+                "probar ƒ", "veredicto de ƒ", "veredictos {", "pintar acciones ƒ",
+                "dibujables #", "correr pruebas ƒ", "fuente de ƒ"],
 
 
             // El programa entero, tal cual está el Map AHORA. No se guarda: se calcula al
@@ -769,6 +995,10 @@
             // Cómo se lee y se escribe el VALOR de un átomo, y dónde se guarda lo tomado.
             "valores #": ["interpretar valor ƒ", "mostrar valor ƒ", "tomado §"],
 
+            // Viajar de un place a otro: lo que le cambia el lienzo al programa.
+            "places ƒ #": ["viajar a place ƒ", "repintar place ƒ", "viajar ƒ",
+                "ver dentro ƒ", "place actual §"],
+
             // La bitácora: host.log escribe aquí, y se lee como un submenú más.
             "logs #": [],
 
@@ -790,9 +1020,16 @@
             "list option ! #": ["ejecutar ƒ"],
             "list option $ #": ["editar ƒ"],   // un número
             "list option § #": ["editar ƒ"],   // un texto
-            // Una función: el EDITOR para el cuerpo, y el modal para un cambio rápido de
-            // una línea. Ésa es toda la diferencia entre uno y otro.
-            "list option ƒ #": ["editor ƒ", "editar ƒ"],
+            // Una función: el EDITOR para el cuerpo, el modal para un cambio rápido de una
+            // línea, y "probar ƒ" para verla correr AISLADA — que es la única manera de
+            // ejecutar algo que no se ha leído.
+            "list option ƒ #": ["editor ƒ", "editar ƒ", "probar ƒ"],
+            // Un PLACE: pulsarlo ya es viajar, así que lo que tiene de más es poder
+            // mirarse por dentro sin salir de donde estás — y viajar también desde aquí.
+            "list option @ #": ["viajar ƒ", "ver dentro ƒ"],
+            // Un diccionario "{": una línea de JSON, así que entra en el modal. Después
+            // de cambiarlo, repintar el place para VER el cambio.
+            "list option { #": ["editar ƒ", "repintar place ƒ"],
 
             // Las del MENÚ como tal (clic derecho sobre su título), frente a las de
             // arriba, que son las de un elemento suyo.
@@ -802,14 +1039,305 @@
             // quitarle una opción a un tipo es quitar un elemento de una lista.
             "opciones #": ["menu acciones #", "list option [] #", "list option ~ #",
                 "list option ! #", "list option $ #", "list option § #",
-                "list option ƒ #"],
+                "list option ƒ #", "list option @ #", "list option { #"],
 
             // Lo último tomado. Es un átomo como cualquier otro: se ve, se edita, se
             // guarda con el programa. No hay portapapeles escondido en el shell.
             "tomado §": "",
 
 
+            /* ══ LA ESCENA (escena.json) ══════════════════════════════════════════════ */
+            /* Un dibujo escrito como programa: tres funciones que dibujan, unas cuantas  */
+            /* acciones "!" que las llaman con sus argumentos, threads "~" que las juntan */
+            /* por capas, y un place "@" que es el lienzo donde todo eso vive.            */
+            /*                                                                            */
+            /* Nada de aquí toca el DOM: las coordenadas son % del place, los tamaños px  */
+            /* de su escenario, y los colores se nombran en castellano — el shell solo    */
+            /* recibe un color CSS ya resuelto y lo pinta.                                 */
+
+            // El catálogo de la escena, para poder abrirla y cambiarla en vivo.
+            "escena #": ["escena @", "colores {", "dibujar ƒ",
+                "cielo ~", "entorno ~", "esqueleto del arbol ~", "copa del arbol ~",
+                "circulo ƒ", "esparcir circulos ƒ", "trazo ƒ", "texto ƒ"],
+
+            // Los nombres de los colores. Cambiar "verde" aquí repinta el árbol entero al
+            // volver a viajar: el color es un dato del programa, no una constante escondida.
+            "colores {": {
+                amarillo: "#ffd21e", blanco: "#ffffff", verde: "#9acd32",
+                rojo: "#e03131", marron: "#8a5a2b", azul: "#4d9de0", negro: "#000000"
+            },
+
+            /* ── las tres que dibujan ── */
+
+            // Un círculo. Resuelve el nombre del color y se lo pide al shell.
+            "circulo ƒ": `(color, tamano, x, y, z) => {
+      host.circulo(diarsaba.get("dibujar ƒ")(color), tamano, x, y, z);
+  }`,
+
+            // Traduce un nombre de color a un color CSS. Si no está en "colores {", se
+            // pasa tal cual: así "#0af" o "tomato" siguen valiendo.
+            "dibujar ƒ": `(color) => (diarsaba.get("colores {") || {})[color] || color`,
+
+            // Muchos círculos alrededor de (xC, yC), dentro de un cuadrado de lado 2·radio.
+            // Es lo que hace que el follaje y las flores no se dibujen a mano uno a uno.
+            "esparcir circulos ƒ": `(cantidad, xC, yC, radio, color, tamano, z) => {
+      const dibujar = diarsaba.get("circulo ƒ");
+      for (let i = 0; i < cantidad; i++) {
+          dibujar(color, tamano,
+                  xC + (Math.random() * radio * 2 - radio),
+                  yC + (Math.random() * radio * 2 - radio), z);
+      }
+  }`,
+
+            // Una línea continua que une los puntos [[x, y], ...].
+            "trazo ƒ": `(color, grosor, z, puntos) => {
+      host.trazo(diarsaba.get("dibujar ƒ")(color), grosor, z, puntos);
+  }`,
+
+            // Una línea de texto. El tercer verbo de dibujo, y el que hace legible un
+            // place que informa de algo (el banco de pruebas, por ejemplo).
+            "texto ƒ": `(color, tamano, x, y, z, contenido) => {
+      host.texto(diarsaba.get("dibujar ƒ")(color), tamano, x, y, z, contenido);
+  }`,
+
+            /* ── las acciones: una función y sus argumentos ── */
+
+            "1 sol !": ["circulo ƒ", "amarillo", "10px", 10, 10, 0],
+            "2 luna !": ["circulo ƒ", "blanco", "8px", 90, 15, 0],
+
+            "3 follaje !": ["esparcir circulos ƒ", 20, 50, 25, 15, "verde", "10px", 1],
+            "4 manzanas !": ["esparcir circulos ƒ", 5, 50, 25, 12, "rojo", "2px", 2],
+
+            "5 tronco base !": ["trazo ƒ", "marron", "15px", 0, [[45, 70], [44, 55], [45, 45]]],
+            "5 rama izquierda !": ["trazo ƒ", "marron", "6px", 0, [[44, 55], [35, 40]]],
+            "5 rama derecha !": ["trazo ƒ", "marron", "5px", 0, [[45, 50], [55, 38]]],
+
+            "6 flores blancas !": ["esparcir circulos ƒ", 5, 25, 60, 10, "blanco", "2px", 1],
+            "7 suelo !": ["circulo ƒ", "verde", "60px", 40, 70, -1],
+            "8 flor amarilla !": ["circulo ƒ", "amarillo", "3px", 32, 52, 1],
+
+            "9 raices !": ["trazo ƒ", "blanco", "3px", 0, [[45, 70], [42, 85], [35, 95]]],
+
+            /* ── los threads: la escena por capas ── */
+
+            "cielo ~": ["1 sol !", "2 luna !"],
+            "entorno ~": ["7 suelo !", "6 flores blancas !", "8 flor amarilla !"],
+            "esqueleto del arbol ~": ["5 tronco base !", "5 rama izquierda !",
+                "5 rama derecha !", "9 raices !"],
+            "copa del arbol ~": ["3 follaje !", "4 manzanas !"],
+
+            "escena arbolo ~": ["cielo ~", "entorno ~", "esqueleto del arbol ~",
+                "copa del arbol ~"],
+
+            /* ── EL PLACE ─────────────────────────────────────────────────────────────
+               Un "@" es una lista de threads y el lienzo donde ocurren. Viajar a él
+               borra el lienzo y los pone en marcha en orden. Que sea una lista es lo
+               que lo deja editar como todo lo demás: quitarle "copa del arbol ~" es
+               quitar un elemento, y el árbol se queda sin hojas al siguiente viaje.   */
+
+            "escena @": ["escena arbolo ~"],
+
+            // El place al que se ha viajado. Un átomo, no una variable del shell.
+            "place actual §": "",
+
+
+            /* ══ EL BANCO DE PRUEBAS — "pruebas @" ═══════════════════════════════════ */
+            /* Un place donde se corren átomos QUE NO SON DE FIAR. Cada uno se compila y */
+            /* se ejecuta dentro de un worker: un mundo sin document, sin el Map y sin    */
+            /* nada de aquí, con un reloj encima. Si no contesta a tiempo, se le termina. */
+            /* Un bucle infinito deja de ser un cuelgue y pasa a ser un RESULTADO.        */
+            /*                                                                            */
+            /* Y como del worker sólo vuelven DATOS, un átomo aislado que quiera dibujar   */
+            /* devuelve una lista de ACCIONES —lo mismo que un "!"— y las pinta el         */
+            /* universo de casa. El sandbox nunca llega al lienzo por su cuenta.           */
+
+            "pruebas @": ["banco de pruebas ~"],
+
+            "banco de pruebas ~": ["0 titular !", "1 correr pruebas !"],
+
+            "0 titular !": ["texto ƒ", "blanco", "7px", 6, 7, 1,
+                "pruebas @ — cada átomo corre dentro de un worker"],
+
+            // La lista de lo que se prueba y cuánto se le espera (ms).
+            "1 correr pruebas !": ["correr pruebas ƒ", "pruebas #", 600],
+
+            "pruebas #": ["renderizar agujero negro ƒ", "renderizar estrella ƒ",
+                "renderizar escapista ƒ", "renderizar roto ƒ", "renderizar cuentas ƒ"],
+
+            // EL CASO: no termina nunca. En casa se lleva la página por delante; aislado
+            // es una fila más del informe, "colgada", y el worker se termina.
+            "renderizar agujero negro ƒ": `() => { while (true) { /* cálculo infinito */ } }`,
+
+            // Uno que se porta bien: no dibuja, DEVUELVE lo que habría dibujado. Ésa es
+            // la forma de que un átomo aislado pinte sin tocar nada.
+            "renderizar estrella ƒ": `() => {
+      const acciones = [];
+      const cx = 72, cy = 42, puntos = [];
+      for (let i = 0; i < 10; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 5;
+          const r = i % 2 ? 6 : 15;
+          puntos.push([+(cx + Math.cos(a) * r).toFixed(2), +(cy + Math.sin(a) * r).toFixed(2)]);
+      }
+      puntos.push(puntos[0]);
+      acciones.push(["trazo ƒ", "amarillo", "1.5px", 1, puntos]);
+      for (let i = 0; i < 10; i += 2)
+          acciones.push(["circulo ƒ", "blanco", "2px", puntos[i][0], puntos[i][1], 2]);
+      return acciones;
+  }`,
+
+            // Intenta salirse: pintar el fondo, leer el Map, mirar el disco. Ahí dentro
+            // no existe ninguna de las tres, así que revienta antes de tocar nada. Es la
+            // prueba de que el aislamiento no depende de portarse bien.
+            "renderizar escapista ƒ": `() => {
+      document.body.style.background = "red";
+      return diarsaba.get("colores {");
+  }`,
+
+            // Uno que lanza: aislado no arrastra a nadie, sólo trae su mensaje.
+            "renderizar roto ƒ": `() => { throw new Error("me falta un ala"); }`,
+
+            // Uno que tarda pero acaba, y devuelve un valor a secas: no todo lo que se
+            // prueba dibuja.
+            "renderizar cuentas ƒ": `() => {
+      let n = 0;
+      for (let i = 0; i < 3e6; i++) n += i % 7;
+      return n;
+  }`,
+
+            // Lo ÚNICO que un resultado del sandbox puede nombrar. Sin esto, "devolver
+            // acciones" sería devolver el nombre de cualquier función del programa —y
+            // entonces el aislamiento no serviría de nada.
+            "dibujables #": ["circulo ƒ", "trazo ƒ", "texto ƒ"],
+
+            // Cómo se ve cada veredicto: un color y una nota. Es un dato, así que se
+            // puede cambiar desde el menú.
+            "veredictos {": {
+                "ok": "verde", "colgada": "rojo", "reventó": "amarillo",
+                "sin aislamiento": "azul", "no es función": "azul"
+            },
+
+
             /* ── funciones (texto fuente, compilado por createFunction) ── */
+
+            // VIAJAR: el lienzo entero pasa a ser de ese place. Barre los widgets
+            // abiertos (los menús son de donde estabas), limpia y ejecuta sus threads.
+            "viajar a place ƒ": `(nombre) => {
+      const pasos = diarsaba.get("lista de ƒ")(nombre);
+      if (!pasos) return false;
+      host.clearMenus(true);
+      host.limpiarLienzo(nombre);
+      diarsaba.set("place actual §", nombre);
+      host.log("▶ <b>viajar</b> a «" + nombre + "» (" + pasos.length + " threads)");
+      for (const paso of pasos) threads(paso);
+      return true;
+  }`,
+
+            // Volver a pintar el place donde ya estás: es lo que se pide después de
+            // cambiar un color o un tamaño para VERLO.
+            "repintar place ƒ": `() => {
+      const nombre = diarsaba.get("place actual §");
+      if (nombre) diarsaba.get("viajar a place ƒ")(nombre);
+  }`,
+
+            // Desde el clic derecho: viajar al place de ESTE elemento.
+            "viajar ƒ": `(dataset) => {
+      const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
+      diarsaba.get("viajar a place ƒ")(sel.texto);
+  }`,
+
+            // Mirar DENTRO de un place sin viajar: sus threads, como una lista más.
+            // Un "@" no se abre al pulsarlo (pulsarlo es viajar), así que abrirlo se
+            // pide desde aquí.
+            "ver dentro ƒ": `(dataset) => {
+      const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
+      const lista = diarsaba.get("lista de ƒ")(sel.texto);
+      if (!lista) return;
+      const rect = dataset.rect || { right: 40, top: 40 };
+      host.log("  ↳ <b>dentro</b> de «" + sel.texto + "»");
+      diarsaba.get("create list ƒ")(rect.right + 6, rect.top, lista, sel.texto, null, sel.texto);
+  }`,
+
+            /* ── CORRER ALGO AISLADO ──────────────────────────────────────────────────
+               El borde del sandbox y lo que se hace con lo que vuelve.                */
+
+            // Shim del BORDE: el shell aísla, el átomo sólo pide. Devuelve un veredicto
+            // y NUNCA lanza: un átomo que no termina es un dato, no una excepción.
+            "probar aislado ƒ": `async (fuente, args = [], ms = 600) => host.worker(fuente, args, ms)`,
+
+            // La FUENTE de un átomo: es lo único que cruza al worker. Allí se compila de
+            // nuevo, en su mundo — no viaja la función, viaja su texto.
+            "fuente de ƒ": `(nombre) => diarsaba.get("mostrar valor ƒ")(diarsaba.get(nombre))`,
+
+            // Probar un átomo por su NOMBRE. Es lo que se llama desde el menú y desde el
+            // banco de pruebas.
+            "probar átomo ƒ": `async (nombre, ms = 600) => {
+      const fuente = diarsaba.get("fuente de ƒ")(nombre);
+      if (!fuente) return { ok: false, motivo: "no es función", ms: 0 };
+      const r = await diarsaba.get("probar aislado ƒ")(fuente, [], ms);
+      const v = diarsaba.get("veredicto de ƒ")(r);
+      host.log("▶ <b>probar</b> «" + nombre + "» → " + v.nota + " (" + r.ms + " ms)");
+      return r;
+  }`,
+
+            // El veredicto en color y en palabras. "ok" también dice QUÉ devolvió: unas
+            // acciones de dibujo, o un valor a secas.
+            "veredicto de ƒ": `(r) => {
+      const tabla = diarsaba.get("veredictos {") || {};
+      if (r.ok) {
+          const acciones = Array.isArray(r.valor);
+          return { color: tabla.ok, nota: acciones ? "ok · " + r.valor.length + " acciones"
+                                                   : "ok · " + JSON.stringify(r.valor) };
+      }
+      const motivo = r.motivo || "reventó";
+      return { color: tabla[motivo] || "blanco",
+               nota: motivo + (r.error ? " · " + r.error : "") };
+  }`,
+
+            // Pinta lo que devolvió un átomo aislado. Cada acción es [nombre, ...args],
+            // igual que un "!" — pero sólo se aceptan los nombres de "dibujables #": lo
+            // que vuelve del sandbox es un dato sospechoso, no una orden.
+            "pintar acciones ƒ": `(acciones) => {
+      if (!Array.isArray(acciones)) return 0;
+      const permitidas = diarsaba.get("dibujables #") || [];
+      let n = 0;
+      for (const accion of acciones) {
+          if (!Array.isArray(accion) || !permitidas.includes(accion[0])) continue;
+          const f = diarsaba.get(accion[0]);
+          if (typeof f === "function") { f.apply(null, accion.slice(1)); n++; }
+      }
+      return n;
+  }`,
+
+            // EL BANCO: corre la lista entera, una fila por átomo, y pinta lo que los que
+            // contestaron hayan devuelto. Es async y se le da igual: cada prueba tiene su
+            // propio reloj, así que la peor de todas cuesta "ms" y nada más.
+            "correr pruebas ƒ": `async (nombreLista, ms = 600) => {
+      const lista = diarsaba.get("lista de ƒ")(nombreLista) || [];
+      const texto = diarsaba.get("texto ƒ");
+      const circulo = diarsaba.get("circulo ƒ");
+      texto("blanco", "5px", 6, 12, 1, lista.length + " átomos · se espera " + ms + " ms a cada uno");
+      let y = 22;
+      for (const nombre of lista) {
+          texto("blanco", "5px", 12, y, 2, nombre);
+          const r = await diarsaba.get("probar átomo ƒ")(nombre, ms);
+          const v = diarsaba.get("veredicto de ƒ")(r);
+          circulo(v.color, "4px", 8, y, 2);
+          texto(v.color, "4px", 12, y + 5, 2, v.nota + " · " + r.ms + " ms");
+          if (r.ok) diarsaba.get("pintar acciones ƒ")(r.valor);
+          y += 14;
+      }
+      texto("blanco", "4px", 6, 92, 1, "ninguna se ejecutó en casa · la que no termina se termina, y la página ni se enteró");
+  }`,
+
+            // Desde el clic derecho: probar ESTE átomo, aislado, sin arriesgar la sesión.
+            // Es la opción que hace seguro mirar código ajeno.
+            "probar ƒ": `async (dataset) => {
+      const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
+      diarsaba.get("cerrar opciones ƒ")(dataset);
+      const r = await diarsaba.get("probar átomo ƒ")(sel.texto);
+      const v = diarsaba.get("veredicto de ƒ")(r);
+      host.notify(sel.texto + "\\n\\n" + v.nota + "\\n" + r.ms + " ms");
+  }`,
 
             // Rehace "todos #" con lo que el Map tiene AHORA. Recibe la misma lista y la
             // vacía en el sitio (no la sustituye) para que los menús abiertos sigan
@@ -903,6 +1431,9 @@
       const tipo = nombre.slice(-1);
       if (tipo === "$") return Number(texto);
       if (tipo === "ƒ") return createFunction(texto);
+      // Un "{" es un diccionario: se guarda como objeto, no como su texto. Si el
+      // JSON no vale, se queda lo que había (devolver el texto lo rompería).
+      if (tipo === "{") { try { return JSON.parse(texto); } catch (e) { return diarsaba.get(nombre); } }
       return texto;
   }`,
 
@@ -1138,11 +1669,21 @@
           return true;
       }
 
-      // (En la app real, aquí va la rama de los "@": viajar a un place cambia
-      //  el lienzo entero. Sin lienzo no hay a dónde viajar, así que fuera.)
+      // Un PLACE: viajar. Cambia el lienzo ENTERO, así que no se abre como una
+      // lista más — pulsarlo es irse. Para mirarlo sin viajar está "ver dentro ƒ",
+      // en su clic derecho.
+      if (type === "@") return diarsaba.get("viajar a place ƒ")(name);
 
-      // Funciones: ejecutar
+      // Funciones: ejecutar. Salvo las del BANCO DE PRUEBAS: ésas no se ejecutan
+      // aquí ni por accidente. Un clic en «renderizar agujero negro ƒ» se lleva la
+      // página por delante, así que el despacho lo manda al worker y lo que se ve
+      // es su veredicto. Que un átomo no sea de fiar es una propiedad del PROGRAMA
+      // —está en una lista—, no un cuidado que haya que tener al pulsar.
       if (type === "ƒ") {
+          if ((diarsaba.get("pruebas #") || []).includes(name)) {
+              diarsaba.get("probar átomo ƒ")(name);
+              return true;
+          }
           const f = diarsaba.get(name);
           if (typeof f === "function") { f(dataset); return true; }
           return false;
@@ -1230,6 +1771,14 @@
         });
 
 
+
+        // El escenario se reajusta con la ventana: la escena no se recalcula, solo se
+        // escala — es la misma, más grande.
+        addEventListener("resize", () => host._escalar());
+
+        // Arrancar EN un place: el programa siempre está en algún sitio. Se viaja como
+        // se viajaría desde el menú, con el mismo átomo.
+        diarsaba.get("viajar a place ƒ")("escena @");
 
         host.log("listo — clic derecho en el fondo abre un menú; sobre un ítem, sus opciones");
     </script>

@@ -1,0 +1,48 @@
+{
+  "circulo ƒ": "(color, tamaño, x, y, z) => { /* renderiza un circulo */ }",
+  "esparcir circulos ƒ": "(cantidad, xC, yC, radio, color, tamaño, z) => { const dibujar = diarsaba.get('circulo ƒ'); for(let i=0; i<cantidad; i++){ dibujar(color, tamaño, xC+(Math.random()*radio*2-radio), yC+(Math.random()*radio*2-radio), z); } }",
+  "trazo ƒ": "(color, grosor, z, puntos) => { /* renderiza una linea continua uniendo los puntos */ }",
+
+  "1 sol !": ["circulo ƒ", "amarillo", "10px", 10, 10, 0],
+  "2 luna !": ["circulo ƒ", "blanco", "8px", 90, 15, 0],
+  
+  "3 follaje !": ["esparcir circulos ƒ", 20, 50, 25, 15, "verde", "10px", 1],
+  "4 manzanas !": ["esparcir circulos ƒ", 5, 50, 25, 12, "rojo", "2px", 2],
+  
+  "5 tronco base !": ["trazo ƒ", "marron", "15px", 0, [[45, 70], [44, 55], [45, 45]]],
+  "5 rama izquierda !": ["trazo ƒ", "marron", "6px", 0, [[44, 55], [35, 40]]],
+  "5 rama derecha !": ["trazo ƒ", "marron", "5px", 0, [[45, 50], [55, 38]]],
+
+  "6 flores blancas !": ["esparcir circulos ƒ", 5, 25, 60, 10, "blanco", "2px", 1],
+  "7 suelo !": ["circulo ƒ", "verde", "60px", 40, 70, -1],
+  "8 flor amarilla !": ["circulo ƒ", "amarillo", "3px", 32, 52, 1],
+  
+  "9 raices !": ["trazo ƒ", "blanco", "3px", 0, [[45, 70], [42, 85], [35, 95]]],
+
+  "cielo ~": [
+    "1 sol !", 
+    "2 luna !"
+  ],
+  "entorno ~": [
+    "7 suelo !", 
+    "6 flores blancas !", 
+    "8 flor amarilla !"
+  ],
+  "esqueleto del arbol ~": [
+    "5 tronco base !", 
+    "5 rama izquierda !", 
+    "5 rama derecha !", 
+    "9 raices !"
+  ],
+  "copa del arbol ~": [
+    "3 follaje !", 
+    "4 manzanas !"
+  ],
+
+  "escena arbolo ~": [
+    "cielo ~",
+    "entorno ~",
+    "esqueleto del arbol ~",
+    "copa del arbol ~"
+  ]
+}

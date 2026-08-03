@@ -1,0 +1,315 @@
+/* ── CSS: solo lo que el menú necesita (copiado de "todo el estilo {") ── */
+:root {
+    --graph-bg: #000000;
+    --graph-bg-strong: rgba(0, 0, 0, 0.92);
+    --graph-border: rgba(255, 255, 255, 0.14);
+    --graph-border-active: rgba(255, 255, 255, 0.24);
+    --graph-text: #ffffff;
+    --graph-text-muted: rgba(255, 255, 255, 0.62);
+    --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+    --graph-font: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--graph-bg);
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: var(--graph-font);
+    color: var(--graph-text);
+}
+
+/* ── EL LIENZO DE UN PLACE ("@") ──────────────────────────────────────
+     Un place es un LIENZO entero: viajar a él lo borra y lo vuelve a pintar.
+     Es un escenario de 200×200 unidades que se escala a la ventana, así que
+     las coordenadas de la escena son % del place y los tamaños son px de ese
+     escenario: la misma escena se ve igual en cualquier pantalla.
+     z-index: 0 hace del lienzo un contexto de apilado propio, y por eso un
+     "z" negativo (el suelo) queda detrás de lo demás pero delante del fondo,
+     y nunca por encima de un menú. */
+#lienzo {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 200px;
+    height: 200px;
+    z-index: 0;
+    transform: translate(-50%, -50%) scale(var(--escala, 3));
+    pointer-events: none;
+}
+
+/* Un círculo: se ancla por su CENTRO, para que (x, y) sea el punto que
+     dice la escena y no su esquina. */
+.escena-circulo {
+    position: absolute;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Un trazo: su propio <svg> del tamaño del lienzo, en coordenadas 0..100
+     (las mismas que la escena). "non-scaling-stroke" mantiene el grosor en px
+     aunque el viewBox se estire, así una línea no engorda al escalar. */
+.escena-trazo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Un texto de la escena. Se ancla por su izquierda y su medio vertical, así
+     (x, y) es donde empieza la línea. */
+.escena-texto {
+    position: absolute;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    line-height: 1;
+}
+
+/* El nombre del place al que se ha viajado. */
+#place-nombre {
+    position: fixed;
+    left: 12px;
+    bottom: 10px;
+    font-size: .7rem;
+    color: rgba(255, 255, 255, .38);
+    user-select: none;
+    pointer-events: none;
+}
+
+/* El menú y la lista son EL MISMO widget: .context-menu con .menu-item.
+     Lo que cambia es la SEMÁNTICA del despacho, no el dibujo. */
+.context-menu {
+    position: absolute;
+    background: var(--graph-bg-strong);
+    border-radius: 14px;
+    box-shadow: var(--graph-shadow);
+    border: 1px solid var(--graph-border);
+    z-index: 1000;
+    min-width: 140px;
+    max-height: min(360px, 60vh);
+    overflow-y: auto;
+    overflow-x: hidden;
+    user-select: none;
+    backdrop-filter: blur(14px);
+}
+
+.context-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.context-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.context-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .14);
+    border-radius: 999px;
+}
+
+.menu-item {
+    padding: 6px 12px;
+    font-size: .75rem;
+    color: var(--graph-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+/* El nombre del átomo que el menú muestra. No es un ítem: no se pulsa, no
+     cuenta para los índices. Con varios menús abiertos, es lo que distingue
+     uno de otro. */
+.menu-titulo {
+    display: block;
+    padding: 5px 12px;
+    font-size: .68rem;
+    color: rgba(255, 255, 255, .38);
+    border-bottom: 1px solid rgba(255, 255, 255, .16);
+    user-select: none;
+}
+
+.menu-item:last-child {
+    border-bottom: none;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, .08);
+}
+
+.menu-item:active {
+    background: rgba(255, 255, 255, .12);
+}
+
+/* El MODAL que pide un nombre (copiado igual de "todo el estilo {"). */
+.modal-content {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    padding: 1rem;
+    border: 1px solid var(--graph-border);
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.88);
+    box-shadow: var(--graph-shadow);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+}
+
+.modal-content button {
+    font-size: 0.75rem;
+    color: var(--graph-text);
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: 10px;
+    transition: all 0.15s ease;
+    width: fit-content;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--graph-border);
+    outline: none;
+    user-select: none;
+}
+
+.modal-content button:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--graph-border-active);
+}
+
+.modal-content button:active {
+    background: rgba(255, 255, 255, 0.18);
+    transform: scale(0.98);
+}
+
+.modal-content button[data-modal="continue"] {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--graph-text);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+}
+
+.modal-content button[data-modal="continue"]:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-content input {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    outline: none;
+    padding: 4px 8px;
+    border-radius: 8px;
+    color: var(--graph-text);
+    font-family: inherit;
+    font-size: 1rem;
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.modal-content span {
+    font-family: inherit;
+    color: var(--graph-text-muted);
+    font-weight: 100;
+    font-size: smaller;
+    font-style: italic;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: space-around;
+    margin-top: 12px;
+}
+
+/* El EDITOR (Monaco vive en el shell) — también copiado del estilo real. */
+.editor-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.22);
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    backdrop-filter: blur(1px) saturate(0.6%);
+    -webkit-backdrop-filter: blur(1px) saturate(0.6%);
+    display: flex;
+}
+
+.editor-modal {
+    width: 90%;
+    max-width: 900px;
+    height: 80%;
+    max-height: 700px;
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.34);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+    border: 1px solid var(--graph-border);
+    backdrop-filter: blur(1px) saturate(0.6%);
+    -webkit-backdrop-filter: blur(1px) saturate(0.6%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 16px;
+    flex-shrink: 0;
+}
+
+.editor-title {
+    color: var(--graph-text);
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editor-header .modal-buttons {
+    margin-top: 0;
+}
+
+.monaco-container {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.monaco-container .monaco-editor,
+.monaco-container .monaco-editor-background,
+.monaco-container .margin,
+.monaco-container .monaco-scrollable-element {
+    background: transparent !important;
+}
+
+/* Respaldo si Monaco no está disponible (el demo abierto suelto). */
+.monaco-container textarea {
+    width: 100%;
+    height: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--graph-text);
+    font-family: var(--graph-font);
+    font-size: .8rem;
+    padding: 12px 16px;
+    line-height: 1.5;
+    tab-size: 4;
+}

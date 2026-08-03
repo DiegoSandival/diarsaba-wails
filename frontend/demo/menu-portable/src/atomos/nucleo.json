@@ -1,0 +1,168 @@
+{
+  "types list #": [
+    "~",
+    "ƒ",
+    "!",
+    "$",
+    "§",
+    "#",
+    "[]",
+    "֎",
+    "<",
+    "{",
+    ":",
+    "@"
+  ],
+  "sigilos lista #": [
+    "#",
+    "~",
+    "!"
+  ],
+  "sys #": [
+    "todos #",
+    "sigilos #",
+    "opciones #",
+    "borde #",
+    "despacho #",
+    "listas #",
+    "valores #",
+    "places ƒ #",
+    "logs #"
+  ],
+  "diarsaba #": [
+    "sys #",
+    "places #",
+    "escena #",
+    "aislamiento #"
+  ],
+  "places #": [
+    "escena @",
+    "pruebas @"
+  ],
+  "todos #": [],
+  "sigilos #": [
+    "types list #",
+    "sigilos lista #"
+  ],
+  "borde #": [
+    "create list menu ƒ",
+    "create list ƒ",
+    "close menu ƒ",
+    "clear menus ƒ",
+    "repintar lista ƒ",
+    "rect de ítem ƒ",
+    "lista de menú ƒ",
+    "modal input ƒ"
+  ],
+  "despacho #": [
+    "show context menu ƒ",
+    "handle click ƒ",
+    "despachar menú ƒ",
+    "dispatch item ƒ",
+    "open submenu ƒ",
+    "cerrar opciones ƒ",
+    "obtener index [0] ƒ"
+  ],
+  "listas #": [
+    "lista de ƒ",
+    "ítems de menú ƒ",
+    "opciones de ƒ"
+  ],
+  "valores #": [
+    "interpretar valor ƒ",
+    "mostrar valor ƒ",
+    "tomado §"
+  ],
+  "places ƒ #": [
+    "viajar a place ƒ",
+    "repintar place ƒ",
+    "viajar ƒ",
+    "ver dentro ƒ",
+    "place actual §"
+  ],
+  "logs #": [],
+  "list option [] #": [
+    "tomar ƒ",
+    "cortar ƒ",
+    "antes ƒ",
+    "despues ƒ",
+    "eliminar ƒ"
+  ],
+  "list option ~ #": [
+    "ejecutar ƒ"
+  ],
+  "list option ! #": [
+    "ejecutar ƒ"
+  ],
+  "list option $ #": [
+    "editar ƒ"
+  ],
+  "list option § #": [
+    "editar ƒ"
+  ],
+  "list option ƒ #": [
+    "editor ƒ",
+    "editar ƒ",
+    "probar ƒ"
+  ],
+  "list option @ #": [
+    "viajar ƒ",
+    "ver dentro ƒ"
+  ],
+  "list option { #": [
+    "editar ƒ",
+    "repintar place ƒ"
+  ],
+  "menu acciones #": [
+    "nuevo ƒ",
+    "cerrar ƒ"
+  ],
+  "opciones #": [
+    "menu acciones #",
+    "list option [] #",
+    "list option ~ #",
+    "list option ! #",
+    "list option $ #",
+    "list option § #",
+    "list option ƒ #",
+    "list option @ #",
+    "list option { #"
+  ],
+  "tomado §": "",
+  "place actual §": "",
+  "viajar a place ƒ": "(nombre) => {\n      const pasos = diarsaba.get(\"lista de ƒ\")(nombre);\n      if (!pasos) return false;\n      host.clearMenus(true);\n      host.limpiarLienzo(nombre);\n      diarsaba.set(\"place actual §\", nombre);\n      host.log(\"▶ <b>viajar</b> a «\" + nombre + \"» (\" + pasos.length + \" threads)\");\n      for (const paso of pasos) threads(paso);\n      return true;\n  }",
+  "repintar place ƒ": "() => {\n      const nombre = diarsaba.get(\"place actual §\");\n      if (nombre) diarsaba.get(\"viajar a place ƒ\")(nombre);\n  }",
+  "viajar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(\"viajar a place ƒ\")(sel.texto);\n  }",
+  "ver dentro ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const lista = diarsaba.get(\"lista de ƒ\")(sel.texto);\n      if (!lista) return;\n      const rect = dataset.rect || { right: 40, top: 40 };\n      host.log(\"  ↳ <b>dentro</b> de «\" + sel.texto + \"»\");\n      diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, lista, sel.texto, null, sel.texto);\n  }",
+  "todos # al abrir ƒ": "(lista) => {\n      lista.length = 0;\n      for (const clave of [...diarsaba.keys()].sort()) lista.push(clave);\n  }",
+  "obtener index [0] ƒ": "(texto) => {\n      const regex = /^\\[(\\d+)\\]\\s*(.*)$/;\n      const match = texto.match(regex);\n      if (!match) throw new Error('Formato inválido. Se esperaba: \"[número] texto\"');\n      return { indice: parseInt(match[1], 10), texto: match[2].trim() };\n  }",
+  "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null, onPick, desde = \"\") => {\n      return host.menu(list, parent, current, x, y, onPick ?? null, desde);\n  }",
+  "close menu ƒ": "(id) => host.closeMenu(id)",
+  "rect de ítem ƒ": "(id, index) => host.itemRect(id, index)",
+  "lista de menú ƒ": "(id) => host.listaDe(id)",
+  "repintar lista ƒ": "(nombre) => {\n      return host.redrawAll(nombre, diarsaba.get(\"ítems de menú ƒ\")(nombre));\n  }",
+  "modal input ƒ": "async (pre) => {\n      return host.modal(pre);\n  }",
+  "create list ƒ": "(x, y, list, parent, onPick, slot = \"\") => {\n      return host.list(x, y, list, parent, onPick ?? null, slot);\n  }",
+  "clear menus ƒ": "() => host.clearMenus()",
+  "lista de ƒ": "(nombre) => {\n      if (typeof nombre !== \"string\") return null;\n      let lista = diarsaba.get(nombre);\n      if (!Array.isArray(lista) && diarsaba.get(\"sigilos lista #\").includes(nombre.slice(-1))) {\n          lista = [];\n          diarsaba.set(nombre, lista);\n          host.log(\"· <b>nace</b> «\" + nombre + \"», vacía\");\n      }\n      return Array.isArray(lista) ? lista : null;\n  }",
+  "ítems de menú ƒ": "(nombre) => diarsaba.get(\"lista de ƒ\")(nombre) || []",
+  "opciones de ƒ": "(nombre) => {\n      const propias = diarsaba.get(\"list option \" + nombre.slice(-1) + \" #\");\n      return [...(Array.isArray(propias) ? propias : []),\n              ...diarsaba.get(\"list option [] #\")];\n  }",
+  "interpretar valor ƒ": "(nombre, texto) => {\n      const tipo = nombre.slice(-1);\n      if (tipo === \"$\") return Number(texto);\n      if (tipo === \"ƒ\") return createFunction(texto);\n      // Un \"{\" es un diccionario: se guarda como objeto, no como su texto. Si el\n      // JSON no vale, se queda lo que había (devolver el texto lo rompería).\n      if (tipo === \"{\") { try { return JSON.parse(texto); } catch (e) { return diarsaba.get(nombre); } }\n      return texto;\n  }",
+  "mostrar valor ƒ": "(valor) => {\n      if (valor === undefined || valor === null) return \"\";\n      if (typeof valor === \"function\") return String(valor);\n      return typeof valor === \"string\" ? valor : JSON.stringify(valor);\n  }",
+  "editor ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const nombre = sel.texto;\n      const actual = diarsaba.get(nombre);\n      const res = await host.editor(\n          nombre,\n          actual instanceof Function ? actual.toString() : \"()=>{}\",\n          \"js\"\n      );\n      if (res == null || res.trim() === \"\") return;\n      try {\n          diarsaba.set(nombre, createFunction(res));\n          host.log(\"▶ <b>\" + nombre + \"</b> recompilada desde el editor\");\n      } catch (e) {\n          host.notify('\"' + nombre + '\" no se guardó: el código no compila.\\n\\n' + e.message);\n      }\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "editar ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const nombre = sel.texto;\n      const antes = diarsaba.get(nombre);\n      const fuente = diarsaba.get(\"mostrar valor ƒ\")(antes);\n      if (fuente.includes(\"\\n\")) {\n          host.log(\"· «\" + nombre + \"» tiene varias líneas: eso pide «<b>editor ƒ</b>», no el modal\");\n          return;\n      }\n      const texto = await diarsaba.get(\"modal input ƒ\")(fuente);\n      if (texto === null) return;\n      diarsaba.set(nombre, diarsaba.get(\"interpretar valor ƒ\")(nombre, texto));\n      host.log(\"▶ <b>\" + nombre + \"</b> = \" + texto);\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "ejecutar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      host.log(\"▶ <b>ejecutar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n      threads(sel.texto);\n  }",
+  "tomar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.set(\"tomado §\", sel.texto);\n      host.log(\"▶ <b>tomar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "cortar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.set(\"tomado §\", sel.texto);\n      diarsaba.get(dataset.parent).splice(sel.indice, 1);\n      host.log(\"▶ <b>cortar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "antes ƒ": "(dataset) => {\n      const tomado = diarsaba.get(\"tomado §\");\n      if (!tomado) { host.log(\"· nada tomado todavía\"); return; }\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(dataset.parent).splice(sel.indice, 0, tomado);\n      host.log(\"▶ <b>antes</b> de «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "despues ƒ": "(dataset) => {\n      const tomado = diarsaba.get(\"tomado §\");\n      if (!tomado) { host.log(\"· nada tomado todavía\"); return; }\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(dataset.parent).splice(sel.indice + 1, 0, tomado);\n      host.log(\"▶ <b>despues</b> de «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "eliminar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(dataset.parent).splice(sel.indice, 1);\n      host.log(\"▶ <b>eliminar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+  "cerrar opciones ƒ": "(dataset) => {\n      diarsaba.get(\"close menu ƒ\")(dataset.menu);\n      diarsaba.get(\"repintar lista ƒ\")(dataset.parent);\n  }",
+  "nuevo ƒ": "async (dataset) => {\n      const nombre = diarsaba.get(\"lista de menú ƒ\")(dataset.desde);\n      const lista = diarsaba.get(\"lista de ƒ\")(nombre);\n      if (!lista) return;\n      const texto = await diarsaba.get(\"modal input ƒ\")(\"\");\n      if (texto === null || texto === \"\") return;\n      lista.push(texto);\n      host.log(\"▶ <b>nuevo</b> «\" + texto + \"» en «\" + nombre + \"»\");\n      diarsaba.get(\"close menu ƒ\")(dataset.menu);\n      diarsaba.get(\"repintar lista ƒ\")(nombre);\n  }",
+  "despachar menú ƒ": "async (p) => {\n      const content = p.label;\n      const rect = p.rect;\n      const dataset = { parent: p.parent, current: p.current, menu: p.menu,\n                        desde: p.desde, rect: p.rect };\n\n      host.log(\"· clic en «<b>\" + content + \"</b>»\");\n\n      // ── Ítem SIN prefijo \"[n] \" → es de MENÚ: manda el SIGILO de la derecha.\n      if (!/^\\[\\d+\\]/.test(content)) {\n          const tipo = content.slice(-1);\n          // Todo lo que es una lista por dentro se ABRE como submenú (sigue\n          // siendo menú), colgado del menú donde se pulsó. Da igual que sea una\n          // lista, un thread o una acción: mirar dentro es el mismo gesto.\n          if (diarsaba.get(\"sigilos lista #\").includes(tipo)) {\n              if (diarsaba.get(\"open submenu ƒ\")(content, rect, p.menu)) return;\n          } else if (diarsaba.get(\"types list #\").includes(tipo)) {\n              // Lo que no es una colección cobra vida según su sigilo.\n              if (diarsaba.get(\"dispatch item ƒ\")(content, dataset, rect)) return;\n          }\n          // (En la app real, aquí va la rama de los CREADORES: si existe\n          //  \"create <label> ƒ\", pide un nombre por modal y crea el átomo.)\n          //\n          // Y aquí iba el atajo para etiquetas SIN sigilo —\"· # eliminar\" y el\n          // resto de opciones—, que buscaba \"<etiqueta> ƒ\". Ya no hace falta:\n          // ahora las opciones se llaman \"eliminar ƒ\" y el sigilo las despacha\n          // como a cualquier función. Una regla menos, y una regla sola.\n          return;\n      }\n\n      // ── Ítem de LISTA \"[n] texto\": se parsea el índice y se despacha limpio.\n      // Sin esto, un \"[1] casa @\" abriría un place fantasma llamado así.\n      try {\n          const parsed = diarsaba.get(\"obtener index [0] ƒ\")(content);\n          const label = parsed.texto;\n          const handled = diarsaba.get(\"dispatch item ƒ\")(label, dataset, rect);\n          if (!handled) {\n              const fn = diarsaba.get(label + \" ƒ\") || diarsaba.get(content + \" ƒ\");\n              if (fn) fn(dataset);\n          }\n      } catch (err) { /* parseo inválido: se ignora */ }\n  }",
+  "open submenu ƒ": "(nombre, rect, desde = \"\") => {\n      const lista = diarsaba.get(\"lista de ƒ\")(nombre);\n      if (!lista) return false;\n      // Una lista puede CALCULARSE en vez de guardarse: si existe un\n      // \"<nombre> al abrir ƒ\", se le da la palabra justo antes de dibujar. Con\n      // eso \"todos #\" no puede quedarse vieja — se rehace cada vez que la miras.\n      const alAbrir = diarsaba.get(nombre + \" al abrir ƒ\");\n      if (typeof alAbrir === \"function\") alAbrir(lista);\n      // \"desde\" = el menú del que cuelga: con eso el shell cierra el submenú que\n      // ese mismo menú tuviera abierto, y no se amontonan unos sobre otros.\n      diarsaba.get(\"create list menu ƒ\")(\n          diarsaba.get(\"ítems de menú ƒ\")(nombre), nombre, \"\",\n          rect.right + 6, rect.top, null, desde);\n      // Se apunta DESPUÉS de dibujar: si no, abrir «logs #» se listaría a sí mismo.\n      host.log(\"  ↳ <b>submenú</b> de «\" + nombre + \"» (\" + lista.length + \" ítems)\");\n      return true;\n  }",
+  "dispatch item ƒ": "(name, dataset, rect) => {\n      const type = name.slice(-1);\n\n      // Colecciones: abrir su contenido como SUBLISTA efímera junto al ítem.\n      // (Ojo: desde un MENÚ no llegan aquí — las toma \"open submenu ƒ\". Aquí\n      //  llegan las que están dentro de una LISTA. Un \"~\" o un \"!\" tampoco se\n      //  ejecutan ya al pulsarlos: para eso está \"ejecutar ƒ\" en sus opciones.)\n      if (diarsaba.get(\"sigilos lista #\").includes(type)) {\n          const list = diarsaba.get(\"lista de ƒ\")(name);\n          if (!list) return false;\n          host.log(\"  ↳ <b>sublista</b> de «\" + name + \"»\");\n          diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name, null, name);\n          return true;\n      }\n\n      // Un PLACE: viajar. Cambia el lienzo ENTERO, así que no se abre como una\n      // lista más — pulsarlo es irse. Para mirarlo sin viajar está \"ver dentro ƒ\",\n      // en su clic derecho.\n      if (type === \"@\") return diarsaba.get(\"viajar a place ƒ\")(name);\n\n      // Funciones: ejecutar. Salvo las del BANCO DE PRUEBAS: ésas no se ejecutan\n      // aquí ni por accidente. Un clic en «renderizar agujero negro ƒ» se lleva la\n      // página por delante, así que el despacho lo manda al worker y lo que se ve\n      // es su veredicto. Que un átomo no sea de fiar es una propiedad del PROGRAMA\n      // —está en una lista—, no un cuidado que haya que tener al pulsar.\n      if (type === \"ƒ\") {\n          if ((diarsaba.get(\"pruebas #\") || []).includes(name)) {\n              diarsaba.get(\"probar átomo ƒ\")(name);\n              return true;\n          }\n          const f = diarsaba.get(name);\n          if (typeof f === \"function\") { f(dataset); return true; }\n          return false;\n      }\n\n      return false;\n  }",
+  "show context menu ƒ": "() => {\n      const event = diarsaba.get(\"pointer up event\");\n\n      // En el fondo: otro menú raíz, con la lista de átomos.\n      if (event.kind === \"background\") {\n          const nombre = \"diarsaba #\";\n          diarsaba.get(\"create list menu ƒ\")(\n              diarsaba.get(\"ítems de menú ƒ\")(nombre), nombre, \"\", null, null, null, \"\");\n          return;\n      }\n      if (event.kind !== \"menu\") return;\n\n      // Sobre el TÍTULO: las acciones del MENÚ (nuevo / cerrar). Muestra SU\n      // lista, «menu acciones #», no la del menú de abajo: así sus ítems son\n      // elementos de verdad, con sus opciones y su editor. A qué menú se\n      // refieren ya lo dice \"desde\".\n      if (event.titulo) {\n          const nombre = \"menu acciones #\";\n          diarsaba.get(\"create list menu ƒ\")(\n              diarsaba.get(\"ítems de menú ƒ\")(nombre), nombre, \"\",\n              null, null, null, event.menu);\n          return;\n      }\n\n      // Sobre un ÍTEM: las opciones de ESE elemento (tomar / antes / despues /\n      // eliminar). El menú de opciones cuelga de aquél, así que se cierra con\n      // él, y lleva en su dataset a QUÉ elemento se refiere.\n      if (event.name) {\n          const lista = diarsaba.get(\"lista de ƒ\")(event.parent);\n          // Que el ítem SEA de verdad ese elemento de esa lista. Un menú de\n          // acciones u opciones cuelga de una lista pero no la muestra, y sus\n          // ítems no son elementos: aquí es donde se quedan fuera.\n          if (!Array.isArray(lista) || lista[event.index] !== event.name) return;\n          diarsaba.get(\"create list menu ƒ\")(\n              diarsaba.get(\"opciones de ƒ\")(event.name),\n              event.parent,                                  // la lista\n              \"[\" + event.index + \"] \" + event.name,         // el elemento\n              null, null, null, event.menu);\n      }\n  }",
+  "cerrar ƒ": "(dataset) => {\n      host.log(\"▶ <b>cerrar</b> «\" + diarsaba.get(\"lista de menú ƒ\")(dataset.desde) + \"»\");\n      diarsaba.get(\"close menu ƒ\")(dataset.desde);\n  }",
+  "handle click ƒ": "() => {}"
+}
