@@ -26,13 +26,17 @@ export const widgets = {
         el.style.left = `${left}px`; el.style.top = `${top}px`;
     },
 
-    // No-string → JSON; escapa &<> para que un dato ajeno no inyecte HTML.
-    _render(v) {
-        const t = typeof v === "string" ? v : (() => {
-            try { return JSON.stringify(v); } catch (_) { return String(v); }
-        })();
-        return t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-    },
+    /* ── EL CONTRATO DEL MARCADO ───────────────────────────────────────────
+       El shell ya no construye el menú: lo recibe hecho, del átomo «menu <».
+       Pero para convertir un clic en un dato tiene que reconocer dos cosas en
+       ese marcado, y sólo dos:
+
+           .menu-item[data-idx="N"]   un ítem, y qué índice tiene
+           .menu-titulo               el título (pulsarlo va DEL MENÚ)
+
+       Eso es todo lo que sabe de la forma de un menú. Cambia el marcado como
+       quieras —otras etiquetas, más adornos, otro orden— y seguirá funcionando
+       mientras esos dos ganchos existan. No es una forma: es dónde mirar. */
 
     // Entrega por DEFECTO del ítem elegido. El átomo ya no pasa una función por
     // el borde (un postMessage no puede llevarla): pasa null y el shell entrega
@@ -82,31 +86,30 @@ export const widgets = {
     // lo que dice cuál es cuál — y es donde se pulsa para las acciones del menú.
     // No es un ítem, así que no altera los índices.
     // Un menú de opciones va de UN elemento (dataset.current), no de la lista.
-    _paint(div, list) {
-        let i = 0, html = "";
-        const nombre = div.dataset.current || div.dataset.parent;
-        if (nombre) html += `<span class="menu-titulo">${this._render(nombre)}</span>`;
-        for (const key of list)
-            html += `<span class="menu-item" data-idx="${i++}">${this._render(key)}</span>`;
-        div.innerHTML = html;
+    // Los menús ABIERTOS que están mostrando esa lista, por su id. El universo
+    // pregunta "¿quién enseña «logs #»?" y recibe ids, no elementos — con eso
+    // decide a quién repintar. Antes esto era redrawAll(), que además PINTABA;
+    // ahora pintar es del universo y aquí sólo queda la pregunta.
+    //
+    // Sólo los que la MUESTRAN: un menú de opciones cuelga de una lista pero
+    // enseña otra cosa, y no debe repintarse con sus datos.
+    menusDe(nombre) {
+        const ids = [];
+        for (const [id, w] of this.scene._menu)
+            if (w.el && w.el.dataset.parent === nombre && !w.el.dataset.current) ids.push(id);
+        return ids;
     },
 
-    // Vuelve a pintar TODOS los menús abiertos que estén mostrando esa lista.
-    // Por NOMBRE y no por menú: si la misma lista está abierta en dos sitios,
-    // los dos se enteran; y sirve igual para un cambio hecho a mano que para uno
-    // que ocurre solo (un thread, un reloj). Los menús siguen siendo LOS MISMOS
-    // —mismo id, mismo sitio, mismos hijos—, solo cambian sus ítems.
-    redrawAll(nombre, list) {
-        let n = 0;
-        for (const [, w] of this.scene._menu) {
-            // Solo los que MUESTRAN la lista: un menú de opciones cuelga de ella
-            // pero enseña otra cosa, y no debe repintarse con sus datos.
-            if (!w.el || w.el.dataset.parent !== nombre || w.el.dataset.current) continue;
-            this._paint(w.el, list);
-            this._clamp(w.el);
-            n++;
-        }
-        return n;
+    // Cambia el contenido de un menú abierto, conservándolo: mismo id, mismo
+    // sitio, mismos hijos. Es lo que hace que editar un elemento se VEA sin
+    // cerrar nada. El manejador de clic está delegado en el contenedor, así que
+    // reemplazar el marcado de dentro no lo rompe.
+    repintar(id, html) {
+        const w = this.scene._menu.get(id);
+        if (!w || !w.el) return false;
+        w.el.innerHTML = String(html);
+        this._clamp(w.el);
+        return true;
     },
 
     // Qué lista está mostrando un menú abierto. El universo pregunta por id y
@@ -157,11 +160,18 @@ export const widgets = {
 
     // Avisos del shell (en la app real, lo mismo).
     notify(msg) { return alert(msg); },
-    // MENÚ: ítems SIN prefijo. x/y null → junto al puntero.
+
+    // MENÚ. Recibe el HTML ya hecho —del átomo «menu <»— y se encarga de lo que
+    // no es forma: darle un id, ponerlo en su sitio sin que se salga de la
+    // ventana, cablear el clic y colgarlo del árbol.
+    //
     // "desde": id del menú DONDE SE PULSÓ; "" = es una RAÍZ (nace del fondo).
-    // El shell le da un id propio y lo registra en scene: el átomo nunca recibe
-    // el elemento, solo ese id de vuelta en el payload.
-    menu(list, parent = "", current = "", x = null, y = null, onPick = null, desde = "") {
+    // El átomo nunca recibe el elemento, sólo el id de vuelta.
+    //
+    // Los datos (parent/current) se guardan en el dataset porque son lo que el
+    // shell devuelve en el payload de un clic: no los usa para dibujar —ya no
+    // dibuja—, los custodia.
+    menu(html, parent = "", current = "", x = null, y = null, onPick = null, desde = "") {
         const div = document.createElement("div");
         div.className = "context-menu";
         div.style.left = `${x === null ? this._px : x}px`;
@@ -170,7 +180,7 @@ export const widgets = {
         div.dataset.current = current;
         div.dataset.menu = window.host.scene.nuevoId();
         div.dataset.desde = desde;
-        this._paint(div, list);          // después del dataset: el título lo lee de ahí
+        div.innerHTML = String(html);
         // La marca "submenu" distingue lo que cuelga de otro menú de lo que
         // nació del fondo.
         if (desde) div.classList.add("submenu");
@@ -178,27 +188,7 @@ export const widgets = {
         this._clamp(div);
         this._wirePick(div, onPick);
         window.host.scene.open(div.dataset.menu, div, desde);
-        return div;
-    },
-
-    // LISTA: los ítems llevan el prefijo "[n] " — ésa es la marca que hace que
-    // el despacho los trate con semántica de LISTA y no de menú.
-    list(x, y, list, parent, onPick = null, slot = "") {
-        const div = document.createElement("div");
-        div.className = "context-menu";
-        if (list.length == 0) div.innerHTML += `<span class="menu-item" data-idx="0">[0]</span>`;
-        else {
-            let i = 0; for (const key in list)
-                div.innerHTML += `<span class="menu-item" data-idx="${i++}">[${key}] ${this._render(list[key])}</span>`;
-        }
-        div.style.left = `${x}px`;
-        div.style.top = `${y}px`;
-        div.dataset.parent = parent;
-        document.body.appendChild(div);
-        this._clamp(div);
-        this._wirePick(div, onPick);
-        if (slot) window.host.scene.openList(slot, div);
-        return div;
+        return div.dataset.menu;
     },
 
     // Cierra UN menú (y lo que colgara de él). Es lo que pide "cerrar ƒ".
@@ -208,16 +198,14 @@ export const widgets = {
     // se cierra con su propia acción—, así que esto es el Esc y el cambio de
     // place.
     //
-    // OJO — asimetría deliberada del original: las LISTAS no están en este
-    // registro, así que SOBREVIVEN a esto: una lista abierta se queda hasta que
-    // la cierres (· []* ocultar) o cambies de place. Con `alsoModals` —lo que
-    // usa el cambio de place— se barre absolutamente todo.
+    // (Aquí había una asimetría heredada: las LISTAS iban en otro registro y
+    //  sobrevivían al Esc. Ya no hay listas —todo es el árbol de menús—, así que
+    //  la excepción se fue con ellas. `alsoModals` barre además los modales, y
+    //  es lo que usa el cambio de place.)
     clearMenus(alsoModals) {
         this.scene.closeAll();
-        if (alsoModals) {
+        if (alsoModals)
             document.querySelectorAll(".context-menu, .modal-content").forEach((el) => el.remove());
-            this.scene._list.clear();
-        }
     },
 
     // Clasifica un evento de puntero en un payload SEMÁNTICO. El shell mira el
@@ -254,7 +242,6 @@ export const widgets = {
         // ("" = raíz, nacida de un clic derecho en el fondo). El id lo pone el
         // shell, así dos aperturas de la misma lista son dos menús distintos.
         _menu: new Map(),      // id → { el, desde }
-        _list: new Map(),
         _seq: 0,
         nuevoId() { return "m" + (++this._seq); },
 
@@ -278,13 +265,6 @@ export const widgets = {
             for (const [k, w] of [...this._menu]) if (w.desde === id) this.close(k);
         },
         closeAll() { for (const k of [...this._menu.keys()]) this.close(k); },
-        // Sin la marca "submenu" a propósito: una lista abierta no la barre
-        // "clear menus ƒ" (ver el comentario de clearMenus).
-        openList(name, el) {
-            const prev = this._list.get(name);
-            if (prev?.remove) prev.remove();
-            this._list.set(name, el);
-        },
     },
 
     // (solo del DEMO) bitácora: cada línea se anota en el átomo "logs #", que

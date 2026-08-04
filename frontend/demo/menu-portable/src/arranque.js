@@ -17,7 +17,12 @@ const host = crearHost();
 // ── 2. EL UNIVERSO ─────────────────────────────────────────────────────────
 const sembrados = await cargar();
 
-// ── 3. LOS GESTOS ──────────────────────────────────────────────────────────
+// ── 3. EL ESTILO ───────────────────────────────────────────────────────────
+// Lo pone el PROGRAMA, no el HTML: los átomos "{" se vuelven <style>. Y queda
+// enganchado, así que editar «estilo del menú {» desde su propio menú repinta.
+const estilos = diarsaba.get("install style manager ƒ")();
+
+// ── 4. LOS GESTOS ──────────────────────────────────────────────────────────
 // Entran por aquí y se entregan al universo ya CLASIFICADOS por host.hit(). En
 // la app real esto vive en "on start ƒ"; con el worker, la entrega será un
 // postMessage y este bloque es justo el que se muda al shell.
@@ -35,10 +40,10 @@ addEventListener("pointermove", (e) => { host._px = e.clientX; host._py = e.clie
 // escala — es la misma, más grande.
 addEventListener("resize", () => host._escalar());
 
-// ── 4. EL PLACE ────────────────────────────────────────────────────────────
+// ── 5. EL PLACE ────────────────────────────────────────────────────────────
 // Arrancar EN un place: el programa siempre está en algún sitio. Se viaja como
 // se viajaría desde el menú, con el mismo átomo.
 diarsaba.get("viajar a place ƒ")("escena @");
 
-host.log(sembrados + " átomos · broker «" + host.broker.nombre + "»");
+host.log(sembrados + " átomos · " + estilos + " estilos · broker «" + host.broker.nombre + "»");
 host.log("listo — clic derecho en el fondo abre un menú; sobre un ítem, sus opciones");

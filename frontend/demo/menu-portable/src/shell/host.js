@@ -12,20 +12,24 @@
 import { widgets } from "./widgets.js";
 import { lienzo } from "./lienzo.js";
 import { editor } from "./editor.js";
+import { estilos } from "./estilos.js";
 import { aislamiento } from "./aislamiento.js";
 import { brokerNulo } from "./broker.js";
 
-export function crearHost({ broker = brokerNulo, vs = null } = {}) {
+export function crearHost({ broker = brokerNulo, vs = null, iconos = null } = {}) {
     const host = {
         ...widgets,
         ...lienzo,
         ...editor,
+        ...estilos,
         ...aislamiento,
         broker,
-        // Dónde está Monaco. Si se pasa, se usa esa ruta y no se adivina; si no,
-        // _cargarMonaco prueba las de siempre y, si no hay ninguna, se edita en
-        // un textarea. El editor nunca es motivo de que nada falle.
+        // Dónde está Monaco, y dónde los iconos del selector de lenguaje. Si se
+        // pasan, se usan esas rutas y no se adivina nada; si no, el editor
+        // prueba las de siempre. Y si no encuentra ninguna, edita en un textarea
+        // con los iconos vacíos: el editor nunca es motivo de que nada falle.
         _vs: vs,
+        _iconos: iconos,
     };
 
     // Global a propósito: los átomos son TEXTO compilado con new Function, así

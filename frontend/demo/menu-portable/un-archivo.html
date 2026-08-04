@@ -7,324 +7,8 @@
     <!-- GENERADO por herramientas/empaquetar.mjs — no se edita a mano.
          La fuente es index.html + src/. Esto es la versión de un archivo, para
          abrir a doble clic (sin módulos y sin fetch, funciona desde file://). -->
-    <style>
-/* ── CSS: solo lo que el menú necesita (copiado de "todo el estilo {") ── */
-:root {
-    --graph-bg: #000000;
-    --graph-bg-strong: rgba(0, 0, 0, 0.92);
-    --graph-border: rgba(255, 255, 255, 0.14);
-    --graph-border-active: rgba(255, 255, 255, 0.24);
-    --graph-text: #ffffff;
-    --graph-text-muted: rgba(255, 255, 255, 0.62);
-    --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
-    --graph-font: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    background: var(--graph-bg);
-    min-height: 100vh;
-    overflow: hidden;
-    font-family: var(--graph-font);
-    color: var(--graph-text);
-}
-
-/* ── EL LIENZO DE UN PLACE ("@") ──────────────────────────────────────
-     Un place es un LIENZO entero: viajar a él lo borra y lo vuelve a pintar.
-     Es un escenario de 200×200 unidades que se escala a la ventana, así que
-     las coordenadas de la escena son % del place y los tamaños son px de ese
-     escenario: la misma escena se ve igual en cualquier pantalla.
-     z-index: 0 hace del lienzo un contexto de apilado propio, y por eso un
-     "z" negativo (el suelo) queda detrás de lo demás pero delante del fondo,
-     y nunca por encima de un menú. */
-#lienzo {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    width: 200px;
-    height: 200px;
-    z-index: 0;
-    transform: translate(-50%, -50%) scale(var(--escala, 3));
-    pointer-events: none;
-}
-
-/* Un círculo: se ancla por su CENTRO, para que (x, y) sea el punto que
-     dice la escena y no su esquina. */
-.escena-circulo {
-    position: absolute;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-}
-
-/* Un trazo: su propio <svg> del tamaño del lienzo, en coordenadas 0..100
-     (las mismas que la escena). "non-scaling-stroke" mantiene el grosor en px
-     aunque el viewBox se estire, así una línea no engorda al escalar. */
-.escena-trazo {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-
-/* Un texto de la escena. Se ancla por su izquierda y su medio vertical, así
-     (x, y) es donde empieza la línea. */
-.escena-texto {
-    position: absolute;
-    transform: translateY(-50%);
-    white-space: nowrap;
-    line-height: 1;
-}
-
-/* El nombre del place al que se ha viajado. */
-#place-nombre {
-    position: fixed;
-    left: 12px;
-    bottom: 10px;
-    font-size: .7rem;
-    color: rgba(255, 255, 255, .38);
-    user-select: none;
-    pointer-events: none;
-}
-
-/* El menú y la lista son EL MISMO widget: .context-menu con .menu-item.
-     Lo que cambia es la SEMÁNTICA del despacho, no el dibujo. */
-.context-menu {
-    position: absolute;
-    background: var(--graph-bg-strong);
-    border-radius: 14px;
-    box-shadow: var(--graph-shadow);
-    border: 1px solid var(--graph-border);
-    z-index: 1000;
-    min-width: 140px;
-    max-height: min(360px, 60vh);
-    overflow-y: auto;
-    overflow-x: hidden;
-    user-select: none;
-    backdrop-filter: blur(14px);
-}
-
-.context-menu::-webkit-scrollbar {
-    width: 6px;
-}
-
-.context-menu::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.context-menu::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, .14);
-    border-radius: 999px;
-}
-
-.menu-item {
-    padding: 6px 12px;
-    font-size: .75rem;
-    color: var(--graph-text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
-    border-bottom: 1px solid rgba(255, 255, 255, .08);
-}
-
-/* El nombre del átomo que el menú muestra. No es un ítem: no se pulsa, no
-     cuenta para los índices. Con varios menús abiertos, es lo que distingue
-     uno de otro. */
-.menu-titulo {
-    display: block;
-    padding: 5px 12px;
-    font-size: .68rem;
-    color: rgba(255, 255, 255, .38);
-    border-bottom: 1px solid rgba(255, 255, 255, .16);
-    user-select: none;
-}
-
-.menu-item:last-child {
-    border-bottom: none;
-}
-
-.menu-item:hover {
-    background: rgba(255, 255, 255, .08);
-}
-
-.menu-item:active {
-    background: rgba(255, 255, 255, .12);
-}
-
-/* El MODAL que pide un nombre (copiado igual de "todo el estilo {"). */
-.modal-content {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    padding: 1rem;
-    border: 1px solid var(--graph-border);
-    border-radius: 18px;
-    background: rgba(0, 0, 0, 0.88);
-    box-shadow: var(--graph-shadow);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    transform: translate(-50%, -50%);
-    z-index: 2000;
-}
-
-.modal-content button {
-    font-size: 0.75rem;
-    color: var(--graph-text);
-    font-weight: 500;
-    cursor: pointer;
-    padding: 4px 12px;
-    border-radius: 10px;
-    transition: all 0.15s ease;
-    width: fit-content;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid var(--graph-border);
-    outline: none;
-    user-select: none;
-}
-
-.modal-content button:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: var(--graph-border-active);
-}
-
-.modal-content button:active {
-    background: rgba(255, 255, 255, 0.18);
-    transform: scale(0.98);
-}
-
-.modal-content button[data-modal="continue"] {
-    background: rgba(255, 255, 255, 0.2);
-    color: var(--graph-text);
-    border: 1px solid rgba(255, 255, 255, 0.38);
-}
-
-.modal-content button[data-modal="continue"]:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.modal-content input {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    outline: none;
-    padding: 4px 8px;
-    border-radius: 8px;
-    color: var(--graph-text);
-    font-family: inherit;
-    font-size: 1rem;
-    flex: 1;
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.modal-content span {
-    font-family: inherit;
-    color: var(--graph-text-muted);
-    font-weight: 100;
-    font-size: smaller;
-    font-style: italic;
-}
-
-.modal-buttons {
-    display: flex;
-    gap: 8px;
-    justify-content: space-around;
-    margin-top: 12px;
-}
-
-/* El EDITOR (Monaco vive en el shell) — también copiado del estilo real. */
-.editor-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.22);
-    justify-content: center;
-    align-items: center;
-    z-index: 3000;
-    backdrop-filter: blur(1px) saturate(0.6%);
-    -webkit-backdrop-filter: blur(1px) saturate(0.6%);
-    display: flex;
-}
-
-.editor-modal {
-    width: 90%;
-    max-width: 900px;
-    height: 80%;
-    max-height: 700px;
-    border-radius: 18px;
-    background: rgba(0, 0, 0, 0.34);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
-    border: 1px solid var(--graph-border);
-    backdrop-filter: blur(1px) saturate(0.6%);
-    -webkit-backdrop-filter: blur(1px) saturate(0.6%);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.06);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 12px 16px;
-    flex-shrink: 0;
-}
-
-.editor-title {
-    color: var(--graph-text);
-    font-size: 14px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.editor-header .modal-buttons {
-    margin-top: 0;
-}
-
-.monaco-container {
-    flex: 1;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-
-.monaco-container .monaco-editor,
-.monaco-container .monaco-editor-background,
-.monaco-container .margin,
-.monaco-container .monaco-scrollable-element {
-    background: transparent !important;
-}
-
-/* Respaldo si Monaco no está disponible (el demo abierto suelto). */
-.monaco-container textarea {
-    width: 100%;
-    height: 100%;
-    resize: none;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--graph-text);
-    font-family: var(--graph-font);
-    font-size: .8rem;
-    padding: 12px 16px;
-    line-height: 1.5;
-    tab-size: 4;
-}
-
-    </style>
+    <!-- Sin <style>: el estilo son átomos "{" y los pone el propio programa
+         (install style manager ƒ → host.installStyles). -->
 </head>
 
 <body>
@@ -334,7 +18,7 @@ body {
 
     <script>
         /* ── EL UNIVERSO, incrustado ─────────────────────────────────────────
-           Los mismos 104 átomos de src/atomos/*.json. Aquí van dentro del
+           Los mismos 130 átomos de src/atomos/*.json. Aquí van dentro del
            HTML porque un fetch desde file:// está bloqueado; en la versión
            servida son datos en disco, como en la app real. */
         const ATOMOS = {
@@ -370,6 +54,8 @@ body {
     ],
     "diarsaba #": [
         "sys #",
+        "estilos #",
+        "marcado #",
         "places #",
         "escena #",
         "aislamiento #"
@@ -383,15 +69,33 @@ body {
         "types list #",
         "sigilos lista #"
     ],
+    "estilos #": [
+        "estilo base {",
+        "estilo del lienzo {",
+        "estilo del menú {",
+        "estilo del modal {",
+        "estilo del editor {",
+        "install style manager ƒ"
+    ],
     "borde #": [
         "create list menu ƒ",
-        "create list ƒ",
         "close menu ƒ",
         "clear menus ƒ",
         "repintar lista ƒ",
         "rect de ítem ƒ",
         "lista de menú ƒ",
-        "modal input ƒ"
+        "modal input ƒ",
+        "install style manager ƒ"
+    ],
+    "marcado #": [
+        "menu <",
+        "menu item <",
+        "circulo <",
+        "trazo <",
+        "texto <",
+        "plantilla ƒ",
+        "escapar ƒ",
+        "pintar menú ƒ"
     ],
     "despacho #": [
         "show context menu ƒ",
@@ -405,18 +109,23 @@ body {
     "listas #": [
         "lista de ƒ",
         "ítems de menú ƒ",
-        "opciones de ƒ"
+        "opciones de ƒ",
+        "menciones de ƒ",
+        "usados por ƒ"
     ],
     "valores #": [
         "interpretar valor ƒ",
         "mostrar valor ƒ",
-        "tomado §"
+        "tomado §",
+        "lenguajes :",
+        "ai system §"
     ],
     "places ƒ #": [
         "viajar a place ƒ",
         "repintar place ƒ",
         "viajar ƒ",
         "ver dentro ƒ",
+        "usa ƒ",
         "place actual §"
     ],
     "logs #": [],
@@ -434,9 +143,11 @@ body {
         "ejecutar ƒ"
     ],
     "list option $ #": [
+        "editor ƒ",
         "editar ƒ"
     ],
     "list option § #": [
+        "editor ƒ",
         "editar ƒ"
     ],
     "list option ƒ #": [
@@ -446,11 +157,12 @@ body {
     ],
     "list option @ #": [
         "viajar ƒ",
-        "ver dentro ƒ"
+        "ver dentro ƒ",
+        "usa ƒ"
     ],
     "list option { #": [
-        "editar ƒ",
-        "repintar place ƒ"
+        "editor ƒ",
+        "editar ƒ"
     ],
     "menu acciones #": [
         "nuevo ƒ",
@@ -465,30 +177,40 @@ body {
         "list option § #",
         "list option ƒ #",
         "list option @ #",
-        "list option { #"
+        "list option { #",
+        "list option : #",
+        "list option < #"
     ],
     "tomado §": "",
     "place actual §": "",
     "viajar a place ƒ": "(nombre) => {\n      const pasos = diarsaba.get(\"lista de ƒ\")(nombre);\n      if (!pasos) return false;\n      host.clearMenus(true);\n      host.limpiarLienzo(nombre);\n      diarsaba.set(\"place actual §\", nombre);\n      host.log(\"▶ <b>viajar</b> a «\" + nombre + \"» (\" + pasos.length + \" threads)\");\n      for (const paso of pasos) threads(paso);\n      return true;\n  }",
     "repintar place ƒ": "() => {\n      const nombre = diarsaba.get(\"place actual §\");\n      if (nombre) diarsaba.get(\"viajar a place ƒ\")(nombre);\n  }",
     "viajar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(\"viajar a place ƒ\")(sel.texto);\n  }",
-    "ver dentro ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const lista = diarsaba.get(\"lista de ƒ\")(sel.texto);\n      if (!lista) return;\n      const rect = dataset.rect || { right: 40, top: 40 };\n      host.log(\"  ↳ <b>dentro</b> de «\" + sel.texto + \"»\");\n      diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, lista, sel.texto, null, sel.texto);\n  }",
+    "ver dentro ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const rect = dataset.rect || { right: 40, top: 40 };\n      host.log(\"  ↳ <b>dentro</b> de «\" + sel.texto + \"»\");\n      diarsaba.get(\"open submenu ƒ\")(sel.texto, rect, dataset.desde);\n  }",
     "todos # al abrir ƒ": "(lista) => {\n      lista.length = 0;\n      for (const clave of [...diarsaba.keys()].sort()) lista.push(clave);\n  }",
+    "menciones de ƒ": "(nombre) => {\n      const valor = diarsaba.get(nombre);\n      const dentro = [];\n\n      // Estructural: una lista, un thread, una acción, un place.\n      if (Array.isArray(valor)) {\n          for (const x of valor) if (typeof x === \"string\" && diarsaba.has(x)) dentro.push(x);\n          return [...new Set(dentro)];\n      }\n\n      // Texto: el código de una ƒ, o un dato donde un nombre puede aparecer.\n      let texto = null;\n      if (typeof valor === \"function\") texto = String(valor);\n      else if (typeof valor === \"string\") texto = valor;\n      else if (valor && typeof valor === \"object\") { try { texto = JSON.stringify(valor); } catch (e) {} }\n      if (texto === null) return [];\n\n      for (const clave of diarsaba.keys()) {\n          if (clave === nombre || typeof clave !== \"string\") continue;\n          if (texto.includes(clave)) dentro.push(clave);\n      }\n      return [...new Set(dentro)];\n  }",
+    "usados por ƒ": "(raiz) => {\n      const vistos = new Set();\n      const cola = [raiz];\n      const menciones = diarsaba.get(\"menciones de ƒ\");\n      while (cola.length) {\n          for (const m of menciones(cola.shift())) {\n              if (vistos.has(m) || m === raiz) continue;\n              vistos.add(m);\n              cola.push(m);\n          }\n      }\n      return [...vistos].sort();\n  }",
+    "usa ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const nombre = sel.texto.slice(0, -2) + \" usa #\";      // \"escena @\" → \"escena usa #\"\n      const lista = diarsaba.get(\"lista de ƒ\")(nombre);\n      lista.length = 0;\n      for (const usado of diarsaba.get(\"usados por ƒ\")(sel.texto)) lista.push(usado);\n      host.log(\"  ↳ «\" + sel.texto + \"» <b>usa</b> \" + lista.length + \" átomos\");\n      diarsaba.get(\"open submenu ƒ\")(nombre, dataset.rect || { right: 40, top: 40 }, dataset.desde);\n  }",
     "obtener index [0] ƒ": "(texto) => {\n      const regex = /^\\[(\\d+)\\]\\s*(.*)$/;\n      const match = texto.match(regex);\n      if (!match) throw new Error('Formato inválido. Se esperaba: \"[número] texto\"');\n      return { indice: parseInt(match[1], 10), texto: match[2].trim() };\n  }",
-    "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null, onPick, desde = \"\") => {\n      return host.menu(list, parent, current, x, y, onPick ?? null, desde);\n  }",
+    "menu <": "<span class=\"menu-titulo\">{{titulo}}</span>{{{items}}}",
+    "menu item <": "<span class=\"menu-item\" data-idx=\"{{indice}}\">{{texto}}</span>",
+    "plantilla ƒ": "(html, valores) => {\n      return String(html)\n          .replace(/\\{\\{\\{(\\w+)\\}\\}\\}/g, (_, k) => (valores[k] ?? \"\"))\n          .replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => diarsaba.get(\"escapar ƒ\")(valores[k]));\n  }",
+    "escapar ƒ": "(v) => {\n      const t = typeof v === \"string\" ? v : (() => {\n          try { return JSON.stringify(v); } catch (e) { return String(v); }\n      })();\n      return t.replace(/[&<>\"]/g, (c) => ({ \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\" }[c]));\n  }",
+    "pintar menú ƒ": "(titulo, lista) => {\n      const plantilla = diarsaba.get(\"plantilla ƒ\");\n      const item = diarsaba.get(\"menu item <\");\n      let items = \"\";\n      let i = 0;\n      for (const texto of lista) items += plantilla(item, { indice: i++, texto });\n      return plantilla(diarsaba.get(\"menu <\"), { titulo, items });\n  }",
+    "create list menu ƒ": "(list, parent = \"\", current = \"\", x = null, y = null, onPick, desde = \"\") => {\n      const html = diarsaba.get(\"pintar menú ƒ\")(current || parent, list);\n      return host.menu(html, parent, current, x, y, onPick ?? null, desde);\n  }",
     "close menu ƒ": "(id) => host.closeMenu(id)",
+    "install style manager ƒ": "() => host.installStyles()",
     "rect de ítem ƒ": "(id, index) => host.itemRect(id, index)",
     "lista de menú ƒ": "(id) => host.listaDe(id)",
-    "repintar lista ƒ": "(nombre) => {\n      return host.redrawAll(nombre, diarsaba.get(\"ítems de menú ƒ\")(nombre));\n  }",
+    "repintar lista ƒ": "(nombre) => {\n      const html = diarsaba.get(\"pintar menú ƒ\")(nombre, diarsaba.get(\"ítems de menú ƒ\")(nombre));\n      let n = 0;\n      for (const id of host.menusDe(nombre)) if (host.repintar(id, html)) n++;\n      return n;\n  }",
     "modal input ƒ": "async (pre) => {\n      return host.modal(pre);\n  }",
-    "create list ƒ": "(x, y, list, parent, onPick, slot = \"\") => {\n      return host.list(x, y, list, parent, onPick ?? null, slot);\n  }",
     "clear menus ƒ": "() => host.clearMenus()",
     "lista de ƒ": "(nombre) => {\n      if (typeof nombre !== \"string\") return null;\n      let lista = diarsaba.get(nombre);\n      if (!Array.isArray(lista) && diarsaba.get(\"sigilos lista #\").includes(nombre.slice(-1))) {\n          lista = [];\n          diarsaba.set(nombre, lista);\n          host.log(\"· <b>nace</b> «\" + nombre + \"», vacía\");\n      }\n      return Array.isArray(lista) ? lista : null;\n  }",
     "ítems de menú ƒ": "(nombre) => diarsaba.get(\"lista de ƒ\")(nombre) || []",
     "opciones de ƒ": "(nombre) => {\n      const propias = diarsaba.get(\"list option \" + nombre.slice(-1) + \" #\");\n      return [...(Array.isArray(propias) ? propias : []),\n              ...diarsaba.get(\"list option [] #\")];\n  }",
-    "interpretar valor ƒ": "(nombre, texto) => {\n      const tipo = nombre.slice(-1);\n      if (tipo === \"$\") return Number(texto);\n      if (tipo === \"ƒ\") return createFunction(texto);\n      // Un \"{\" es un diccionario: se guarda como objeto, no como su texto. Si el\n      // JSON no vale, se queda lo que había (devolver el texto lo rompería).\n      if (tipo === \"{\") { try { return JSON.parse(texto); } catch (e) { return diarsaba.get(nombre); } }\n      return texto;\n  }",
+    "interpretar valor ƒ": "(nombre, texto) => {\n      const tipo = nombre.slice(-1);\n      if (tipo === \"$\") return Number(texto);\n      if (tipo === \"ƒ\") return createFunction(texto);\n      // Un \":\" es una estructura: se guarda como objeto, no como su texto. Si el\n      // JSON no vale, se queda lo que había (devolver el texto lo rompería).\n      if (tipo === \":\") { try { return JSON.parse(texto); } catch (e) { return diarsaba.get(nombre); } }\n      return texto;\n  }",
     "mostrar valor ƒ": "(valor) => {\n      if (valor === undefined || valor === null) return \"\";\n      if (typeof valor === \"function\") return String(valor);\n      return typeof valor === \"string\" ? valor : JSON.stringify(valor);\n  }",
-    "editor ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const nombre = sel.texto;\n      const actual = diarsaba.get(nombre);\n      const res = await host.editor(\n          nombre,\n          actual instanceof Function ? actual.toString() : \"()=>{}\",\n          \"js\"\n      );\n      if (res == null || res.trim() === \"\") return;\n      try {\n          diarsaba.set(nombre, createFunction(res));\n          host.log(\"▶ <b>\" + nombre + \"</b> recompilada desde el editor\");\n      } catch (e) {\n          host.notify('\"' + nombre + '\" no se guardó: el código no compila.\\n\\n' + e.message);\n      }\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
+    "editor ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const nombre = sel.texto;\n      const tipo = nombre.slice(-1);\n      const lang = (diarsaba.get(\"lenguajes :\") || {})[tipo] || \"text\";\n      const fuente = diarsaba.get(\"mostrar valor ƒ\")(diarsaba.get(nombre));\n      // El selector del editor deja cambiar el lenguaje a mano: esto es sólo\n      // con cuál se ABRE. Un átomo puede guardar HTML en un \"§\" y verse como\n      // HTML sin que su sigilo cambie.\n      const res = await host.editor(nombre, fuente, lang);\n      if (res === null) return;\n      if (tipo === \":\") {\n          try { JSON.parse(res); }\n          catch (e) { host.notify(nombre + \" no se guardó: el JSON no vale.\\n\\n\" + e.message); return; }\n      }\n      try {\n          diarsaba.set(nombre, diarsaba.get(\"interpretar valor ƒ\")(nombre, res));\n          host.log(\"▶ <b>\" + nombre + \"</b> guardada desde el editor (\" + lang + \")\");\n      } catch (e) {\n          host.notify('\"' + nombre + '\" no se guardó: ' + e.message);\n      }\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
     "editar ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      const nombre = sel.texto;\n      const antes = diarsaba.get(nombre);\n      const fuente = diarsaba.get(\"mostrar valor ƒ\")(antes);\n      if (fuente.includes(\"\\n\")) {\n          host.log(\"· «\" + nombre + \"» tiene varias líneas: eso pide «<b>editor ƒ</b>», no el modal\");\n          return;\n      }\n      const texto = await diarsaba.get(\"modal input ƒ\")(fuente);\n      if (texto === null) return;\n      diarsaba.set(nombre, diarsaba.get(\"interpretar valor ƒ\")(nombre, texto));\n      host.log(\"▶ <b>\" + nombre + \"</b> = \" + texto);\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
     "ejecutar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      host.log(\"▶ <b>ejecutar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n      threads(sel.texto);\n  }",
     "tomar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.set(\"tomado §\", sel.texto);\n      host.log(\"▶ <b>tomar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
@@ -498,26 +220,58 @@ body {
     "eliminar ƒ": "(dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(dataset.parent).splice(sel.indice, 1);\n      host.log(\"▶ <b>eliminar</b> «\" + sel.texto + \"»\");\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n  }",
     "cerrar opciones ƒ": "(dataset) => {\n      diarsaba.get(\"close menu ƒ\")(dataset.menu);\n      diarsaba.get(\"repintar lista ƒ\")(dataset.parent);\n  }",
     "nuevo ƒ": "async (dataset) => {\n      const nombre = diarsaba.get(\"lista de menú ƒ\")(dataset.desde);\n      const lista = diarsaba.get(\"lista de ƒ\")(nombre);\n      if (!lista) return;\n      const texto = await diarsaba.get(\"modal input ƒ\")(\"\");\n      if (texto === null || texto === \"\") return;\n      lista.push(texto);\n      host.log(\"▶ <b>nuevo</b> «\" + texto + \"» en «\" + nombre + \"»\");\n      diarsaba.get(\"close menu ƒ\")(dataset.menu);\n      diarsaba.get(\"repintar lista ƒ\")(nombre);\n  }",
-    "despachar menú ƒ": "async (p) => {\n      const content = p.label;\n      const rect = p.rect;\n      const dataset = { parent: p.parent, current: p.current, menu: p.menu,\n                        desde: p.desde, rect: p.rect };\n\n      host.log(\"· clic en «<b>\" + content + \"</b>»\");\n\n      // ── Ítem SIN prefijo \"[n] \" → es de MENÚ: manda el SIGILO de la derecha.\n      if (!/^\\[\\d+\\]/.test(content)) {\n          const tipo = content.slice(-1);\n          // Todo lo que es una lista por dentro se ABRE como submenú (sigue\n          // siendo menú), colgado del menú donde se pulsó. Da igual que sea una\n          // lista, un thread o una acción: mirar dentro es el mismo gesto.\n          if (diarsaba.get(\"sigilos lista #\").includes(tipo)) {\n              if (diarsaba.get(\"open submenu ƒ\")(content, rect, p.menu)) return;\n          } else if (diarsaba.get(\"types list #\").includes(tipo)) {\n              // Lo que no es una colección cobra vida según su sigilo.\n              if (diarsaba.get(\"dispatch item ƒ\")(content, dataset, rect)) return;\n          }\n          // (En la app real, aquí va la rama de los CREADORES: si existe\n          //  \"create <label> ƒ\", pide un nombre por modal y crea el átomo.)\n          //\n          // Y aquí iba el atajo para etiquetas SIN sigilo —\"· # eliminar\" y el\n          // resto de opciones—, que buscaba \"<etiqueta> ƒ\". Ya no hace falta:\n          // ahora las opciones se llaman \"eliminar ƒ\" y el sigilo las despacha\n          // como a cualquier función. Una regla menos, y una regla sola.\n          return;\n      }\n\n      // ── Ítem de LISTA \"[n] texto\": se parsea el índice y se despacha limpio.\n      // Sin esto, un \"[1] casa @\" abriría un place fantasma llamado así.\n      try {\n          const parsed = diarsaba.get(\"obtener index [0] ƒ\")(content);\n          const label = parsed.texto;\n          const handled = diarsaba.get(\"dispatch item ƒ\")(label, dataset, rect);\n          if (!handled) {\n              const fn = diarsaba.get(label + \" ƒ\") || diarsaba.get(content + \" ƒ\");\n              if (fn) fn(dataset);\n          }\n      } catch (err) { /* parseo inválido: se ignora */ }\n  }",
+    "despachar menú ƒ": "async (p) => {\n      const content = p.label;\n      const rect = p.rect;\n      const dataset = { parent: p.parent, current: p.current, menu: p.menu,\n                        desde: p.desde, rect: p.rect };\n\n      host.log(\"· clic en «<b>\" + content + \"</b>»\");\n\n      const tipo = content.slice(-1);\n      // Todo lo que es una lista por dentro se ABRE como submenú, colgado del\n      // menú donde se pulsó. Da igual que sea una lista, un thread o una acción:\n      // mirar dentro es el mismo gesto.\n      if (diarsaba.get(\"sigilos lista #\").includes(tipo)) {\n          if (diarsaba.get(\"open submenu ƒ\")(content, rect, p.menu)) return;\n      } else if (diarsaba.get(\"types list #\").includes(tipo)) {\n          // Lo que no es una colección cobra vida según su sigilo.\n          if (diarsaba.get(\"dispatch item ƒ\")(content, dataset, rect)) return;\n      }\n      // (En la app real, aquí va la rama de los CREADORES: si existe\n      //  \"create <label> ƒ\", pide un nombre por modal y crea el átomo.)\n      //\n      // Y aquí iba el atajo para etiquetas SIN sigilo —\"· # eliminar\" y el\n      // resto de opciones—, que buscaba \"<etiqueta> ƒ\". Ya no hace falta:\n      // ahora las opciones se llaman \"eliminar ƒ\" y el sigilo las despacha\n      // como a cualquier función. Una regla menos, y una regla sola.\n  }",
     "open submenu ƒ": "(nombre, rect, desde = \"\") => {\n      const lista = diarsaba.get(\"lista de ƒ\")(nombre);\n      if (!lista) return false;\n      // Una lista puede CALCULARSE en vez de guardarse: si existe un\n      // \"<nombre> al abrir ƒ\", se le da la palabra justo antes de dibujar. Con\n      // eso \"todos #\" no puede quedarse vieja — se rehace cada vez que la miras.\n      const alAbrir = diarsaba.get(nombre + \" al abrir ƒ\");\n      if (typeof alAbrir === \"function\") alAbrir(lista);\n      // \"desde\" = el menú del que cuelga: con eso el shell cierra el submenú que\n      // ese mismo menú tuviera abierto, y no se amontonan unos sobre otros.\n      diarsaba.get(\"create list menu ƒ\")(\n          diarsaba.get(\"ítems de menú ƒ\")(nombre), nombre, \"\",\n          rect.right + 6, rect.top, null, desde);\n      // Se apunta DESPUÉS de dibujar: si no, abrir «logs #» se listaría a sí mismo.\n      host.log(\"  ↳ <b>submenú</b> de «\" + nombre + \"» (\" + lista.length + \" ítems)\");\n      return true;\n  }",
-    "dispatch item ƒ": "(name, dataset, rect) => {\n      const type = name.slice(-1);\n\n      // Colecciones: abrir su contenido como SUBLISTA efímera junto al ítem.\n      // (Ojo: desde un MENÚ no llegan aquí — las toma \"open submenu ƒ\". Aquí\n      //  llegan las que están dentro de una LISTA. Un \"~\" o un \"!\" tampoco se\n      //  ejecutan ya al pulsarlos: para eso está \"ejecutar ƒ\" en sus opciones.)\n      if (diarsaba.get(\"sigilos lista #\").includes(type)) {\n          const list = diarsaba.get(\"lista de ƒ\")(name);\n          if (!list) return false;\n          host.log(\"  ↳ <b>sublista</b> de «\" + name + \"»\");\n          diarsaba.get(\"create list ƒ\")(rect.right + 6, rect.top, list, name, null, name);\n          return true;\n      }\n\n      // Un PLACE: viajar. Cambia el lienzo ENTERO, así que no se abre como una\n      // lista más — pulsarlo es irse. Para mirarlo sin viajar está \"ver dentro ƒ\",\n      // en su clic derecho.\n      if (type === \"@\") return diarsaba.get(\"viajar a place ƒ\")(name);\n\n      // Funciones: ejecutar. Salvo las del BANCO DE PRUEBAS: ésas no se ejecutan\n      // aquí ni por accidente. Un clic en «renderizar agujero negro ƒ» se lleva la\n      // página por delante, así que el despacho lo manda al worker y lo que se ve\n      // es su veredicto. Que un átomo no sea de fiar es una propiedad del PROGRAMA\n      // —está en una lista—, no un cuidado que haya que tener al pulsar.\n      if (type === \"ƒ\") {\n          if ((diarsaba.get(\"pruebas #\") || []).includes(name)) {\n              diarsaba.get(\"probar átomo ƒ\")(name);\n              return true;\n          }\n          const f = diarsaba.get(name);\n          if (typeof f === \"function\") { f(dataset); return true; }\n          return false;\n      }\n\n      return false;\n  }",
+    "dispatch item ƒ": "(name, dataset, rect) => {\n      const type = name.slice(-1);\n\n      // Colecciones: abrir su contenido, colgando del menú donde se pulsó. Es\n      // el MISMO \"open submenu ƒ\" que usa el despacho de un ítem de menú: abrir\n      // una colección es un solo gesto, con un solo mecanismo, venga de donde\n      // venga. (Un \"~\" o un \"!\" tampoco se ejecutan al pulsarlos: para eso está\n      // \"ejecutar ƒ\" en sus opciones.)\n      if (diarsaba.get(\"sigilos lista #\").includes(type)) {\n          return diarsaba.get(\"open submenu ƒ\")(name, rect, dataset.menu);\n      }\n\n      // Un PLACE: viajar. Cambia el lienzo ENTERO, así que no se abre como una\n      // lista más — pulsarlo es irse. Para mirarlo sin viajar está \"ver dentro ƒ\",\n      // en su clic derecho.\n      if (type === \"@\") return diarsaba.get(\"viajar a place ƒ\")(name);\n\n      // Funciones: ejecutar. Salvo las del BANCO DE PRUEBAS: ésas no se ejecutan\n      // aquí ni por accidente. Un clic en «renderizar agujero negro ƒ» se lleva la\n      // página por delante, así que el despacho lo manda al worker y lo que se ve\n      // es su veredicto. Que un átomo no sea de fiar es una propiedad del PROGRAMA\n      // —está en una lista—, no un cuidado que haya que tener al pulsar.\n      if (type === \"ƒ\") {\n          if ((diarsaba.get(\"pruebas #\") || []).includes(name)) {\n              diarsaba.get(\"probar átomo ƒ\")(name);\n              return true;\n          }\n          const f = diarsaba.get(name);\n          if (typeof f === \"function\") { f(dataset); return true; }\n          return false;\n      }\n\n      return false;\n  }",
     "show context menu ƒ": "() => {\n      const event = diarsaba.get(\"pointer up event\");\n\n      // En el fondo: otro menú raíz, con la lista de átomos.\n      if (event.kind === \"background\") {\n          const nombre = \"diarsaba #\";\n          diarsaba.get(\"create list menu ƒ\")(\n              diarsaba.get(\"ítems de menú ƒ\")(nombre), nombre, \"\", null, null, null, \"\");\n          return;\n      }\n      if (event.kind !== \"menu\") return;\n\n      // Sobre el TÍTULO: las acciones del MENÚ (nuevo / cerrar). Muestra SU\n      // lista, «menu acciones #», no la del menú de abajo: así sus ítems son\n      // elementos de verdad, con sus opciones y su editor. A qué menú se\n      // refieren ya lo dice \"desde\".\n      if (event.titulo) {\n          const nombre = \"menu acciones #\";\n          diarsaba.get(\"create list menu ƒ\")(\n              diarsaba.get(\"ítems de menú ƒ\")(nombre), nombre, \"\",\n              null, null, null, event.menu);\n          return;\n      }\n\n      // Sobre un ÍTEM: las opciones de ESE elemento (tomar / antes / despues /\n      // eliminar). El menú de opciones cuelga de aquél, así que se cierra con\n      // él, y lleva en su dataset a QUÉ elemento se refiere.\n      if (event.name) {\n          const lista = diarsaba.get(\"lista de ƒ\")(event.parent);\n          // Que el ítem SEA de verdad ese elemento de esa lista. Un menú de\n          // acciones u opciones cuelga de una lista pero no la muestra, y sus\n          // ítems no son elementos: aquí es donde se quedan fuera.\n          if (!Array.isArray(lista) || lista[event.index] !== event.name) return;\n          diarsaba.get(\"create list menu ƒ\")(\n              diarsaba.get(\"opciones de ƒ\")(event.name),\n              event.parent,                                  // la lista\n              \"[\" + event.index + \"] \" + event.name,         // el elemento\n              null, null, null, event.menu);\n      }\n  }",
     "cerrar ƒ": "(dataset) => {\n      host.log(\"▶ <b>cerrar</b> «\" + diarsaba.get(\"lista de menú ƒ\")(dataset.desde) + \"»\");\n      diarsaba.get(\"close menu ƒ\")(dataset.desde);\n  }",
     "handle click ƒ": "() => {}",
+    "lenguajes :": {
+        "ƒ": "js",
+        "<": "html",
+        "{": "css",
+        ":": "json",
+        "@": "json",
+        "#": "text",
+        "~": "text",
+        "!": "text",
+        "$": "text",
+        "§": "text",
+        "֎": "text"
+    },
+    "ai system §": "",
+    "list option : #": [
+        "editor ƒ",
+        "editar ƒ",
+        "repintar place ƒ"
+    ],
+    "list option < #": [
+        "editor ƒ",
+        "editar ƒ"
+    ],
+    "estilo base {": "\n:root {\n    --graph-bg: #000000;\n    --graph-bg-strong: rgba(0, 0, 0, 0.92);\n    --graph-border: rgba(255, 255, 255, 0.14);\n    --graph-border-active: rgba(255, 255, 255, 0.24);\n    --graph-text: #ffffff;\n    --graph-text-muted: rgba(255, 255, 255, 0.62);\n    --graph-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);\n    --graph-font: ui-monospace, \"Cascadia Mono\", Consolas, \"Courier New\", monospace;\n}\n\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\nbody {\n    background: var(--graph-bg);\n    min-height: 100vh;\n    overflow: hidden;\n    font-family: var(--graph-font);\n    color: var(--graph-text);\n}\n",
+    "estilo del lienzo {": "\n/* ── EL LIENZO DE UN PLACE (\"@\") ──────────────────────────────────────\n     Un place es un LIENZO entero: viajar a él lo borra y lo vuelve a pintar.\n     Es un escenario de 200×200 unidades que se escala a la ventana, así que\n     las coordenadas de la escena son % del place y los tamaños son px de ese\n     escenario: la misma escena se ve igual en cualquier pantalla.\n     z-index: 0 hace del lienzo un contexto de apilado propio, y por eso un\n     \"z\" negativo (el suelo) queda detrás de lo demás pero delante del fondo,\n     y nunca por encima de un menú. */\n#lienzo {\n    position: fixed;\n    left: 50%;\n    top: 50%;\n    width: 200px;\n    height: 200px;\n    z-index: 0;\n    transform: translate(-50%, -50%) scale(var(--escala, 3));\n    pointer-events: none;\n}\n\n/* Un círculo: se ancla por su CENTRO, para que (x, y) sea el punto que\n     dice la escena y no su esquina. */\n.escena-circulo {\n    position: absolute;\n    border-radius: 50%;\n    transform: translate(-50%, -50%);\n}\n\n/* Un trazo: su propio <svg> del tamaño del lienzo, en coordenadas 0..100\n     (las mismas que la escena). \"non-scaling-stroke\" mantiene el grosor en px\n     aunque el viewBox se estire, así una línea no engorda al escalar. */\n.escena-trazo {\n    position: absolute;\n    left: 0;\n    top: 0;\n    width: 100%;\n    height: 100%;\n    overflow: visible;\n}\n\n/* Un texto de la escena. Se ancla por su izquierda y su medio vertical, así\n     (x, y) es donde empieza la línea. */\n.escena-texto {\n    position: absolute;\n    transform: translateY(-50%);\n    white-space: nowrap;\n    line-height: 1;\n}\n\n/* El nombre del place al que se ha viajado. */\n#place-nombre {\n    position: fixed;\n    left: 12px;\n    bottom: 10px;\n    font-size: .7rem;\n    color: rgba(255, 255, 255, .38);\n    user-select: none;\n    pointer-events: none;\n}\n",
+    "estilo del menú {": "\n/* El menú y la lista son EL MISMO widget: .context-menu con .menu-item.\n     Lo que cambia es la SEMÁNTICA del despacho, no el dibujo. */\n.context-menu {\n    position: absolute;\n    background: var(--graph-bg-strong);\n    border-radius: 14px;\n    box-shadow: var(--graph-shadow);\n    border: 1px solid var(--graph-border);\n    z-index: 1000;\n    min-width: 140px;\n    max-height: min(360px, 60vh);\n    overflow-y: auto;\n    overflow-x: hidden;\n    user-select: none;\n    backdrop-filter: blur(14px);\n}\n\n.context-menu::-webkit-scrollbar {\n    width: 6px;\n}\n\n.context-menu::-webkit-scrollbar-track {\n    background: transparent;\n}\n\n.context-menu::-webkit-scrollbar-thumb {\n    background: rgba(255, 255, 255, .14);\n    border-radius: 999px;\n}\n\n.menu-item {\n    padding: 6px 12px;\n    font-size: .75rem;\n    color: var(--graph-text-muted);\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    user-select: none;\n    border-bottom: 1px solid rgba(255, 255, 255, .08);\n}\n\n/* El nombre del átomo que el menú muestra. No es un ítem: no se pulsa, no\n     cuenta para los índices. Con varios menús abiertos, es lo que distingue\n     uno de otro. */\n.menu-titulo {\n    display: block;\n    padding: 5px 12px;\n    font-size: .68rem;\n    color: rgba(255, 255, 255, .38);\n    border-bottom: 1px solid rgba(255, 255, 255, .16);\n    user-select: none;\n}\n\n.menu-item:last-child {\n    border-bottom: none;\n}\n\n.menu-item:hover {\n    background: rgba(255, 255, 255, .08);\n}\n\n.menu-item:active {\n    background: rgba(255, 255, 255, .12);\n}\n",
+    "estilo del modal {": "\n/* El MODAL que pide un nombre (copiado igual de \"todo el estilo {\"). */\n.modal-content {\n    position: absolute;\n    left: 50%;\n    top: 50%;\n    padding: 1rem;\n    border: 1px solid var(--graph-border);\n    border-radius: 18px;\n    background: rgba(0, 0, 0, 0.88);\n    box-shadow: var(--graph-shadow);\n    backdrop-filter: blur(18px);\n    -webkit-backdrop-filter: blur(18px);\n    transform: translate(-50%, -50%);\n    z-index: 2000;\n}\n\n.modal-content button {\n    font-size: 0.75rem;\n    color: var(--graph-text);\n    font-weight: 500;\n    cursor: pointer;\n    padding: 4px 12px;\n    border-radius: 10px;\n    transition: all 0.15s ease;\n    width: fit-content;\n    background: rgba(255, 255, 255, 0.08);\n    border: 1px solid var(--graph-border);\n    outline: none;\n    user-select: none;\n}\n\n.modal-content button:hover {\n    background: rgba(255, 255, 255, 0.12);\n    border-color: var(--graph-border-active);\n}\n\n.modal-content button:active {\n    background: rgba(255, 255, 255, 0.18);\n    transform: scale(0.98);\n}\n\n.modal-content button[data-modal=\"continue\"] {\n    background: rgba(255, 255, 255, 0.2);\n    color: var(--graph-text);\n    border: 1px solid rgba(255, 255, 255, 0.38);\n}\n\n.modal-content button[data-modal=\"continue\"]:hover {\n    background: rgba(255, 255, 255, 0.3);\n}\n\n.modal-content input {\n    border: 1px solid rgba(255, 255, 255, 0.1);\n    outline: none;\n    padding: 4px 8px;\n    border-radius: 8px;\n    color: var(--graph-text);\n    font-family: inherit;\n    font-size: 1rem;\n    flex: 1;\n    background: rgba(255, 255, 255, 0.06);\n}\n\n.modal-content span {\n    font-family: inherit;\n    color: var(--graph-text-muted);\n    font-weight: 100;\n    font-size: smaller;\n    font-style: italic;\n}\n\n.modal-buttons {\n    display: flex;\n    gap: 8px;\n    justify-content: space-around;\n    margin-top: 12px;\n}\n",
+    "estilo del editor {": "\n/* El EDITOR (Monaco vive en el shell) — también copiado del estilo real. */\n.editor-overlay {\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    background: rgba(0, 0, 0, 0.22);\n    justify-content: center;\n    align-items: center;\n    z-index: 3000;\n    backdrop-filter: blur(1px) saturate(0.6%);\n    -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n    display: flex;\n}\n\n.editor-modal {\n    /* relative: el prompt del asistente se ancla dentro del editor. */\n    position: relative;\n    width: 90%;\n    max-width: 900px;\n    height: 80%;\n    max-height: 700px;\n    border-radius: 18px;\n    background: rgba(0, 0, 0, 0.34);\n    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);\n    border: 1px solid var(--graph-border);\n    backdrop-filter: blur(1px) saturate(0.6%);\n    -webkit-backdrop-filter: blur(1px) saturate(0.6%);\n    display: flex;\n    flex-direction: column;\n    overflow: hidden;\n}\n\n.editor-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    background: rgba(255, 255, 255, 0.06);\n    border-bottom: 1px solid rgba(255, 255, 255, 0.1);\n    padding: 12px 16px;\n    flex-shrink: 0;\n}\n\n.editor-title {\n    color: var(--graph-text);\n    font-size: 14px;\n    font-weight: 500;\n    display: flex;\n    align-items: center;\n    gap: 8px;\n}\n\n.editor-header .modal-buttons {\n    margin-top: 0;\n}\n\n/* ── EL SELECTOR DE LENGUAJE y los botones del editor ───────────────────────\n   Copiado de «todo el estilo {» del proyecto principal, con las mismas clases:\n   así un estilo se puede mover de un lado al otro sin traducir nada.\n   Los iconos son Font Awesome; si no está, los <i> quedan vacíos y el nombre\n   del lenguaje sigue visible — se elige igual. */\n.editor-controls {\n    display: flex;\n    gap: 10px;\n}\n\n.language-selector {\n    position: relative;\n    display: inline-block;\n}\n\n.language-button {\n    background: none;\n    border-radius: 10px;\n    border: none;\n    color: var(--graph-text);\n    padding: 6px 12px;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    font-size: 14px;\n    font-family: inherit;\n    transition: all 0.3s ease;\n}\n\n.language-button:hover {\n    background: rgba(255, 255, 255, 0.15);\n}\n\n.language-dropdown {\n    display: none;\n    position: absolute;\n    top: 100%;\n    left: 0;\n    background: var(--graph-bg-strong);\n    border: 1px solid var(--graph-border-active);\n    border-radius: 4px;\n    min-width: 150px;\n    z-index: 1000;\n    margin-top: 5px;\n    box-shadow: var(--graph-shadow);\n}\n\n.language-dropdown.show {\n    display: block;\n}\n\n.dropdown-item {\n    width: 100%;\n    padding: 10px 15px;\n    background: none;\n    border: none;\n    color: var(--graph-text);\n    text-align: left;\n    cursor: pointer;\n    display: flex;\n    align-items: center;\n    gap: 10px;\n    font-family: inherit;\n    transition: background 0.2s ease;\n}\n\n.dropdown-item:hover {\n    background: rgba(255, 255, 255, 0.1);\n}\n\n.dropdown-item i {\n    width: 20px;\n    text-align: center;\n}\n\n.close-button,\n.save-button,\n.ai-button {\n    border: 1px solid var(--graph-border);\n    border-radius: 6px;\n    color: var(--graph-text);\n    padding: 6px 12px;\n    font-size: 12px;\n    cursor: pointer;\n    transition: all 0.2s;\n    display: flex;\n    align-items: center;\n    gap: 4px;\n    font-family: inherit;\n}\n\n.save-button {\n    background: rgba(255, 255, 255, 0.14);\n}\n\n.save-button:hover {\n    background: rgba(255, 255, 255, 0.24);\n    border-color: var(--graph-border-active);\n}\n\n.close-button {\n    background: transparent;\n}\n\n.close-button:hover {\n    background: rgba(255, 255, 255, 0.1);\n    border-color: var(--graph-border-active);\n}\n\n.ai-button {\n    background: rgba(255, 255, 255, 0.08);\n}\n\n.ai-button:hover {\n    background: rgba(255, 255, 255, 0.18);\n    border-color: var(--graph-border-active);\n}\n\n.ai-button:disabled {\n    opacity: 0.6;\n    cursor: default;\n}\n\n/* El prompt del asistente, anclado abajo dentro del editor. */\n.ai-prompt {\n    position: absolute;\n    left: 50%;\n    bottom: 18px;\n    transform: translateX(-50%);\n    display: flex;\n    gap: 8px;\n    align-items: center;\n    width: min(560px, 82%);\n    padding: 8px;\n    border-radius: 12px;\n    background: var(--graph-bg-strong);\n    border: 1px solid var(--graph-border);\n    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);\n    backdrop-filter: blur(14px);\n    -webkit-backdrop-filter: blur(14px);\n    z-index: 10;\n}\n\n.ai-prompt-input {\n    flex: 1;\n    border: 1px solid rgba(255, 255, 255, 0.1);\n    outline: none;\n    padding: 8px 10px;\n    border-radius: 8px;\n    color: var(--graph-text);\n    background: rgba(255, 255, 255, 0.06);\n    font-family: inherit;\n    font-size: 0.95rem;\n}\n\n.ai-prompt-input:focus {\n    border-color: rgba(255, 255, 255, 0.55);\n}\n\n.ai-prompt-send {\n    border: 1px solid rgba(255, 255, 255, 0.38);\n    border-radius: 8px;\n    background: rgba(255, 255, 255, 0.2);\n    color: var(--graph-text);\n    padding: 8px 12px;\n    cursor: pointer;\n    transition: background 0.2s ease;\n    font-family: inherit;\n}\n\n.ai-prompt-send:hover {\n    background: rgba(255, 255, 255, 0.3);\n}\n\n.monaco-container {\n    flex: 1;\n    width: 100%;\n    height: 100%;\n    background: rgba(255, 255, 255, 0.04);\n    backdrop-filter: blur(8px);\n    -webkit-backdrop-filter: blur(8px);\n}\n\n.monaco-container .monaco-editor,\n.monaco-container .monaco-editor-background,\n.monaco-container .margin,\n.monaco-container .monaco-scrollable-element {\n    background: transparent !important;\n}\n\n/* Respaldo si Monaco no está disponible (el demo abierto suelto). */\n.monaco-container textarea {\n    width: 100%;\n    height: 100%;\n    resize: none;\n    border: none;\n    outline: none;\n    background: transparent;\n    color: var(--graph-text);\n    font-family: var(--graph-font);\n    font-size: .8rem;\n    padding: 12px 16px;\n    line-height: 1.5;\n    tab-size: 4;\n}\n",
     "escena #": [
         "escena @",
-        "colores {",
+        "escena usa #",
+        "colores :",
         "dibujar ƒ",
         "cielo ~",
         "entorno ~",
         "esqueleto del arbol ~",
         "copa del arbol ~",
+        "circulo <",
         "circulo ƒ",
         "esparcir circulos ƒ",
+        "trazo <",
         "trazo ƒ",
+        "texto <",
         "texto ƒ"
     ],
-    "colores {": {
+    "colores :": {
         "amarillo": "#ffd21e",
         "blanco": "#ffffff",
         "verde": "#9acd32",
@@ -526,11 +280,14 @@ body {
         "azul": "#4d9de0",
         "negro": "#000000"
     },
-    "circulo ƒ": "(color, tamano, x, y, z) => {\n      host.circulo(diarsaba.get(\"dibujar ƒ\")(color), tamano, x, y, z);\n  }",
-    "dibujar ƒ": "(color) => (diarsaba.get(\"colores {\") || {})[color] || color",
+    "circulo <": "<div class=\"escena-circulo\" style=\"left:{{x}}%;top:{{y}}%;width:{{tamano}};height:{{tamano}};background:{{color}};z-index:{{z}}\"></div>",
+    "texto <": "<div class=\"escena-texto\" style=\"left:{{x}}%;top:{{y}}%;font-size:{{tamano}};color:{{color}};z-index:{{z}}\">{{contenido}}</div>",
+    "trazo <": "<svg class=\"escena-trazo\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" style=\"z-index:{{z}}\"><polyline points=\"{{puntos}}\" fill=\"none\" stroke=\"{{color}}\" stroke-width=\"{{grosor}}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" vector-effect=\"non-scaling-stroke\"/></svg>",
+    "circulo ƒ": "(color, tamano, x, y, z) => {\n      host.pintar(diarsaba.get(\"plantilla ƒ\")(diarsaba.get(\"circulo <\"),\n          { x, y, tamano, z, color: diarsaba.get(\"dibujar ƒ\")(color) }));\n  }",
+    "dibujar ƒ": "(color) => (diarsaba.get(\"colores :\") || {})[color] || color",
     "esparcir circulos ƒ": "(cantidad, xC, yC, radio, color, tamano, z) => {\n      const dibujar = diarsaba.get(\"circulo ƒ\");\n      for (let i = 0; i < cantidad; i++) {\n          dibujar(color, tamano,\n                  xC + (Math.random() * radio * 2 - radio),\n                  yC + (Math.random() * radio * 2 - radio), z);\n      }\n  }",
-    "trazo ƒ": "(color, grosor, z, puntos) => {\n      host.trazo(diarsaba.get(\"dibujar ƒ\")(color), grosor, z, puntos);\n  }",
-    "texto ƒ": "(color, tamano, x, y, z, contenido) => {\n      host.texto(diarsaba.get(\"dibujar ƒ\")(color), tamano, x, y, z, contenido);\n  }",
+    "trazo ƒ": "(color, grosor, z, puntos) => {\n      if (!Array.isArray(puntos) || puntos.length < 2) return;\n      host.pintar(diarsaba.get(\"plantilla ƒ\")(diarsaba.get(\"trazo <\"), {\n          z, grosor,\n          color: diarsaba.get(\"dibujar ƒ\")(color),\n          puntos: puntos.map((p) => p[0] + \",\" + p[1]).join(\" \"),\n      }));\n  }",
+    "texto ƒ": "(color, tamano, x, y, z, contenido) => {\n      host.pintar(diarsaba.get(\"plantilla ƒ\")(diarsaba.get(\"texto <\"),\n          { x, y, tamano, z, contenido, color: diarsaba.get(\"dibujar ƒ\")(color) }));\n  }",
     "1 sol !": [
         "circulo ƒ",
         "amarillo",
@@ -693,14 +450,17 @@ body {
     "escena @": [
         "escena arbolo ~"
     ],
+    "escena usa #": [],
+    "escena usa # al abrir ƒ": "(lista) => {\n      lista.length = 0;\n      for (const nombre of diarsaba.get(\"usados por ƒ\")(\"escena @\")) lista.push(nombre);\n  }",
     "aislamiento #": [
         "pruebas @",
+        "pruebas usa #",
         "pruebas #",
         "probar átomo ƒ",
         "probar aislado ƒ",
         "probar ƒ",
         "veredicto de ƒ",
-        "veredictos {",
+        "veredictos :",
         "pintar acciones ƒ",
         "dibujables #",
         "correr pruebas ƒ",
@@ -709,6 +469,8 @@ body {
     "pruebas @": [
         "banco de pruebas ~"
     ],
+    "pruebas usa #": [],
+    "pruebas usa # al abrir ƒ": "(lista) => {\n      lista.length = 0;\n      for (const nombre of diarsaba.get(\"usados por ƒ\")(\"pruebas @\")) lista.push(nombre);\n  }",
     "banco de pruebas ~": [
         "0 titular !",
         "1 correr pruebas !"
@@ -744,7 +506,7 @@ body {
         "trazo ƒ",
         "texto ƒ"
     ],
-    "veredictos {": {
+    "veredictos :": {
         "ok": "verde",
         "colgada": "rojo",
         "reventó": "amarillo",
@@ -754,7 +516,7 @@ body {
     "probar aislado ƒ": "async (fuente, args = [], ms = 600) => host.worker(fuente, args, ms)",
     "fuente de ƒ": "(nombre) => diarsaba.get(\"mostrar valor ƒ\")(diarsaba.get(nombre))",
     "probar átomo ƒ": "async (nombre, ms = 600) => {\n      const fuente = diarsaba.get(\"fuente de ƒ\")(nombre);\n      if (!fuente) return { ok: false, motivo: \"no es función\", ms: 0 };\n      const r = await diarsaba.get(\"probar aislado ƒ\")(fuente, [], ms);\n      const v = diarsaba.get(\"veredicto de ƒ\")(r);\n      host.log(\"▶ <b>probar</b> «\" + nombre + \"» → \" + v.nota + \" (\" + r.ms + \" ms)\");\n      return r;\n  }",
-    "veredicto de ƒ": "(r) => {\n      const tabla = diarsaba.get(\"veredictos {\") || {};\n      if (r.ok) {\n          const acciones = Array.isArray(r.valor);\n          return { color: tabla.ok, nota: acciones ? \"ok · \" + r.valor.length + \" acciones\"\n                                                   : \"ok · \" + JSON.stringify(r.valor) };\n      }\n      const motivo = r.motivo || \"reventó\";\n      return { color: tabla[motivo] || \"blanco\",\n               nota: motivo + (r.error ? \" · \" + r.error : \"\") };\n  }",
+    "veredicto de ƒ": "(r) => {\n      const tabla = diarsaba.get(\"veredictos :\") || {};\n      if (r.ok) {\n          const acciones = Array.isArray(r.valor);\n          return { color: tabla.ok, nota: acciones ? \"ok · \" + r.valor.length + \" acciones\"\n                                                   : \"ok · \" + JSON.stringify(r.valor) };\n      }\n      const motivo = r.motivo || \"reventó\";\n      return { color: tabla[motivo] || \"blanco\",\n               nota: motivo + (r.error ? \" · \" + r.error : \"\") };\n  }",
     "pintar acciones ƒ": "(acciones) => {\n      if (!Array.isArray(acciones)) return 0;\n      const permitidas = diarsaba.get(\"dibujables #\") || [];\n      let n = 0;\n      for (const accion of acciones) {\n          if (!Array.isArray(accion) || !permitidas.includes(accion[0])) continue;\n          const f = diarsaba.get(accion[0]);\n          if (typeof f === \"function\") { f.apply(null, accion.slice(1)); n++; }\n      }\n      return n;\n  }",
     "correr pruebas ƒ": "async (nombreLista, ms = 600) => {\n      const lista = diarsaba.get(\"lista de ƒ\")(nombreLista) || [];\n      const texto = diarsaba.get(\"texto ƒ\");\n      const circulo = diarsaba.get(\"circulo ƒ\");\n      texto(\"blanco\", \"5px\", 6, 12, 1, lista.length + \" átomos · se espera \" + ms + \" ms a cada uno\");\n      let y = 22;\n      for (const nombre of lista) {\n          texto(\"blanco\", \"5px\", 12, y, 2, nombre);\n          const r = await diarsaba.get(\"probar átomo ƒ\")(nombre, ms);\n          const v = diarsaba.get(\"veredicto de ƒ\")(r);\n          circulo(v.color, \"4px\", 8, y, 2);\n          texto(v.color, \"4px\", 12, y + 5, 2, v.nota + \" · \" + r.ms + \" ms\");\n          if (r.ok) diarsaba.get(\"pintar acciones ƒ\")(r.valor);\n          y += 14;\n      }\n      texto(\"blanco\", \"4px\", 6, 92, 1, \"ninguna se ejecutó en casa · la que no termina se termina, y la página ni se enteró\");\n  }",
     "probar ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n      const r = await diarsaba.get(\"probar átomo ƒ\")(sel.texto);\n      const v = diarsaba.get(\"veredicto de ƒ\")(r);\n      host.notify(sel.texto + \"\\n\\n\" + v.nota + \"\\n\" + r.ms + \" ms\");\n  }"
@@ -827,13 +589,17 @@ const widgets = {
         el.style.left = `${left}px`; el.style.top = `${top}px`;
     },
 
-    // No-string → JSON; escapa &<> para que un dato ajeno no inyecte HTML.
-    _render(v) {
-        const t = typeof v === "string" ? v : (() => {
-            try { return JSON.stringify(v); } catch (_) { return String(v); }
-        })();
-        return t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-    },
+    /* ── EL CONTRATO DEL MARCADO ───────────────────────────────────────────
+       El shell ya no construye el menú: lo recibe hecho, del átomo «menu <».
+       Pero para convertir un clic en un dato tiene que reconocer dos cosas en
+       ese marcado, y sólo dos:
+
+           .menu-item[data-idx="N"]   un ítem, y qué índice tiene
+           .menu-titulo               el título (pulsarlo va DEL MENÚ)
+
+       Eso es todo lo que sabe de la forma de un menú. Cambia el marcado como
+       quieras —otras etiquetas, más adornos, otro orden— y seguirá funcionando
+       mientras esos dos ganchos existan. No es una forma: es dónde mirar. */
 
     // Entrega por DEFECTO del ítem elegido. El átomo ya no pasa una función por
     // el borde (un postMessage no puede llevarla): pasa null y el shell entrega
@@ -883,31 +649,30 @@ const widgets = {
     // lo que dice cuál es cuál — y es donde se pulsa para las acciones del menú.
     // No es un ítem, así que no altera los índices.
     // Un menú de opciones va de UN elemento (dataset.current), no de la lista.
-    _paint(div, list) {
-        let i = 0, html = "";
-        const nombre = div.dataset.current || div.dataset.parent;
-        if (nombre) html += `<span class="menu-titulo">${this._render(nombre)}</span>`;
-        for (const key of list)
-            html += `<span class="menu-item" data-idx="${i++}">${this._render(key)}</span>`;
-        div.innerHTML = html;
+    // Los menús ABIERTOS que están mostrando esa lista, por su id. El universo
+    // pregunta "¿quién enseña «logs #»?" y recibe ids, no elementos — con eso
+    // decide a quién repintar. Antes esto era redrawAll(), que además PINTABA;
+    // ahora pintar es del universo y aquí sólo queda la pregunta.
+    //
+    // Sólo los que la MUESTRAN: un menú de opciones cuelga de una lista pero
+    // enseña otra cosa, y no debe repintarse con sus datos.
+    menusDe(nombre) {
+        const ids = [];
+        for (const [id, w] of this.scene._menu)
+            if (w.el && w.el.dataset.parent === nombre && !w.el.dataset.current) ids.push(id);
+        return ids;
     },
 
-    // Vuelve a pintar TODOS los menús abiertos que estén mostrando esa lista.
-    // Por NOMBRE y no por menú: si la misma lista está abierta en dos sitios,
-    // los dos se enteran; y sirve igual para un cambio hecho a mano que para uno
-    // que ocurre solo (un thread, un reloj). Los menús siguen siendo LOS MISMOS
-    // —mismo id, mismo sitio, mismos hijos—, solo cambian sus ítems.
-    redrawAll(nombre, list) {
-        let n = 0;
-        for (const [, w] of this.scene._menu) {
-            // Solo los que MUESTRAN la lista: un menú de opciones cuelga de ella
-            // pero enseña otra cosa, y no debe repintarse con sus datos.
-            if (!w.el || w.el.dataset.parent !== nombre || w.el.dataset.current) continue;
-            this._paint(w.el, list);
-            this._clamp(w.el);
-            n++;
-        }
-        return n;
+    // Cambia el contenido de un menú abierto, conservándolo: mismo id, mismo
+    // sitio, mismos hijos. Es lo que hace que editar un elemento se VEA sin
+    // cerrar nada. El manejador de clic está delegado en el contenedor, así que
+    // reemplazar el marcado de dentro no lo rompe.
+    repintar(id, html) {
+        const w = this.scene._menu.get(id);
+        if (!w || !w.el) return false;
+        w.el.innerHTML = String(html);
+        this._clamp(w.el);
+        return true;
     },
 
     // Qué lista está mostrando un menú abierto. El universo pregunta por id y
@@ -958,11 +723,18 @@ const widgets = {
 
     // Avisos del shell (en la app real, lo mismo).
     notify(msg) { return alert(msg); },
-    // MENÚ: ítems SIN prefijo. x/y null → junto al puntero.
+
+    // MENÚ. Recibe el HTML ya hecho —del átomo «menu <»— y se encarga de lo que
+    // no es forma: darle un id, ponerlo en su sitio sin que se salga de la
+    // ventana, cablear el clic y colgarlo del árbol.
+    //
     // "desde": id del menú DONDE SE PULSÓ; "" = es una RAÍZ (nace del fondo).
-    // El shell le da un id propio y lo registra en scene: el átomo nunca recibe
-    // el elemento, solo ese id de vuelta en el payload.
-    menu(list, parent = "", current = "", x = null, y = null, onPick = null, desde = "") {
+    // El átomo nunca recibe el elemento, sólo el id de vuelta.
+    //
+    // Los datos (parent/current) se guardan en el dataset porque son lo que el
+    // shell devuelve en el payload de un clic: no los usa para dibujar —ya no
+    // dibuja—, los custodia.
+    menu(html, parent = "", current = "", x = null, y = null, onPick = null, desde = "") {
         const div = document.createElement("div");
         div.className = "context-menu";
         div.style.left = `${x === null ? this._px : x}px`;
@@ -971,7 +743,7 @@ const widgets = {
         div.dataset.current = current;
         div.dataset.menu = window.host.scene.nuevoId();
         div.dataset.desde = desde;
-        this._paint(div, list);          // después del dataset: el título lo lee de ahí
+        div.innerHTML = String(html);
         // La marca "submenu" distingue lo que cuelga de otro menú de lo que
         // nació del fondo.
         if (desde) div.classList.add("submenu");
@@ -979,27 +751,7 @@ const widgets = {
         this._clamp(div);
         this._wirePick(div, onPick);
         window.host.scene.open(div.dataset.menu, div, desde);
-        return div;
-    },
-
-    // LISTA: los ítems llevan el prefijo "[n] " — ésa es la marca que hace que
-    // el despacho los trate con semántica de LISTA y no de menú.
-    list(x, y, list, parent, onPick = null, slot = "") {
-        const div = document.createElement("div");
-        div.className = "context-menu";
-        if (list.length == 0) div.innerHTML += `<span class="menu-item" data-idx="0">[0]</span>`;
-        else {
-            let i = 0; for (const key in list)
-                div.innerHTML += `<span class="menu-item" data-idx="${i++}">[${key}] ${this._render(list[key])}</span>`;
-        }
-        div.style.left = `${x}px`;
-        div.style.top = `${y}px`;
-        div.dataset.parent = parent;
-        document.body.appendChild(div);
-        this._clamp(div);
-        this._wirePick(div, onPick);
-        if (slot) window.host.scene.openList(slot, div);
-        return div;
+        return div.dataset.menu;
     },
 
     // Cierra UN menú (y lo que colgara de él). Es lo que pide "cerrar ƒ".
@@ -1009,16 +761,14 @@ const widgets = {
     // se cierra con su propia acción—, así que esto es el Esc y el cambio de
     // place.
     //
-    // OJO — asimetría deliberada del original: las LISTAS no están en este
-    // registro, así que SOBREVIVEN a esto: una lista abierta se queda hasta que
-    // la cierres (· []* ocultar) o cambies de place. Con `alsoModals` —lo que
-    // usa el cambio de place— se barre absolutamente todo.
+    // (Aquí había una asimetría heredada: las LISTAS iban en otro registro y
+    //  sobrevivían al Esc. Ya no hay listas —todo es el árbol de menús—, así que
+    //  la excepción se fue con ellas. `alsoModals` barre además los modales, y
+    //  es lo que usa el cambio de place.)
     clearMenus(alsoModals) {
         this.scene.closeAll();
-        if (alsoModals) {
+        if (alsoModals)
             document.querySelectorAll(".context-menu, .modal-content").forEach((el) => el.remove());
-            this.scene._list.clear();
-        }
     },
 
     // Clasifica un evento de puntero en un payload SEMÁNTICO. El shell mira el
@@ -1055,7 +805,6 @@ const widgets = {
         // ("" = raíz, nacida de un clic derecho en el fondo). El id lo pone el
         // shell, así dos aperturas de la misma lista son dos menús distintos.
         _menu: new Map(),      // id → { el, desde }
-        _list: new Map(),
         _seq: 0,
         nuevoId() { return "m" + (++this._seq); },
 
@@ -1079,13 +828,6 @@ const widgets = {
             for (const [k, w] of [...this._menu]) if (w.desde === id) this.close(k);
         },
         closeAll() { for (const k of [...this._menu.keys()]) this.close(k); },
-        // Sin la marca "submenu" a propósito: una lista abierta no la barre
-        // "clear menus ƒ" (ver el comentario de clearMenus).
-        openList(name, el) {
-            const prev = this._list.get(name);
-            if (prev?.remove) prev.remove();
-            this._list.set(name, el);
-        },
     },
 
     // (solo del DEMO) bitácora: cada línea se anota en el átomo "logs #", que
@@ -1100,24 +842,22 @@ const widgets = {
 };
 
 /* ── EL SHELL · EL LIENZO DE UN PLACE ───────────────────────────────────────
-   Tres verbos de dibujo y nada más: círculo, trazo, texto. El shell no sabe
-   qué es un árbol; recibe un color CSS ya resuelto, coordenadas en % y un z.
-   Aquí es DOM+SVG; en otro shell serían Three.js o un canvas, con los mismos
-   tres verbos — es el canal "escena" del protocolo.
+   Aquí ya no hay formas. El shell no sabe qué es un círculo, ni un trazo, ni un
+   texto: recibe HTML —que el universo arma con sus átomos "<"— y lo mete en el
+   lienzo. Dos verbos, y ninguno menciona un color, una clase ni un estilo.
+
+   Lo único que se queda es lo que no puede ser un átomo: qué nodo del documento
+   es el lienzo, y cuánto hay que escalarlo para que quepa en ESTA ventana. Eso
+   no es forma, es la ventana — y la ventana es del anfitrión.
    ────────────────────────────────────────────────────────────────────────── */
 
 const lienzo = {
-    /* ── EL LIENZO ─────────────────────────────────────────────────────────
-       Tres verbos y nada más: borrar el lienzo, poner un círculo, poner un
-       trazo. El shell no sabe qué es un árbol ni qué es el sol: recibe un
-       color CSS ya resuelto, unas coordenadas en % y un z, y dibuja. Quién
-       decide que "amarillo" es #ffd21e, o que el follaje son veinte círculos
-       esparcidos, es el universo.                                            */
 
     _lienzo() { return document.getElementById("lienzo"); },
 
-    // El escenario mide 200×200 y se escala a la ventana: así una escena
-    // escrita en % y px se ve igual en cualquier pantalla.
+    // El escenario mide 200×200 y se escala a la ventana: así una escena escrita
+    // en % y px se ve igual en cualquier pantalla. El 200 vive en el CSS —en
+    // «estilo del lienzo {»—; aquí sólo se lee la ventana, que el universo no ve.
     _escalar() {
         const escala = Math.min(innerWidth, innerHeight) * 0.86 / 200;
         document.documentElement.style.setProperty("--escala", escala.toFixed(3));
@@ -1131,75 +871,93 @@ const lienzo = {
         document.getElementById("place-nombre").textContent = nombre;
     },
 
-    // Un círculo, anclado por su centro en (x%, y%) del lienzo.
-    circulo(color, tamano, x, y, z) {
+    // EL VERBO: añade HTML al lienzo. Lo que llega viene ya escapado por quien lo
+    // armó —"plantilla ƒ" escapa cada valor salvo que se pida crudo—; el shell no
+    // puede saber qué parte de un HTML es dato y qué parte es marcado, así que no
+    // finge protegerlo. Insertar marcado es exactamente lo que dice el nombre.
+    //
+    // Un solo verbo para las tres formas de la escena y para las que añadas
+    // mañana: dibujar algo nuevo es escribir un átomo "<", no tocar el shell.
+    pintar(html) {
         const el = this._lienzo();
-        if (!el) return;
-        const d = document.createElement("div");
-        d.className = "escena-circulo";
-        d.style.left = `${x}%`;
-        d.style.top = `${y}%`;
-        d.style.width = tamano;
-        d.style.height = tamano;
-        d.style.background = color;
-        d.style.zIndex = String(z);
-        el.appendChild(d);
-    },
-
-    // Una línea continua que une los puntos [[x,y], ...], en las mismas
-    // coordenadas 0..100 de la escena.
-    trazo(color, grosor, z, puntos) {
-        const el = this._lienzo();
-        if (!el || !Array.isArray(puntos) || puntos.length < 2) return;
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("class", "escena-trazo");
-        svg.setAttribute("viewBox", "0 0 100 100");
-        svg.setAttribute("preserveAspectRatio", "none");
-        svg.style.zIndex = String(z);
-        const linea = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-        linea.setAttribute("points", puntos.map((p) => p[0] + "," + p[1]).join(" "));
-        linea.setAttribute("fill", "none");
-        linea.setAttribute("stroke", color);
-        linea.setAttribute("stroke-width", grosor);
-        linea.setAttribute("stroke-linecap", "round");
-        linea.setAttribute("stroke-linejoin", "round");
-        // El grosor no se estira con el viewBox: se queda en px del escenario.
-        linea.setAttribute("vector-effect", "non-scaling-stroke");
-        svg.appendChild(linea);
-        el.appendChild(svg);
-    },
-
-    // Una línea de texto en el lienzo. El shell escapa lo que le llegue: un
-    // texto que viene de fuera (del sandbox, por ejemplo) es un dato, no HTML.
-    texto(color, tamano, x, y, z, contenido) {
-        const el = this._lienzo();
-        if (!el) return;
-        const d = document.createElement("div");
-        d.className = "escena-texto";
-        d.style.left = `${x}%`;
-        d.style.top = `${y}%`;
-        d.style.fontSize = tamano;
-        d.style.color = color;
-        d.style.zIndex = String(z);
-        d.textContent = String(contenido);
-        el.appendChild(d);
+        if (!el) return false;
+        el.insertAdjacentHTML("beforeend", String(html));
+        return true;
     },
 };
 
 /* ── EL SHELL · EL EDITOR ───────────────────────────────────────────────────
-   Monaco vive aquí, en el shell, igual que en la app: el universo sólo dice
-   "edítame este texto" y recibe el resultado. Si Monaco no aparece se edita en
-   un textarea y el programa sigue — el editor es una comodidad del shell, no
-   una dependencia del universo.
+   El editor del proyecto principal, traído tal cual: Monaco con selector de
+   lenguaje (HTML/JS/CSS/Python/Go/JSON/Texto), guardar, cerrar y el asistente.
+   Mismo marcado y mismas clases CSS que la app, para que un átomo o un estilo
+   se puedan mover de un lado al otro sin traducir nada.
+
+   Tres cosas cambian, y todas en la misma dirección: que no dependa de nadie.
+     · Monaco y Font Awesome son CONFIGURACIÓN (crearHost({ vs, iconos })), no
+       rutas adivinadas. Si no están, el editor sigue abriendo.
+     · Sin Monaco se edita en un <textarea>, con la misma cabecera y el mismo
+       selector. Se pierde el resaltado, no el editor.
+     · El asistente llama a host.broker.ai(), no a una binding de Go. Sin
+       anfitrión lo dice y no pasa nada más.
+
+   El universo sólo ve host.editor(nombre, src, lang) → texto | null, y
+   host.diff(titulo, a, b, lang) → bool. Igual que en CONTENEDOR.md.
    ────────────────────────────────────────────────────────────────────────── */
 
+// Los lenguajes que ofrece el selector. Sin 'color': los iconos heredan
+// currentColor (blanco). El lenguaje ya se distingue por su glifo y por el
+// nombre de al lado.
+const LENGUAJES = [
+    { id: "html", name: "HTML", icon: "fab fa-html5" },
+    { id: "javascript", name: "JavaScript", icon: "fab fa-js-square" },
+    { id: "css", name: "CSS", icon: "fab fa-css3-alt" },
+    { id: "python", name: "Python", icon: "fab fa-python" },
+    { id: "go", name: "Go", icon: "fab fa-golang" },
+    // JSON es el lenguaje de los átomos ":" — los que guardan una estructura.
+    { id: "json", name: "JSON", icon: "fas fa-file-code" },
+    { id: "plaintext", name: "Texto", icon: "fas fa-file-alt" },
+];
+
+// Los nombres cortos con que los átomos piden un lenguaje ("js", "text") y los
+// largos que entiende Monaco. Es la misma tabla de la app.
+const ALIAS = {
+    html: "html", js: "javascript", javascript: "javascript", css: "css",
+    py: "python", python: "python", go: "go", json: "json",
+    text: "plaintext", plaintext: "plaintext",
+};
+
+const TEMA = "glass-dark";
+const TEMA_DEF = {
+    base: "vs-dark", inherit: true, rules: [],
+    colors: {
+        "editor.background": "#0b0b0b42",
+        "editorGutter.background": "#0b0b0b24",
+        "editorLineNumber.foreground": "#94a3b8",
+        "editorLineNumber.activeForeground": "#f8fafc",
+        "editorCursor.foreground": "#f8fafc",
+        "editor.selectionBackground": "#ffffff18",
+        "editor.inactiveSelectionBackground": "#ffffff10",
+        "editor.lineHighlightBackground": "#ffffff08",
+        "editor.lineHighlightBorder": "#00000000",
+        "editorIndentGuide.background1": "#ffffff12",
+        "editorIndentGuide.activeBackground1": "#ffffff22",
+        "focusBorder": "#00000000",
+        "contrastBorder": "#00000000",
+        "contrastActiveBorder": "#00000000",
+        "editorWidget.border": "#ffffff12",
+        "scrollbarSlider.background": "#ffffff14",
+        "scrollbarSlider.hoverBackground": "#ffffff24",
+        "scrollbarSlider.activeBackground": "#ffffff30",
+    },
+};
+
 const editor = {
-    /* ── EL EDITOR ─────────────────────────────────────────────────────────
-       Monaco vive en el SHELL, igual que en la app: el universo solo dice
-       "edítame este texto" y recibe el resultado. Se carga de la copia del
-       repo (frontend/public/vs), sin CDN.                                    */
+
+    /* ── carga de lo de fuera: Monaco y los iconos ────────────────────────── */
 
     _monaco: null,
+    _temaPuesto: false,
+    _iconosPedidos: false,
 
     _cargarScript(src) {
         return new Promise((resolve) => {
@@ -1209,6 +967,24 @@ const editor = {
             s.onerror = () => resolve(false);
             document.head.appendChild(s);
         });
+    },
+
+    // Los iconos del selector. Si no aparecen, los <i> quedan vacíos y el
+    // nombre del lenguaje sigue ahí: se puede elegir igual. Por eso no se
+    // espera a que carguen ni se avisa dos veces.
+    _cargarIconos() {
+        if (this._iconosPedidos) return;
+        this._iconosPedidos = true;
+        const candidatos = [];
+        if (this._iconos) candidatos.push(this._iconos);
+        else candidatos.push("../../public/fa/css/all.min.css", "/fa/css/all.min.css");
+        for (const href of candidatos) {
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = new URL(href, location.href).href;
+            link.onerror = () => link.remove();
+            document.head.appendChild(link);
+        }
     },
 
     _cargarMonaco() {
@@ -1240,89 +1016,357 @@ const editor = {
                     `importScripts('${vs}/base/worker/workerMain.js');`),
             };
             return new Promise((resolve, reject) => {
-                window.require(["vs/editor/editor.main"], () => {
-                    // El tema del proyecto, para que el editor no desentone.
-                    window.monaco.editor.defineTheme("glass-dark", {
-                        base: "vs-dark", inherit: true, rules: [],
-                        colors: {
-                            "editor.background": "#0b0b0b42",
-                            "editorGutter.background": "#0b0b0b24",
-                            "editorLineNumber.foreground": "#94a3b8",
-                            "editorCursor.foreground": "#f8fafc",
-                            "editor.selectionBackground": "#ffffff18",
-                            "editor.lineHighlightBackground": "#ffffff08",
-                            "focusBorder": "#00000000",
-                            "scrollbarSlider.background": "#ffffff14",
-                        },
-                    });
-                    resolve(window.monaco);
-                }, reject);
+                window.require(["vs/editor/editor.main"], () => resolve(window.monaco), reject);
             });
         })();
         return this._monaco;
     },
 
-    // Abre el editor. Resuelve el texto (Guardar) o null (Cancel) — la misma
-    // firma que host.editor en la app, para que el átomo sea el mismo.
+    /* ── lenguajes ────────────────────────────────────────────────────────── */
+
+    // El lenguaje que pide un átomo, resuelto a una entrada del selector. Lo
+    // que no se reconoce cae en JavaScript, como en la app.
+    _lenguaje(lang) {
+        const id = ALIAS[lang] || lang;
+        return LENGUAJES.find((l) => l.id === id) || LENGUAJES.find((l) => l.id === "javascript");
+    },
+    _monacoLang(lang) { return ALIAS[lang] || lang; },
+
+    /* ── el overlay ───────────────────────────────────────────────────────── */
+
+    // El título es el NOMBRE del átomo. Un átomo llamado "<img onerror=...>"
+    // (p. ej. de un programa compartido) inyectaría HTML aquí; se escapa. Lo
+    // demás de la plantilla son constantes.
+    _crearOverlay(titulo, lenguaje, conAsistente) {
+        const overlay = document.createElement("div");
+        overlay.className = "editor-overlay";
+        const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        overlay.innerHTML = `
+        <div class="editor-modal">
+            <div class="editor-header">
+                <div class="editor-title">
+                    <div class="language-selector">
+                        <button class="language-button" type="button" title="Seleccionar lenguaje">
+                            <i class="${lenguaje.icon}"></i>
+                            <span class="language-name">${lenguaje.name}</span>
+                        </button>
+                        <div class="language-dropdown">
+                            ${LENGUAJES.map((l) => `
+                                <button class="dropdown-item" data-lang="${l.id}">
+                                    <i class="${l.icon}"></i>
+                                    <span>${l.name}</span>
+                                </button>
+                            `).join("")}
+                        </div>
+                    </div>
+                    <span class="modal-title">${esc(titulo)}</span>
+                </div>
+                <div class="editor-controls">
+                    ${conAsistente ? `<button class="ai-button" title="Asistente IA (Ctrl+I)">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                    </button>` : ""}
+                    <button class="save-button" title="Guardar (Ctrl+S)">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button class="close-button" title="Cerrar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="monaco-container" style="width:100%;height:100%;"></div>
+        </div>`;
+        return overlay;
+    },
+
+    _partes(overlay) {
+        return {
+            modal: overlay.querySelector(".editor-modal"),
+            container: overlay.querySelector(".monaco-container"),
+            selector: overlay.querySelector(".language-selector"),
+            boton: overlay.querySelector(".language-button"),
+            icono: overlay.querySelector(".language-button i"),
+            nombre: overlay.querySelector(".language-name"),
+            dropdown: overlay.querySelector(".language-dropdown"),
+            items: overlay.querySelectorAll(".dropdown-item"),
+            guardar: overlay.querySelector(".save-button"),
+            cerrar: overlay.querySelector(".close-button"),
+            ai: overlay.querySelector(".ai-button"),
+        };
+    },
+
+    /* ── el asistente ─────────────────────────────────────────────────────── */
+
+    // Quita los ``` con que un modelo suele envolver el código.
+    _sinCercas(texto) {
+        const t = String(texto).trim();
+        const m = t.match(/^```[a-zA-Z0-9]*\s*\n([\s\S]*?)\n```$/);
+        return m ? m[1] : t;
+    },
+
+    // Pide la instrucción dentro del propio editor, anclada abajo.
+    _pedirInstruccion(ancla) {
+        return new Promise((resolve) => {
+            const wrap = document.createElement("div");
+            wrap.className = "ai-prompt";
+            wrap.innerHTML = `
+                <input type="text" class="ai-prompt-input" placeholder="¿Qué quieres que haga la IA con este átomo?" spellcheck="false" />
+                <button class="ai-prompt-send" type="button" title="Enviar (Enter)"><i class="fas fa-arrow-up"></i></button>`;
+            ancla.appendChild(wrap);
+            const input = wrap.querySelector(".ai-prompt-input");
+            const send = wrap.querySelector(".ai-prompt-send");
+            const fin = (v) => { wrap.remove(); resolve(v); };
+            input.addEventListener("keydown", (e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") fin(input.value.trim() || null);
+                else if (e.key === "Escape") fin(null);
+            });
+            send.addEventListener("click", () => fin(input.value.trim() || null));
+            input.focus();
+        });
+    },
+
+    // El asistente pasa por el BROKER: aquí no hay ninguna binding de Go. El
+    // "system" opcional viene del átomo "ai system §" — es un dato del
+    // programa, editable desde su propio menú.
+    async _asistir(leer, escribir, partes, lang) {
+        if (this._aiOcupado) return;
+        const instruccion = await this._pedirInstruccion(partes.modal);
+        if (!instruccion) return;
+
+        this._aiOcupado = true;
+        const icono = partes.ai.querySelector("i");
+        const antes = icono.className;
+        icono.className = "fas fa-spinner fa-spin";
+        partes.ai.disabled = true;
+        try {
+            const sistema = typeof window.diarsaba?.get("ai system §") === "string"
+                ? window.diarsaba.get("ai system §") : "";
+            const r = await window.host.broker.ai(leer(), lang, instruccion, sistema);
+            // El broker nulo contesta { ok:false, motivo }. Un anfitrión de
+            // verdad devuelve el texto. Se distinguen así, sin preguntar quién es.
+            if (r && r.ok === false) window.host.log("· el asistente necesita anfitrión (" + r.motivo + ")");
+            else escribir(this._sinCercas(typeof r === "string" ? r : (r?.valor ?? "")));
+        } catch (e) {
+            window.host.notify("Error de IA: " + (e?.message || e));
+        } finally {
+            icono.className = antes;
+            partes.ai.disabled = false;
+            this._aiOcupado = false;
+        }
+    },
+
+    /* ── EL VERBO ─────────────────────────────────────────────────────────── */
+
+    // Abre el editor. Resuelve el texto (Guardar / Ctrl+S) o null (Cerrar /
+    // Esc / clic fuera). Cancelar resuelve null y no "": vaciar a propósito y
+    // cancelar no pueden ser lo mismo — un editor de lista leería "" como
+    // "borra la lista".
     async editor(nombre, src = "", lang = "javascript") {
+        this._cargarIconos();
         const monaco = await this._cargarMonaco().catch((e) => {
-            console.warn("[demo] Monaco no disponible:", e.message);
+            console.warn("[shell] Monaco no disponible:", e.message);
             return null;                       // se edita en un textarea y ya
         });
-        return new Promise((resolve) => {
-            const overlay = document.createElement("div");
-            overlay.className = "editor-overlay";
-            overlay.innerHTML =
-                `<div class="editor-modal">
-             <div class="editor-header">
-                 <span class="editor-title">${this._render(nombre)}</span>
-                 <div class="modal-buttons"></div>
-             </div>
-             <div class="monaco-container"></div>
-         </div>`;
-            const cont = overlay.querySelector(".monaco-container");
-            const bc = overlay.querySelector(".modal-buttons");
-            document.body.append(overlay);
-            // Cerrar DESTRUYE el editor: quitar el overlay no basta, Monaco
-            // guarda cada instancia (y su modelo) en un registro propio, y las
-            // que quedaran vivas seguirían apareciendo en monaco.editor.getEditors().
-            let ed = null;
-            const cerrar = (v) => { if (ed) ed.dispose(); overlay.remove(); resolve(v); };
 
-            let leer;
+        return new Promise((resolve) => {
+            const inicial = this._lenguaje(lang);
+            const overlay = this._crearOverlay(nombre, inicial, true);
+            document.body.append(overlay);
+            const partes = this._partes(overlay);
+            let actual = inicial.id;
+
+            const limpiezas = [];
+            const escuchar = (donde, evento, fn) => {
+                donde.addEventListener(evento, fn);
+                limpiezas.push(() => donde.removeEventListener(evento, fn));
+            };
+
+            // Monaco o textarea: de aquí abajo, todo habla por leer/escribir.
+            let ed = null, leer, escribir, enfocar;
             if (monaco) {
-                const idioma = { js: "javascript", text: "plaintext" }[lang] || lang;
-                ed = monaco.editor.create(cont, {
-                    value: src, language: idioma, theme: "glass-dark",
-                    automaticLayout: true, minimap: { enabled: false },
-                    scrollBeyondLastLine: false, tabSize: 4, fontSize: 13,
+                if (!this._temaPuesto) { monaco.editor.defineTheme(TEMA, TEMA_DEF); this._temaPuesto = true; }
+                ed = monaco.editor.create(partes.container, {
+                    value: src, language: this._monacoLang(inicial.id), theme: TEMA,
+                    automaticLayout: true, fontSize: 14,
                     fontFamily: getComputedStyle(document.body).fontFamily,
+                    scrollBeyondLastLine: false, minimap: { enabled: false },
+                    lineNumbers: "on", roundedSelection: false, tabSize: 4,
                 });
-                ed.addCommand(monaco.KeyCode.Escape, () => cerrar(null));
-                ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => cerrar(ed.getValue()));
                 leer = () => ed.getValue();
-                ed.focus();
+                escribir = (t) => {
+                    // Si hay selección, se sustituye sólo eso: es lo que hace la
+                    // app, y permite pedirle a la IA un trozo y no el átomo entero.
+                    const sel = ed.getSelection();
+                    if (sel && !sel.isEmpty()) ed.executeEdits("ai", [{ range: sel, text: t, forceMoveMarkers: true }]);
+                    else ed.setValue(t);
+                };
+                enfocar = () => ed.focus();
             } else {
                 const ta = document.createElement("textarea");
                 ta.value = src; ta.spellcheck = false;
-                cont.append(ta);
+                partes.container.append(ta);
                 leer = () => ta.value;
-                ta.focus();
+                escribir = (t) => { ta.value = t; };
+                enfocar = () => ta.focus();
             }
-            // El Esc del editor no debe llegar al de la ventana (que barre menús).
+
+            const ocultarLista = () => partes.dropdown.classList.remove("show");
+            const cerrar = (v) => {
+                limpiezas.forEach((f) => f());
+                if (ed) ed.dispose();          // Monaco guarda cada instancia en un
+                overlay.remove();              // registro propio: hay que soltarla
+                resolve(v);
+            };
+
+            // Cambiar de lenguaje: el botón y el resaltado. Sin Monaco sólo
+            // cambia el botón — no hay resaltado que cambiar, pero la elección
+            // sigue teniendo sentido para quien lo lee.
+            const cambiar = (id) => {
+                const nuevo = this._lenguaje(id);
+                if (!nuevo || nuevo.id === actual) { ocultarLista(); return; }
+                partes.icono.className = nuevo.icon;
+                partes.nombre.textContent = nuevo.name;
+                if (ed) monaco.editor.setModelLanguage(ed.getModel(), this._monacoLang(nuevo.id));
+                actual = nuevo.id;
+                ocultarLista();
+            };
+
+            escuchar(partes.guardar, "click", () => cerrar(leer()));
+            escuchar(partes.cerrar, "click", () => cerrar(null));
+            escuchar(partes.ai, "click", () => this._asistir(leer, escribir, partes, actual));
+            escuchar(partes.boton, "click", (e) => { e.stopPropagation(); partes.dropdown.classList.toggle("show"); });
+            partes.items.forEach((item) => escuchar(item, "click", (e) => {
+                e.stopPropagation();
+                cambiar(item.dataset.lang);
+            }));
+            escuchar(document, "click", (e) => { if (!partes.selector.contains(e.target)) ocultarLista(); });
+            escuchar(overlay, "click", (e) => { if (e.target === overlay) cerrar(null); });
+
+            // El Esc del editor no debe llegar al de la ventana (que barre los
+            // menús): primero cierra la lista de lenguajes, luego el editor, y
+            // en ningún caso sigue subiendo.
+            escuchar(overlay, "keydown", (e) => {
+                if (e.key !== "Escape") return;
+                e.stopPropagation();
+                if (partes.dropdown.classList.contains("show")) { ocultarLista(); return; }
+                cerrar(null);
+            });
+
+            if (ed) {
+                ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => cerrar(leer()));
+                ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => this._asistir(leer, escribir, partes, actual));
+                ed.addCommand(monaco.KeyCode.Escape, () => {
+                    if (partes.dropdown.classList.contains("show")) { ocultarLista(); return; }
+                    cerrar(null);
+                });
+            }
+            enfocar();
+        });
+    },
+
+    // Diff de sólo lectura: izquierda la versión elegida, derecha la actual.
+    // Resuelve true si se pulsa restaurar, false al cerrar. Sin Monaco no se
+    // finge con dos textareas: se dice que no se puede y se resuelve false.
+    async diff(titulo, original = "", modificado = "", lang = "javascript") {
+        const monaco = await this._cargarMonaco().catch(() => null);
+        if (!monaco) {
+            window.host.log("· el diff necesita Monaco; no está disponible");
+            return false;
+        }
+        this._cargarIconos();
+        return new Promise((resolve) => {
+            const overlay = this._crearOverlay(titulo, this._lenguaje(lang), false);
+            // Un diff no se edita: el botón de guardar pasa a ser "restaurar".
+            const partes = this._partes(overlay);
+            partes.guardar.title = "Restaurar esta versión";
+            partes.selector.style.pointerEvents = "none";
+            document.body.append(overlay);
+
+            if (!this._temaPuesto) { monaco.editor.defineTheme(TEMA, TEMA_DEF); this._temaPuesto = true; }
+            const l = this._monacoLang(lang);
+            const izq = monaco.editor.createModel(original, l);
+            const der = monaco.editor.createModel(modificado, l);
+            const d = monaco.editor.createDiffEditor(partes.container, {
+                theme: TEMA, automaticLayout: true, readOnly: true,
+                renderSideBySide: true, minimap: { enabled: false }, fontSize: 13,
+            });
+            d.setModel({ original: izq, modified: der });
+
+            const cerrar = (v) => {
+                d.dispose(); izq.dispose(); der.dispose();
+                overlay.remove(); resolve(v);
+            };
+            partes.guardar.addEventListener("click", () => cerrar(true));
+            partes.cerrar.addEventListener("click", () => cerrar(false));
             overlay.addEventListener("keydown", (e) => {
                 if (e.key !== "Escape") return;
                 e.stopPropagation();
-                cerrar(null);
-            });
-            ["Cancel", "Guardar"].forEach((text) => {
-                const btn = document.createElement("button");
-                btn.textContent = text;
-                btn.dataset.modal = text === "Guardar" ? "continue" : "cancel";
-                btn.onclick = () => cerrar(text === "Cancel" ? null : leer());
-                bc.append(btn);
+                cerrar(false);
             });
         });
+    },
+};
+
+/* ── EL SHELL · LOS ESTILOS ─────────────────────────────────────────────────
+   El estilo no es del HTML: es del PROGRAMA. Cada átomo que acaba en "{" es
+   CSS, y aquí se le da un <style> propio. Esto es todo lo que el shell sabe de
+   estilo — ni un selector, ni un color: sólo cómo llevar un texto al documento.
+
+   Portado de "install style manager" / host.installStyles de la app real, con
+   el mismo truco: se envuelve diarsaba.set para que GUARDAR un "{" repinte al
+   instante. Por eso editar «estilo del menú {» desde su propio menú cambia el
+   menú mientras lo miras, sin recargar nada.
+
+   Y por eso el shell puede encogerse: lo que antes era un estilo.css invisible
+   ahora son cinco átomos que el programa lee, abre y reescribe.
+   ────────────────────────────────────────────────────────────────────────── */
+
+
+// El id del <style> de un átomo. Del nombre («estilo del menú {») sale un id
+// estable («diarsaba-estilo-estilo_del_men_»), así que volver a sembrar el mismo
+// átomo reusa su etiqueta en vez de apilar otra.
+const idDeAtomo = (clave) => {
+    const base = String(clave).replace(/\s*\{$/, "").trim();
+    return "diarsaba-style-" + base.replace(/[^\w-]/g, "_").replace(/^_+|_+$/g, "");
+};
+
+const aplicar = (clave, valor) => {
+    const id = idDeAtomo(clave);
+    let el = document.getElementById(id);
+    if (!el) {
+        el = document.createElement("style");
+        el.id = id;
+        document.head.appendChild(el);
+    }
+    el.textContent = typeof valor === "string" ? valor : "";
+};
+
+const estilos = {
+    // Sincroniza los "{" que ya hay y deja enganchado el repintado de los que
+    // vengan. Lo llama el universo (por "install style manager ƒ"), no el HTML:
+    // es el programa el que decide cuándo se pone su ropa.
+    installStyles() {
+        let n = 0;
+        for (const [clave, valor] of diarsaba.entries())
+            if (typeof clave === "string" && clave.endsWith("{")) { aplicar(clave, valor); n++; }
+
+        // Una vez. Si se llamara dos veces se envolvería el envoltorio, y cada
+        // set haría el trabajo dos veces.
+        if (!this._enganchado) {
+            const setOriginal = diarsaba.set.bind(diarsaba);
+            diarsaba.set = (clave, valor) => {
+                setOriginal(clave, valor);
+                try {
+                    if (typeof clave === "string" && clave.endsWith("{")) aplicar(clave, valor);
+                } catch (e) {
+                    console.error("[shell] estilo «" + clave + "»:", e);
+                }
+                return diarsaba;
+            };
+            this._enganchado = true;
+        }
+        return n;
     },
 };
 
@@ -1530,17 +1574,21 @@ const brokerNulo = {
 
 
 
-function crearHost({ broker = brokerNulo, vs = null } = {}) {
+
+function crearHost({ broker = brokerNulo, vs = null, iconos = null } = {}) {
     const host = {
         ...widgets,
         ...lienzo,
         ...editor,
+        ...estilos,
         ...aislamiento,
         broker,
-        // Dónde está Monaco. Si se pasa, se usa esa ruta y no se adivina; si no,
-        // _cargarMonaco prueba las de siempre y, si no hay ninguna, se edita en
-        // un textarea. El editor nunca es motivo de que nada falle.
+        // Dónde está Monaco, y dónde los iconos del selector de lenguaje. Si se
+        // pasan, se usan esas rutas y no se adivina nada; si no, el editor
+        // prueba las de siempre. Y si no encuentra ninguna, edita en un textarea
+        // con los iconos vacíos: el editor nunca es motivo de que nada falle.
         _vs: vs,
+        _iconos: iconos,
     };
 
     // Global a propósito: los átomos son TEXTO compilado con new Function, así
@@ -1584,7 +1632,12 @@ const host = crearHost();
 // ── 2. EL UNIVERSO ─────────────────────────────────────────────────────────
 const sembrados = sembrar(ATOMOS);   // incrustados por empaquetar.mjs
 
-// ── 3. LOS GESTOS ──────────────────────────────────────────────────────────
+// ── 3. EL ESTILO ───────────────────────────────────────────────────────────
+// Lo pone el PROGRAMA, no el HTML: los átomos "{" se vuelven <style>. Y queda
+// enganchado, así que editar «estilo del menú {» desde su propio menú repinta.
+const estilos = diarsaba.get("install style manager ƒ")();
+
+// ── 4. LOS GESTOS ──────────────────────────────────────────────────────────
 // Entran por aquí y se entregan al universo ya CLASIFICADOS por host.hit(). En
 // la app real esto vive en "on start ƒ"; con el worker, la entrega será un
 // postMessage y este bloque es justo el que se muda al shell.
@@ -1602,12 +1655,12 @@ addEventListener("pointermove", (e) => { host._px = e.clientX; host._py = e.clie
 // escala — es la misma, más grande.
 addEventListener("resize", () => host._escalar());
 
-// ── 4. EL PLACE ────────────────────────────────────────────────────────────
+// ── 5. EL PLACE ────────────────────────────────────────────────────────────
 // Arrancar EN un place: el programa siempre está en algún sitio. Se viaja como
 // se viajaría desde el menú, con el mismo átomo.
 diarsaba.get("viajar a place ƒ")("escena @");
 
-host.log(sembrados + " átomos · broker «" + host.broker.nombre + "»");
+host.log(sembrados + " átomos · " + estilos + " estilos · broker «" + host.broker.nombre + "»");
 host.log("listo — clic derecho en el fondo abre un menú; sobre un ítem, sus opciones");
     </script>
 </body>

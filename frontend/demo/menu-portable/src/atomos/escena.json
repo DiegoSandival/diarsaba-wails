@@ -1,18 +1,22 @@
 {
   "escena #": [
     "escena @",
-    "colores {",
+    "escena usa #",
+    "colores :",
     "dibujar ƒ",
     "cielo ~",
     "entorno ~",
     "esqueleto del arbol ~",
     "copa del arbol ~",
+    "circulo <",
     "circulo ƒ",
     "esparcir circulos ƒ",
+    "trazo <",
     "trazo ƒ",
+    "texto <",
     "texto ƒ"
   ],
-  "colores {": {
+  "colores :": {
     "amarillo": "#ffd21e",
     "blanco": "#ffffff",
     "verde": "#9acd32",
@@ -21,11 +25,14 @@
     "azul": "#4d9de0",
     "negro": "#000000"
   },
-  "circulo ƒ": "(color, tamano, x, y, z) => {\n      host.circulo(diarsaba.get(\"dibujar ƒ\")(color), tamano, x, y, z);\n  }",
-  "dibujar ƒ": "(color) => (diarsaba.get(\"colores {\") || {})[color] || color",
+  "circulo <": "<div class=\"escena-circulo\" style=\"left:{{x}}%;top:{{y}}%;width:{{tamano}};height:{{tamano}};background:{{color}};z-index:{{z}}\"></div>",
+  "texto <": "<div class=\"escena-texto\" style=\"left:{{x}}%;top:{{y}}%;font-size:{{tamano}};color:{{color}};z-index:{{z}}\">{{contenido}}</div>",
+  "trazo <": "<svg class=\"escena-trazo\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" style=\"z-index:{{z}}\"><polyline points=\"{{puntos}}\" fill=\"none\" stroke=\"{{color}}\" stroke-width=\"{{grosor}}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" vector-effect=\"non-scaling-stroke\"/></svg>",
+  "circulo ƒ": "(color, tamano, x, y, z) => {\n      host.pintar(diarsaba.get(\"plantilla ƒ\")(diarsaba.get(\"circulo <\"),\n          { x, y, tamano, z, color: diarsaba.get(\"dibujar ƒ\")(color) }));\n  }",
+  "dibujar ƒ": "(color) => (diarsaba.get(\"colores :\") || {})[color] || color",
   "esparcir circulos ƒ": "(cantidad, xC, yC, radio, color, tamano, z) => {\n      const dibujar = diarsaba.get(\"circulo ƒ\");\n      for (let i = 0; i < cantidad; i++) {\n          dibujar(color, tamano,\n                  xC + (Math.random() * radio * 2 - radio),\n                  yC + (Math.random() * radio * 2 - radio), z);\n      }\n  }",
-  "trazo ƒ": "(color, grosor, z, puntos) => {\n      host.trazo(diarsaba.get(\"dibujar ƒ\")(color), grosor, z, puntos);\n  }",
-  "texto ƒ": "(color, tamano, x, y, z, contenido) => {\n      host.texto(diarsaba.get(\"dibujar ƒ\")(color), tamano, x, y, z, contenido);\n  }",
+  "trazo ƒ": "(color, grosor, z, puntos) => {\n      if (!Array.isArray(puntos) || puntos.length < 2) return;\n      host.pintar(diarsaba.get(\"plantilla ƒ\")(diarsaba.get(\"trazo <\"), {\n          z, grosor,\n          color: diarsaba.get(\"dibujar ƒ\")(color),\n          puntos: puntos.map((p) => p[0] + \",\" + p[1]).join(\" \"),\n      }));\n  }",
+  "texto ƒ": "(color, tamano, x, y, z, contenido) => {\n      host.pintar(diarsaba.get(\"plantilla ƒ\")(diarsaba.get(\"texto <\"),\n          { x, y, tamano, z, contenido, color: diarsaba.get(\"dibujar ƒ\")(color) }));\n  }",
   "1 sol !": [
     "circulo ƒ",
     "amarillo",
@@ -187,5 +194,7 @@
   ],
   "escena @": [
     "escena arbolo ~"
-  ]
+  ],
+  "escena usa #": [],
+  "escena usa # al abrir ƒ": "(lista) => {\n      lista.length = 0;\n      for (const nombre of diarsaba.get(\"usados por ƒ\")(\"escena @\")) lista.push(nombre);\n  }"
 }

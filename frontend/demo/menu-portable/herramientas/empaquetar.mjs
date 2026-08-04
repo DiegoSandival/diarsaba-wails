@@ -16,6 +16,7 @@
      · "export const X = " → "const X = "
      · los JSON se incrustan como un objeto, y el arranque siembra de ahí en
        vez de pedirlos por fetch
+   El CSS no se toca: ya no hay hoja de estilo, son átomos "{".
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -39,6 +40,7 @@ const piezas = [
     "src/shell/widgets.js",
     "src/shell/lienzo.js",
     "src/shell/editor.js",
+    "src/shell/estilos.js",
     "src/shell/aislamiento.js",
     "src/shell/broker.js",
     "src/shell/host.js",
@@ -48,11 +50,14 @@ const piezas = [
 // para que no existan dos versiones de "una ƒ se compila, el resto entra tal
 // cual". Si las marcas desaparecen, esto falla en vez de inventarse la regla.
 const cargador = leer("src/cargador.js");
-const marcas = cargador.match(/\/\/ ⟨sembrar⟩\n([\s\S]*?)\/\/ ⟨\/sembrar⟩/);
+// El \r? no es adorno: en Windows basta con que un editor —o un script— deje el
+// archivo en CRLF para que una marca que exija \n a secas deje de encontrarse,
+// sin que nada más haya cambiado. Pasó.
+const marcas = cargador.match(/\/\/ ⟨sembrar⟩\r?\n([\s\S]*?)\/\/ ⟨\/sembrar⟩/);
 if (!marcas) throw new Error("no encontré las marcas ⟨sembrar⟩ en src/cargador.js");
 const sembrar = marcas[1].replace(/^export /m, "").trimEnd();
 
-const GRUPOS = ["nucleo", "escena", "pruebas"];
+const GRUPOS = ["nucleo", "estilo", "escena", "pruebas"];
 const atomos = Object.assign({}, ...GRUPOS.map((g) => JSON.parse(leer("src/atomos", g + ".json"))));
 
 // El arranque, con el fetch sustituido por los átomos ya incrustados.
@@ -69,9 +74,8 @@ const html = `<!DOCTYPE html>
     <!-- GENERADO por herramientas/empaquetar.mjs — no se edita a mano.
          La fuente es index.html + src/. Esto es la versión de un archivo, para
          abrir a doble clic (sin módulos y sin fetch, funciona desde file://). -->
-    <style>
-${leer("estilo.css")}
-    </style>
+    <!-- Sin <style>: el estilo son átomos "{" y los pone el propio programa
+         (install style manager ƒ → host.installStyles). -->
 </head>
 
 <body>

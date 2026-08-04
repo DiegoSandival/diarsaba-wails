@@ -16,7 +16,7 @@ import { diarsaba, createFunction } from "./kernel.js";
 
 // Los grupos que forman este universo, en orden. Son ficheros, pero también son
 // la lectura del programa: el núcleo primero, y encima lo que vive en él.
-export const GRUPOS = ["nucleo", "escena", "pruebas"];
+export const GRUPOS = ["nucleo", "estilo", "escena", "pruebas"];
 
 // Lector por defecto: los JSON de al lado. Necesita servidor — un fetch desde
 // file:// está bloqueado, así que el paquete se abre servido (Tauri lo sirve).

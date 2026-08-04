@@ -1,12 +1,13 @@
 {
   "aislamiento #": [
     "pruebas @",
+    "pruebas usa #",
     "pruebas #",
     "probar átomo ƒ",
     "probar aislado ƒ",
     "probar ƒ",
     "veredicto de ƒ",
-    "veredictos {",
+    "veredictos :",
     "pintar acciones ƒ",
     "dibujables #",
     "correr pruebas ƒ",
@@ -15,6 +16,8 @@
   "pruebas @": [
     "banco de pruebas ~"
   ],
+  "pruebas usa #": [],
+  "pruebas usa # al abrir ƒ": "(lista) => {\n      lista.length = 0;\n      for (const nombre of diarsaba.get(\"usados por ƒ\")(\"pruebas @\")) lista.push(nombre);\n  }",
   "banco de pruebas ~": [
     "0 titular !",
     "1 correr pruebas !"
@@ -50,7 +53,7 @@
     "trazo ƒ",
     "texto ƒ"
   ],
-  "veredictos {": {
+  "veredictos :": {
     "ok": "verde",
     "colgada": "rojo",
     "reventó": "amarillo",
@@ -60,7 +63,7 @@
   "probar aislado ƒ": "async (fuente, args = [], ms = 600) => host.worker(fuente, args, ms)",
   "fuente de ƒ": "(nombre) => diarsaba.get(\"mostrar valor ƒ\")(diarsaba.get(nombre))",
   "probar átomo ƒ": "async (nombre, ms = 600) => {\n      const fuente = diarsaba.get(\"fuente de ƒ\")(nombre);\n      if (!fuente) return { ok: false, motivo: \"no es función\", ms: 0 };\n      const r = await diarsaba.get(\"probar aislado ƒ\")(fuente, [], ms);\n      const v = diarsaba.get(\"veredicto de ƒ\")(r);\n      host.log(\"▶ <b>probar</b> «\" + nombre + \"» → \" + v.nota + \" (\" + r.ms + \" ms)\");\n      return r;\n  }",
-  "veredicto de ƒ": "(r) => {\n      const tabla = diarsaba.get(\"veredictos {\") || {};\n      if (r.ok) {\n          const acciones = Array.isArray(r.valor);\n          return { color: tabla.ok, nota: acciones ? \"ok · \" + r.valor.length + \" acciones\"\n                                                   : \"ok · \" + JSON.stringify(r.valor) };\n      }\n      const motivo = r.motivo || \"reventó\";\n      return { color: tabla[motivo] || \"blanco\",\n               nota: motivo + (r.error ? \" · \" + r.error : \"\") };\n  }",
+  "veredicto de ƒ": "(r) => {\n      const tabla = diarsaba.get(\"veredictos :\") || {};\n      if (r.ok) {\n          const acciones = Array.isArray(r.valor);\n          return { color: tabla.ok, nota: acciones ? \"ok · \" + r.valor.length + \" acciones\"\n                                                   : \"ok · \" + JSON.stringify(r.valor) };\n      }\n      const motivo = r.motivo || \"reventó\";\n      return { color: tabla[motivo] || \"blanco\",\n               nota: motivo + (r.error ? \" · \" + r.error : \"\") };\n  }",
   "pintar acciones ƒ": "(acciones) => {\n      if (!Array.isArray(acciones)) return 0;\n      const permitidas = diarsaba.get(\"dibujables #\") || [];\n      let n = 0;\n      for (const accion of acciones) {\n          if (!Array.isArray(accion) || !permitidas.includes(accion[0])) continue;\n          const f = diarsaba.get(accion[0]);\n          if (typeof f === \"function\") { f.apply(null, accion.slice(1)); n++; }\n      }\n      return n;\n  }",
   "correr pruebas ƒ": "async (nombreLista, ms = 600) => {\n      const lista = diarsaba.get(\"lista de ƒ\")(nombreLista) || [];\n      const texto = diarsaba.get(\"texto ƒ\");\n      const circulo = diarsaba.get(\"circulo ƒ\");\n      texto(\"blanco\", \"5px\", 6, 12, 1, lista.length + \" átomos · se espera \" + ms + \" ms a cada uno\");\n      let y = 22;\n      for (const nombre of lista) {\n          texto(\"blanco\", \"5px\", 12, y, 2, nombre);\n          const r = await diarsaba.get(\"probar átomo ƒ\")(nombre, ms);\n          const v = diarsaba.get(\"veredicto de ƒ\")(r);\n          circulo(v.color, \"4px\", 8, y, 2);\n          texto(v.color, \"4px\", 12, y + 5, 2, v.nota + \" · \" + r.ms + \" ms\");\n          if (r.ok) diarsaba.get(\"pintar acciones ƒ\")(r.valor);\n          y += 14;\n      }\n      texto(\"blanco\", \"4px\", 6, 92, 1, \"ninguna se ejecutó en casa · la que no termina se termina, y la página ni se enteró\");\n  }",
   "probar ƒ": "async (dataset) => {\n      const sel = diarsaba.get(\"obtener index [0] ƒ\")(dataset.current);\n      diarsaba.get(\"cerrar opciones ƒ\")(dataset);\n      const r = await diarsaba.get(\"probar átomo ƒ\")(sel.texto);\n      const v = diarsaba.get(\"veredicto de ƒ\")(r);\n      host.notify(sel.texto + \"\\n\\n\" + v.nota + \"\\n\" + r.ms + \" ms\");\n  }"

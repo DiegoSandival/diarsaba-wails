@@ -4,20 +4,46 @@
     {
       "name": "diarsaba-dev",
       "runtimeExecutable": "wails",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
       "port": 34115
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "menu-portable",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8778", "--directory", "frontend/demo/menu-portable"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8778",
+        "--directory",
+        "frontend/demo/menu-portable"
+      ],
       "port": 8778
+    },
+    {
+      "name": "menu-portable-fa",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8779",
+        "--directory",
+        "frontend"
+      ],
+      "port": 8779,
+      "url": "http://localhost:8779"
     }
   ]
 }

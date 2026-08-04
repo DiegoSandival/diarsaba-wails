@@ -1,4 +1,25 @@
-/* ── CSS: solo lo que el menú necesita (copiado de "todo el estilo {") ── */
+/* ── ÁTOMOS · estilo ─────────────────────────────────────────────────────────
+   EL ESTILO ES DEL PROGRAMA, no del HTML. Cada átomo "{" es CSS, y el shell lo
+   sincroniza a un <style> — el mismo mecanismo que "install style manager" de la
+   app real, donde vive "todo el estilo {".
+
+   Y como es un átomo, se abre desde el menú, se edita en el editor con resaltado
+   de CSS ("lenguajes :" dice que "{" es css) y el cambio SE VE al guardar: el
+   shell escucha los diarsaba.set de los "{". Un programa que se repinta a sí
+   mismo sin recargar.
+
+   Están partidos por SUJETO —el lienzo, el menú, el modal, el editor— y no en un
+   solo "todo el estilo {": así se abre el que te importa y se lee de un tirón.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export default {
+    // Las variables y el reset. Es el único que no es de una cosa concreta: es el
+    // aire que respiran los demás, y por eso se llama base y no "todo".
+    //
+    // OJO al arrancar: hasta que el cargador siembra los átomos no hay estilo, así
+    // que hay un parpadeo. Es el precio de que el estilo sea del programa y no del
+    // HTML — el mismo que paga la app real con "todo el estilo {".
+    "estilo base {": `
 :root {
     --graph-bg: #000000;
     --graph-bg-strong: rgba(0, 0, 0, 0.92);
@@ -23,7 +44,12 @@ body {
     font-family: var(--graph-font);
     color: var(--graph-text);
 }
+`,
 
+    // El lienzo de un place y las tres formas que se pintan en él. Cambiar aquí el
+    // ancla de un círculo o el tamaño del escenario recoloca la escena entera sin
+    // tocar un solo átomo de la escena.
+    "estilo del lienzo {": `
 /* ── EL LIENZO DE UN PLACE ("@") ──────────────────────────────────────
      Un place es un LIENZO entero: viajar a él lo borra y lo vuelve a pintar.
      Es un escenario de 200×200 unidades que se escala a la ventana, así que
@@ -82,7 +108,11 @@ body {
     user-select: none;
     pointer-events: none;
 }
+`,
 
+    // El menú, que es también la lista: son EL MISMO widget. Aquí se ve que el
+    // árbol anidado no tiene estilo propio — un submenú es un menú.
+    "estilo del menú {": `
 /* El menú y la lista son EL MISMO widget: .context-menu con .menu-item.
      Lo que cambia es la SEMÁNTICA del despacho, no el dibujo. */
 .context-menu {
@@ -148,7 +178,10 @@ body {
 .menu-item:active {
     background: rgba(255, 255, 255, .12);
 }
+`,
 
+    // El modal de una línea: lo que pide un nombre o un valor.
+    "estilo del modal {": `
 /* El MODAL que pide un nombre (copiado igual de "todo el estilo {"). */
 .modal-content {
     position: absolute;
@@ -226,7 +259,12 @@ body {
     justify-content: space-around;
     margin-top: 12px;
 }
+`,
 
+    // El editor entero: overlay, cabecera, selector de lenguaje, botones y el
+    // prompt del asistente. Es el más largo porque es la pieza más grande que el
+    // shell dibuja, y ahora se puede reescribir desde su propio menú.
+    "estilo del editor {": `
 /* El EDITOR (Monaco vive en el shell) — también copiado del estilo real. */
 .editor-overlay {
     position: fixed;
@@ -244,6 +282,8 @@ body {
 }
 
 .editor-modal {
+    /* relative: el prompt del asistente se ancla dentro del editor. */
+    position: relative;
     width: 90%;
     max-width: 900px;
     height: 80%;
@@ -282,6 +322,181 @@ body {
     margin-top: 0;
 }
 
+/* ── EL SELECTOR DE LENGUAJE y los botones del editor ───────────────────────
+   Copiado de «todo el estilo {» del proyecto principal, con las mismas clases:
+   así un estilo se puede mover de un lado al otro sin traducir nada.
+   Los iconos son Font Awesome; si no está, los <i> quedan vacíos y el nombre
+   del lenguaje sigue visible — se elige igual. */
+.editor-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.language-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.language-button {
+    background: none;
+    border-radius: 10px;
+    border: none;
+    color: var(--graph-text);
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.language-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.language-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--graph-bg-strong);
+    border: 1px solid var(--graph-border-active);
+    border-radius: 4px;
+    min-width: 150px;
+    z-index: 1000;
+    margin-top: 5px;
+    box-shadow: var(--graph-shadow);
+}
+
+.language-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    color: var(--graph-text);
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: inherit;
+    transition: background 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-item i {
+    width: 20px;
+    text-align: center;
+}
+
+.close-button,
+.save-button,
+.ai-button {
+    border: 1px solid var(--graph-border);
+    border-radius: 6px;
+    color: var(--graph-text);
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+}
+
+.save-button {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.save-button:hover {
+    background: rgba(255, 255, 255, 0.24);
+    border-color: var(--graph-border-active);
+}
+
+.close-button {
+    background: transparent;
+}
+
+.close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--graph-border-active);
+}
+
+.ai-button {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-button:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: var(--graph-border-active);
+}
+
+.ai-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* El prompt del asistente, anclado abajo dentro del editor. */
+.ai-prompt {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: min(560px, 82%);
+    padding: 8px;
+    border-radius: 12px;
+    background: var(--graph-bg-strong);
+    border: 1px solid var(--graph-border);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    z-index: 10;
+}
+
+.ai-prompt-input {
+    flex: 1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    outline: none;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--graph-text);
+    background: rgba(255, 255, 255, 0.06);
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.ai-prompt-input:focus {
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
+.ai-prompt-send {
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--graph-text);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-family: inherit;
+}
+
+.ai-prompt-send:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 .monaco-container {
     flex: 1;
     width: 100%;
@@ -313,3 +528,5 @@ body {
     line-height: 1.5;
     tab-size: 4;
 }
+`,
+};
