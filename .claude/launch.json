@@ -44,6 +44,17 @@
       ],
       "port": 8779,
       "url": "http://localhost:8779"
+    },
+    {
+      "name": "menu-portable-go",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "run",
+        "./frontend/demo/menu-portable/servidor",
+        "-puerto",
+        "8780"
+      ],
+      "port": 8780
     }
   ]
 }

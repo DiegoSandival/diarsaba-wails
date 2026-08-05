@@ -1,40 +1,41 @@
 /* ── EL SHELL · EL EDITOR ───────────────────────────────────────────────────
-   El editor del proyecto principal, traído tal cual: Monaco con selector de
-   lenguaje (HTML/JS/CSS/Python/Go/JSON/Texto), guardar, cerrar y el asistente.
-   Mismo marcado y mismas clases CSS que la app, para que un átomo o un estilo
-   se puedan mover de un lado al otro sin traducir nada.
+   Monaco con selector de lenguaje (HTML/JS/CSS/Python/Go/JSON/Markdown/Texto),
+   guardar, cerrar y —para markdown— vista previa. Mismo marcado y clases CSS
+   que el estilo del proyecto principal, así átomos y estilos son traducibles
+   entre lados sin cambios.
 
-   Tres cosas cambian, y todas en la misma dirección: que no dependa de nadie.
-     · Monaco y Font Awesome son CONFIGURACIÓN (crearHost({ vs, iconos })), no
-       rutas adivinadas. Si no están, el editor sigue abriendo.
-     · Sin Monaco se edita en un <textarea>, con la misma cabecera y el mismo
-       selector. Se pierde el resaltado, no el editor.
-     · El asistente llama a host.broker.ai(), no a una binding de Go. Sin
-       anfitrión lo dice y no pasa nada más.
+   Configuración, no dependencias:
+     · Monaco y Font Awesome (crearHost({ vs, iconos })): sin ellos el editor
+       sigue abriendo — Monaco cae a un <textarea>, los iconos quedan vacíos.
+     · Sin Monaco no hay resaltado, pero se puede editar y seleccionar lenguaje.
 
    El universo sólo ve host.editor(nombre, src, lang) → texto | null, y
-   host.diff(titulo, a, b, lang) → bool. Igual que en CONTENEDOR.md.
+   host.diff(titulo, a, b, lang) → bool.
    ────────────────────────────────────────────────────────────────────────── */
 
-// Los lenguajes que ofrece el selector. Sin 'color': los iconos heredan
-// currentColor (blanco). El lenguaje ya se distingue por su glifo y por el
-// nombre de al lado.
+// Los lenguajes que ofrece el selector, con su color de marca. Cada icono va
+// con el suyo: así los tipos se distinguen de un vistazo y el botón del selector
+// pinta con el color del lenguaje activo.
 export const LENGUAJES = [
-    { id: "html", name: "HTML", icon: "fab fa-html5" },
-    { id: "javascript", name: "JavaScript", icon: "fab fa-js-square" },
-    { id: "css", name: "CSS", icon: "fab fa-css3-alt" },
-    { id: "python", name: "Python", icon: "fab fa-python" },
-    { id: "go", name: "Go", icon: "fab fa-golang" },
+    { id: "html",       name: "HTML",       icon: "fab fa-html5",       color: "#e34c26" },
+    { id: "javascript", name: "JavaScript", icon: "fab fa-js-square",   color: "#f7df1e" },
+    { id: "css",        name: "CSS",        icon: "fab fa-css3-alt",    color: "#264de4" },
+    { id: "python",     name: "Python",     icon: "fab fa-python",      color: "#3776ab" },
+    { id: "go",         name: "Go",         icon: "fab fa-golang",      color: "#00add8" },
     // JSON es el lenguaje de los átomos ":" — los que guardan una estructura.
-    { id: "json", name: "JSON", icon: "fas fa-file-code" },
-    { id: "plaintext", name: "Texto", icon: "fas fa-file-alt" },
+    { id: "json",       name: "JSON",       icon: "fas fa-file-code",   color: "#8892bf" },
+    // Markdown lleva su botón «ver MD» para renderizar el texto como HTML —
+    // sólo aparece cuando el lenguaje activo es markdown.
+    { id: "markdown",   name: "Markdown",   icon: "fab fa-markdown",    color: "#519aba" },
+    { id: "plaintext",  name: "Texto",      icon: "fas fa-file-alt",    color: "#94a3b8" },
 ];
 
-// Los nombres cortos con que los átomos piden un lenguaje ("js", "text") y los
-// largos que entiende Monaco. Es la misma tabla de la app.
+// Los nombres cortos con que los átomos piden un lenguaje ("js", "text", "md")
+// y los largos que entiende Monaco. Es la misma tabla de la app.
 export const ALIAS = {
     html: "html", js: "javascript", javascript: "javascript", css: "css",
     py: "python", python: "python", go: "go", json: "json",
+    md: "markdown", markdown: "markdown",
     text: "plaintext", plaintext: "plaintext",
 };
 
@@ -149,24 +150,33 @@ export const editor = {
     // El título es el NOMBRE del átomo. Un átomo llamado "<img onerror=...>"
     // (p. ej. de un programa compartido) inyectaría HTML aquí; se escapa. Lo
     // demás de la plantilla son constantes.
-    _crearOverlay(titulo, lenguaje, conAsistente) {
+    //
+    // Cada dropdown-item lleva su color inline: son de marca (HTML naranja, JS
+    // amarillo, …), y así basta con leer una tabla — nada de CSS por lenguaje.
+    // El botón principal del selector se pinta con el color del activo cuando se
+    // crea, y se repinta al cambiar.
+    _crearOverlay(titulo, lenguaje) {
         const overlay = document.createElement("div");
         overlay.className = "editor-overlay";
         const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
             ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        // El botón «ver MD» sólo tiene sentido para markdown. Se pinta siempre
+        // (para que el layout no salte), pero se oculta con .hidden cuando el
+        // lenguaje no lo es. Al cambiar de lenguaje se muestra/oculta.
+        const oculto = lenguaje.id === "markdown" ? "" : " hidden";
         overlay.innerHTML = `
         <div class="editor-modal">
             <div class="editor-header">
                 <div class="editor-title">
                     <div class="language-selector">
                         <button class="language-button" type="button" title="Seleccionar lenguaje">
-                            <i class="${lenguaje.icon}"></i>
+                            <i class="${lenguaje.icon}" style="color:${lenguaje.color}"></i>
                             <span class="language-name">${lenguaje.name}</span>
                         </button>
                         <div class="language-dropdown">
                             ${LENGUAJES.map((l) => `
                                 <button class="dropdown-item" data-lang="${l.id}">
-                                    <i class="${l.icon}"></i>
+                                    <i class="${l.icon}" style="color:${l.color}"></i>
                                     <span>${l.name}</span>
                                 </button>
                             `).join("")}
@@ -175,9 +185,9 @@ export const editor = {
                     <span class="modal-title">${esc(titulo)}</span>
                 </div>
                 <div class="editor-controls">
-                    ${conAsistente ? `<button class="ai-button" title="Asistente IA (Ctrl+I)">
-                        <i class="fas fa-wand-magic-sparkles"></i>
-                    </button>` : ""}
+                    <button class="md-button${oculto}" title="Ver Markdown">
+                        <i class="fas fa-eye"></i>
+                    </button>
                     <button class="save-button" title="Guardar (Ctrl+S)">
                         <i class="fas fa-save"></i>
                     </button>
@@ -203,69 +213,71 @@ export const editor = {
             items: overlay.querySelectorAll(".dropdown-item"),
             guardar: overlay.querySelector(".save-button"),
             cerrar: overlay.querySelector(".close-button"),
-            ai: overlay.querySelector(".ai-button"),
+            md: overlay.querySelector(".md-button"),
         };
     },
 
-    /* ── el asistente ─────────────────────────────────────────────────────── */
+    /* ── vista previa de Markdown ─────────────────────────────────────────── */
 
-    // Quita los ``` con que un modelo suele envolver el código.
-    _sinCercas(texto) {
-        const t = String(texto).trim();
-        const m = t.match(/^```[a-zA-Z0-9]*\s*\n([\s\S]*?)\n```$/);
-        return m ? m[1] : t;
-    },
-
-    // Pide la instrucción dentro del propio editor, anclada abajo.
-    _pedirInstruccion(ancla) {
-        return new Promise((resolve) => {
-            const wrap = document.createElement("div");
-            wrap.className = "ai-prompt";
-            wrap.innerHTML = `
-                <input type="text" class="ai-prompt-input" placeholder="¿Qué quieres que haga la IA con este átomo?" spellcheck="false" />
-                <button class="ai-prompt-send" type="button" title="Enviar (Enter)"><i class="fas fa-arrow-up"></i></button>`;
-            ancla.appendChild(wrap);
-            const input = wrap.querySelector(".ai-prompt-input");
-            const send = wrap.querySelector(".ai-prompt-send");
-            const fin = (v) => { wrap.remove(); resolve(v); };
-            input.addEventListener("keydown", (e) => {
-                e.stopPropagation();
-                if (e.key === "Enter") fin(input.value.trim() || null);
-                else if (e.key === "Escape") fin(null);
-            });
-            send.addEventListener("click", () => fin(input.value.trim() || null));
-            input.focus();
-        });
-    },
-
-    // El asistente pasa por el BROKER: aquí no hay ninguna binding de Go. El
-    // "system" opcional viene del átomo "ai system §" — es un dato del
-    // programa, editable desde su propio menú.
-    async _asistir(leer, escribir, partes, lang) {
-        if (this._aiOcupado) return;
-        const instruccion = await this._pedirInstruccion(partes.modal);
-        if (!instruccion) return;
-
-        this._aiOcupado = true;
-        const icono = partes.ai.querySelector("i");
-        const antes = icono.className;
-        icono.className = "fas fa-spinner fa-spin";
-        partes.ai.disabled = true;
-        try {
-            const sistema = typeof window.diarsaba?.get("ai system §") === "string"
-                ? window.diarsaba.get("ai system §") : "";
-            const r = await window.host.broker.ai(leer(), lang, instruccion, sistema);
-            // El broker nulo contesta { ok:false, motivo }. Un anfitrión de
-            // verdad devuelve el texto. Se distinguen así, sin preguntar quién es.
-            if (r && r.ok === false) window.host.log("· el asistente necesita anfitrión (" + r.motivo + ")");
-            else escribir(this._sinCercas(typeof r === "string" ? r : (r?.valor ?? "")));
-        } catch (e) {
-            window.host.notify("Error de IA: " + (e?.message || e));
-        } finally {
-            icono.className = antes;
-            partes.ai.disabled = false;
-            this._aiOcupado = false;
+    // Un renderer básico: heading, párrafo, énfasis, código inline, bloque de
+    // código con fences, listas (- y 1.), blockquote, enlace, imagen y hr. No es
+    // CommonMark; es "suficiente para leer un README" — todo el contenido bruto
+    // se escapa, así que meter <script> en el texto no lo ejecuta.
+    _renderMd(md) {
+        const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+        const inline = (s) => esc(s)
+            .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+            .replace(/`([^`]+)`/g, "<code>$1</code>");
+        const L = String(md).split(/\r?\n/);
+        let out = "", i = 0, m;
+        while (i < L.length) {
+            const l = L[i];
+            if ((m = /^```(\w*)/.exec(l))) {                      // ``` code block
+                const lang = m[1]; i++;
+                let bloque = "";
+                while (i < L.length && !/^```\s*$/.test(L[i])) { bloque += L[i] + "\n"; i++; }
+                out += `<pre><code class="lang-${lang}">${esc(bloque.replace(/\n$/, ""))}</code></pre>`;
+                if (i < L.length) i++;
+                continue;
+            }
+            if ((m = /^(#{1,6})\s+(.*)$/.exec(l))) {              // # heading
+                out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`;
+                i++; continue;
+            }
+            if (/^---+$/.test(l)) { out += "<hr>"; i++; continue; }
+            if (/^>\s?/.test(l)) {                                // > blockquote
+                let bloque = "";
+                while (i < L.length && /^>\s?/.test(L[i])) { bloque += L[i].replace(/^>\s?/, "") + "\n"; i++; }
+                out += `<blockquote>${inline(bloque.trim())}</blockquote>`;
+                continue;
+            }
+            if (/^[-*]\s+/.test(l)) {                             // - lista
+                out += "<ul>";
+                while (i < L.length && /^[-*]\s+/.test(L[i])) {
+                    out += `<li>${inline(L[i].replace(/^[-*]\s+/, ""))}</li>`; i++;
+                }
+                out += "</ul>"; continue;
+            }
+            if (/^\d+\.\s+/.test(l)) {                            // 1. lista
+                out += "<ol>";
+                while (i < L.length && /^\d+\.\s+/.test(L[i])) {
+                    out += `<li>${inline(L[i].replace(/^\d+\.\s+/, ""))}</li>`; i++;
+                }
+                out += "</ol>"; continue;
+            }
+            if (l.trim() === "") { i++; continue; }
+            // párrafo: líneas consecutivas hasta línea vacía o cambio de bloque
+            let bloque = l; i++;
+            while (i < L.length && L[i].trim() !== ""
+                   && !/^(#{1,6}\s|>|```|[-*]\s|\d+\.\s|---+$)/.test(L[i])) {
+                bloque += "\n" + L[i]; i++;
+            }
+            out += `<p>${inline(bloque).replace(/\n/g, "<br>")}</p>`;
         }
+        return out;
     },
 
     /* ── EL VERBO ─────────────────────────────────────────────────────────── */

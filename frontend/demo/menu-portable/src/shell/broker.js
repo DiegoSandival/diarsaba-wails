@@ -1,38 +1,39 @@
 /* ── EL SHELL · EL BROKER ───────────────────────────────────────────────────
-   El canal 3 del protocolo: lo que el universo no puede hacer solo porque
-   vive fuera de él — guardar, cargar, hablar con otra máquina.
+   Lo que el universo no puede hacer solo porque vive fuera de él.
 
-   Aquí está NULO a propósito. Cada verbo existe, contesta algo honesto y lo
-   apunta en la bitácora, así que el programa entero funciona sin anfitrión: se
-   abre en un navegador y no falta nada más que la persistencia y la red. Eso
-   es lo que hace este lado portable — no hay un Go escondido del que dependa.
+   ACABA DE ADELGAZAR, y el motivo es de diseño, no de limpieza: **la única
+   persistencia y el único contacto con el exterior van a ser los JSON de los
+   átomos, gestionados con CRDT**. Así que se fueron de aquí:
 
-   PARA ENCHUFARLO EN TAURI: no se toca ningún átomo. Se implementa este mismo
-   objeto contra invoke() y se pasa a crearHost({ broker }). Los átomos siguen
-   diciendo host.broker.kv.set(...) y no se enteran de quién contesta:
+     · kv.set/get/delete/history/restore   un almacén por clave (era el bbolt)
+     · guardar / cargar                    escribir y leer el programa
+     · p2p.arrancar/anunciar/abrirStream/  la red por verbos
+       escribir/leer/cerrar
 
-       import { invoke } from "@tauri-apps/api/core";
-       const brokerTauri = {
-           kv: {
-               set: (k, v) => invoke("kv_set", { clave: k, valor: v }),
-               get: (k)    => invoke("kv_get", { clave: k }),
-               ...
-           },
-           p2p: {                                    // tu librería de Go, aparte
-               anunciar: (a)     => invoke("p2p_anunciar", a),
-               abrirStream: (id) => invoke("p2p_abrir_stream", { id }),
-               ...
-           },
-           al: (evento, cb) => escuchar(evento, cb),  // eventos entrantes
-       };
+   Ninguno lo usaba ningún átomo: eran costuras preparadas para un anfitrión que
+   ahora no hace falta. Un almacén por clave y una red por verbos son dos formas
+   de resolver lo mismo que el CRDT resuelve de una: el estado converge y lo que
+   converge ES el programa. Tener las tres cosas a la vez habría dejado tres
+   verdades — un átomo en el Map, otro en el kv, otro en el par remoto — y ese es
+   el problema que el CRDT existe para no tener.
 
-   Los nombres de abajo salen del inventario del borde de CONTENEDOR.md
-   (kv.set/get/delete/history/restore, export/save/load, p2p.*, ai, reload),
-   con la firma mínima. Ampliar es añadir un verbo, no rediseñar nada.
+   Lo que queda no es persistencia ni red:
+     · exportar()   el programa como datos, aquí y ahora. No escribe en ningún
+                    sitio: serializa. Es, precisamente, la forma de lo que el
+                    CRDT va a gestionar, así que se queda.
+     · ai()         el asistente del editor. Una capacidad del anfitrión.
+     · recargar()   recargar el anfitrión.
+     · al/emitir    entregar al universo algo que llega DE FUERA. Hoy no llega
+                    nada (p2p se fue); es el gancho por el que el CRDT entregará
+                    un cambio remoto cuando exista. Si prefieres que también se
+                    vaya y que el CRDT traiga el suyo, se quita en dos líneas.
+
+   El CRDT todavía no está escrito. Cuando lo esté, es él quien entra aquí — no
+   una colección de verbos, sino un almacén que converge.
    ────────────────────────────────────────────────────────────────────────── */
 
-// Lo que devuelve un verbo que no está enchufado. No lanza: un anfitrión
-// ausente es un dato, no un error — igual que un átomo que no termina.
+// Lo que devuelve un verbo que no está enchufado. No lanza: un anfitrión ausente
+// es un dato, no un error — igual que un átomo que no termina.
 const sinAnfitrion = (verbo) => {
     if (window.host && window.host.log) window.host.log("· sin anfitrión: <b>" + verbo + "</b>");
     return { ok: false, motivo: "sin anfitrión", verbo };
@@ -41,19 +42,9 @@ const sinAnfitrion = (verbo) => {
 export const brokerNulo = {
     nombre: "nulo",
 
-    // Almacén por clave. En la app real es un bbolt por universo; en Tauri, lo
-    // que decidas (sqlite, ficheros, el store de Tauri).
-    kv: {
-        set: (clave, valor) => sinAnfitrion("kv.set " + clave),
-        get: (clave) => sinAnfitrion("kv.get " + clave),
-        delete: (clave) => sinAnfitrion("kv.delete " + clave),
-        history: (clave) => sinAnfitrion("kv.history " + clave),
-        restore: (clave, version) => sinAnfitrion("kv.restore " + clave),
-    },
-
-    // El programa entero, entrando y saliendo. "export" no necesita anfitrión:
-    // el universo ya sabe serializarse, así que esto se puede resolver aquí y
-    // es lo único del broker que funciona de verdad sin backend.
+    // El programa entero, como datos. Lo único de aquí que funciona sin
+    // anfitrión: el universo ya sabe serializarse. Una "ƒ" sale como su fuente,
+    // que es como vive en el JSON.
     exportar: () => {
         const salida = {};
         for (const [k, v] of window.diarsaba) {
@@ -62,29 +53,16 @@ export const brokerNulo = {
         }
         return { ok: true, valor: salida };
     },
-    guardar: () => sinAnfitrion("guardar"),
-    cargar: () => sinAnfitrion("cargar"),
 
-    // La única pieza que te llevas de Go, y vive detrás de estos verbos: el
-    // universo nunca ve un socket, sólo pide "anuncia" o "abre un stream".
-    p2p: {
-        arrancar: (opciones) => sinAnfitrion("p2p.arrancar"),
-        anunciar: (anuncio) => sinAnfitrion("p2p.anunciar"),
-        abrirStream: (par) => sinAnfitrion("p2p.abrirStream"),
-        escribir: (id, datos) => sinAnfitrion("p2p.escribir"),
-        leer: (id) => sinAnfitrion("p2p.leer"),
-        cerrar: (id) => sinAnfitrion("p2p.cerrar"),
-    },
-
-    // El asistente del editor. Igual que el resto: un verbo, no una integración.
+    // El asistente del editor. Un verbo, no una integración.
     ai: (codigo, lang, instruccion, system) => sinAnfitrion("ai"),
 
     // Recargar el anfitrión (en un navegador, la página).
     recargar: () => location.reload(),
 
-    // Eventos que llegan de fuera (un stream p2p entrante, por ejemplo). El
-    // universo registra un nombre y una función; el anfitrión la llama. Sin
-    // anfitrión no llega nada, y registrarse no cuesta nada.
+    // Eventos que llegan de fuera. El universo registra un nombre y una función;
+    // quien esté fuera la llama. Registrarse no cuesta nada, y sin nadie fuera
+    // simplemente no llega nada.
     _oyentes: new Map(),
     al(evento, fn) {
         if (!this._oyentes.has(evento)) this._oyentes.set(evento, []);
@@ -95,8 +73,8 @@ export const brokerNulo = {
             if (i >= 0) l.splice(i, 1);
         };
     },
-    // Lo llama el ANFITRIÓN para entregar un evento. Está aquí, y no en el
-    // universo, porque quien lo dispara es de fuera.
+    // Lo llama EL DE FUERA para entregar un evento. Está aquí, y no en el
+    // universo, porque quien lo dispara no es el universo.
     emitir(evento, datos) {
         for (const fn of this._oyentes.get(evento) || []) {
             try { fn(datos); } catch (e) { console.warn("[broker] oyente de", evento, e); }

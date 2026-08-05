@@ -1,40 +1,36 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   EL SHELL — el borde entero, en un objeto.
+   LA SHELL MÍNIMA — sólo presta librerías externas. No es un intermediario.
 
-   El universo le habla por verbos y nunca ve un elemento del DOM. Se ensambla
-   de piezas: widgets (menús/listas/modal/eventos), lienzo (los tres verbos de
-   dibujo), editor (Monaco), aislamiento (el worker) y broker (lo de fuera).
+   El universo dibuja, mide y escucha por su cuenta (document.… a mano, en
+   átomos). Lo único que no puede fabricar es una librería externa: Monaco hoy,
+   three/sodium mañana. Esta shell las CARGA y las deja como globales
+   (window.monaco…) para que el universo las consuma directo — sin un host.editor
+   de por medio. Cargar la librería es "prestar la capacidad"; usarla es del
+   universo.
 
-   Cambiar de anfitrión es cambiar piezas, no átomos. Un shell de Tauri con
-   Three.js en vez de divs sería este mismo archivo con otro lienzo.js.
+   Lo único que vive aquí es el EDITOR (Monaco) y el broker de la IA que sólo el
+   editor usa: Monaco es una librería externa —la clase de cosa que esta shell
+   mínima presta a propósito—, y el universo la consume. El lienzo, los menús,
+   los estilos, el aislamiento y el arranque ya se fueron enteros a átomos; el
+   universo dibuja, mide, escucha y se arranca solo. Esto es el préstamo, no un
+   intermediario que decida.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-import { widgets } from "./widgets.js";
-import { lienzo } from "./lienzo.js";
 import { editor } from "./editor.js";
-import { estilos } from "./estilos.js";
-import { aislamiento } from "./aislamiento.js";
 import { brokerNulo } from "./broker.js";
 
 export function crearHost({ broker = brokerNulo, vs = null, iconos = null } = {}) {
     const host = {
-        ...widgets,
-        ...lienzo,
         ...editor,
-        ...estilos,
-        ...aislamiento,
         broker,
-        // Dónde está Monaco, y dónde los iconos del selector de lenguaje. Si se
-        // pasan, se usan esas rutas y no se adivina nada; si no, el editor
-        // prueba las de siempre. Y si no encuentra ninguna, edita en un textarea
-        // con los iconos vacíos: el editor nunca es motivo de que nada falle.
+        // Dónde están Monaco y los iconos. Si se pasan, se usan; si no, el editor
+        // prueba las rutas de siempre y, si no hay, cae a un textarea.
         _vs: vs,
         _iconos: iconos,
     };
 
-    // Global a propósito: los átomos son TEXTO compilado con new Function, así
-    // que su ámbito es el global. Un átomo que dice host.menu(...) sólo puede
-    // verlo aquí. Es el mismo trato que el kernel.
+    // Global a propósito: los átomos son TEXTO compilado con new Function, así que
+    // su ámbito es el global. Un átomo que dice host.editor(...) sólo lo ve aquí.
     window.host = host;
     return host;
 }

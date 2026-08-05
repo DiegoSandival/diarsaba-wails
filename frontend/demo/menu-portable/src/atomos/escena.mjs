@@ -48,8 +48,8 @@ export default {
     /* ── LAS FORMAS SON ÁTOMOS "<" ────────────────────────────────────────────
        Qué ES un círculo ya no vive en el shell: es este HTML. Las clases las
        define «estilo del lienzo {», que también es un átomo, así que la forma y
-       su estilo se leen y se cambian los dos desde el menú. El shell sólo mete
-       el marcado en el lienzo (host.pintar) y no sabe qué acaba de pintar.
+       su estilo se leen y se cambian los dos desde el menú. El universo mismo mete
+       el marcado en su lienzo («pintar ƒ»); no hay host que sepa qué es un círculo.
 
        Las coordenadas son % del place; los tamaños, px del escenario de 200×200.
        Cambiar aquí "left/top" por otra cosa recoloca la escena entera.          */
@@ -63,9 +63,9 @@ export default {
     // viewBox se estire: una línea no engorda al escalar.
     "trazo <": `<svg class="escena-trazo" viewBox="0 0 100 100" preserveAspectRatio="none" style="z-index:{{z}}"><polyline points="{{puntos}}" fill="none" stroke="{{color}}" stroke-width="{{grosor}}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`,
 
-    // Un círculo. Resuelve el color, rellena su plantilla y se la da al shell.
+    // Un círculo. Resuelve el color, rellena su plantilla y la pinta él mismo.
     "circulo ƒ": `(color, tamano, x, y, z) => {
-      host.pintar(diarsaba.get("plantilla ƒ")(diarsaba.get("circulo <"),
+      diarsaba.get("pintar ƒ")(diarsaba.get("plantilla ƒ")(diarsaba.get("circulo <"),
           { x, y, tamano, z, color: diarsaba.get("dibujar ƒ")(color) }));
   }`,
 
@@ -88,7 +88,7 @@ export default {
     // es una línea: no se pinta nada (antes esa guarda estaba en el shell).
     "trazo ƒ": `(color, grosor, z, puntos) => {
       if (!Array.isArray(puntos) || puntos.length < 2) return;
-      host.pintar(diarsaba.get("plantilla ƒ")(diarsaba.get("trazo <"), {
+      diarsaba.get("pintar ƒ")(diarsaba.get("plantilla ƒ")(diarsaba.get("trazo <"), {
           z, grosor,
           color: diarsaba.get("dibujar ƒ")(color),
           puntos: puntos.map((p) => p[0] + "," + p[1]).join(" "),
@@ -102,7 +102,7 @@ export default {
     // llegan textos de fuera —el mensaje de error de un átomo aislado, por
     // ejemplo—, y un "<" suelto no puede convertirse en marcado.
     "texto ƒ": `(color, tamano, x, y, z, contenido) => {
-      host.pintar(diarsaba.get("plantilla ƒ")(diarsaba.get("texto <"),
+      diarsaba.get("pintar ƒ")(diarsaba.get("plantilla ƒ")(diarsaba.get("texto <"),
           { x, y, tamano, z, contenido, color: diarsaba.get("dibujar ƒ")(color) }));
   }`,
 

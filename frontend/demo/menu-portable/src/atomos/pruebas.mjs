@@ -13,6 +13,7 @@ export default {
         "pruebas usa #",
         "pruebas #",
         "probar átomo ƒ",
+        "sandbox de pruebas §",
         "probar aislado ƒ",
         "probar ƒ",
         "veredicto de ƒ",
@@ -113,11 +114,66 @@ export default {
     },
 
     /* ── CORRER ALGO AISLADO ──────────────────────────────────────────────────
-       El borde del sandbox y lo que se hace con lo que vuelve.                */
+       El aislamiento lo hace el propio universo: crea un Web Worker (un mundo
+       sin document, sin el Map, sin nada de aquí), le pasa la fuente, le pone un
+       reloj, y si no contesta a tiempo lo termina. `new Worker` y `Blob` son del
+       entorno, como `document`; el universo los usa directo, sin host.          */
 
-    // Shim del BORDE: el shell aísla, el átomo sólo pide. Devuelve un veredicto
-    // y NUNCA lanza: un átomo que no termina es un dato, no una excepción.
-    "probar aislado ƒ": `async (fuente, args = [], ms = 600) => host.worker(fuente, args, ms)`,
+    // El único código que corre DENTRO del worker: recibe una fuente, la compila
+    // allí y devuelve lo que salga. Es un texto (§) — cruza al worker como dato.
+    // Sólo lo estructurable vuelve: una función o un elemento no caben en un
+    // postMessage, y eso es una garantía, no un límite.
+    "sandbox de pruebas §": `
+self.onmessage = (e) => {
+    const { src, args } = e.data;
+    try {
+        const f = (new Function("return (" + src + ")"))();
+        if (typeof f !== "function") { self.postMessage({ ok: false, motivo: "no es función" }); return; }
+        const valor = f.apply(null, args || []);
+        self.postMessage({ ok: true, valor: JSON.parse(JSON.stringify(valor ?? null)) });
+    } catch (err) {
+        self.postMessage({ ok: false, motivo: "reventó", error: String((err && err.message) || err) });
+    }
+};`,
+
+    // Corre una fuente aislada y resuelve SIEMPRE, con un veredicto:
+    //   { ok:true, valor }                     · contestó
+    //   { ok:false, motivo:"colgada" }         · se le acabó el tiempo (worker terminado)
+    //   { ok:false, motivo:"reventó", error }  · lanzó
+    //   { ok:false, motivo:"sin aislamiento" } · no se pudo crear el worker: NO se ejecuta
+    // Nunca lanza y nunca se queda esperando: por eso un while(true) no se lleva
+    // la página por delante — el reloj lo termina.
+    "probar aislado ƒ": `async (fuente, args = [], ms = 600) => {
+      let t0 = performance.now();
+      const tiempo = () => Math.round(performance.now() - t0);
+      let w = null, url = null;
+      try {
+          url = URL.createObjectURL(new Blob([diarsaba.get("sandbox de pruebas §")], { type: "text/javascript" }));
+          w = new Worker(url);
+      } catch (e) {
+          if (url) URL.revokeObjectURL(url);
+          return { ok: false, motivo: "sin aislamiento", error: String(e.message || e), ms: tiempo() };
+      }
+      t0 = performance.now();
+      return new Promise((resolve) => {
+          let cerrado = false;
+          const cerrar = (r) => {
+              if (cerrado) return;
+              cerrado = true;
+              clearTimeout(reloj);
+              w.terminate();
+              URL.revokeObjectURL(url);
+              resolve({ ...r, ms: tiempo() });
+          };
+          const reloj = setTimeout(() => cerrar({ ok: false, motivo: "colgada" }), ms);
+          w.onmessage = (e) => cerrar(e.data);
+          w.onerror = (e) => {
+              if (e.preventDefault) e.preventDefault();
+              cerrar({ ok: false, motivo: "reventó", error: e.message || "error en el worker" });
+          };
+          w.postMessage({ src: fuente, args });
+      });
+  }`,
 
     // La FUENTE de un átomo: es lo único que cruza al worker. Allí se compila de
     // nuevo, en su mundo — no viaja la función, viaja su texto.
@@ -130,7 +186,7 @@ export default {
       if (!fuente) return { ok: false, motivo: "no es función", ms: 0 };
       const r = await diarsaba.get("probar aislado ƒ")(fuente, [], ms);
       const v = diarsaba.get("veredicto de ƒ")(r);
-      host.log("▶ <b>probar</b> «" + nombre + "» → " + v.nota + " (" + r.ms + " ms)");
+      diarsaba.get("log ƒ")("▶ <b>probar</b> «" + nombre + "» → " + v.nota + " (" + r.ms + " ms)");
       return r;
   }`,
 
@@ -191,6 +247,6 @@ export default {
       diarsaba.get("cerrar opciones ƒ")(dataset);
       const r = await diarsaba.get("probar átomo ƒ")(sel.texto);
       const v = diarsaba.get("veredicto de ƒ")(r);
-      host.notify(sel.texto + "\\n\\n" + v.nota + "\\n" + r.ms + " ms");
+      diarsaba.get("notificar ƒ")(sel.texto + "\\n\\n" + v.nota + "\\n" + r.ms + " ms");
   }`,
 };

@@ -29,10 +29,6 @@ export const leerDeDisco = async (grupo) => {
 
 // Un átomo entra al Map según su SIGILO: una "ƒ" se compila, el resto entra tal
 // cual. Es la única regla del bootstrap, y es la misma de "interpretar valor ƒ".
-//
-// Las marcas ⟨sembrar⟩ las lee herramientas/empaquetar.mjs para copiar esta
-// función al archivo único: así no hay dos versiones de la regla.
-// ⟨sembrar⟩
 export function sembrar(atomos) {
     let n = 0;
     for (const [nombre, valor] of Object.entries(atomos)) {
@@ -48,7 +44,6 @@ export function sembrar(atomos) {
     }
     return n;
 }
-// ⟨/sembrar⟩
 
 // Siembra el universo entero. Devuelve cuántos átomos entraron.
 export async function cargar({ leer = leerDeDisco, grupos = GRUPOS } = {}) {

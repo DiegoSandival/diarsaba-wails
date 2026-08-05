@@ -30,6 +30,7 @@ export default {
         "listas #",
         "valores #",
         "places ƒ #",
+        "lienzo #",
         "logs #"
     ],
 
@@ -55,12 +56,17 @@ export default {
         "estilo del menú {",
         "estilo del modal {",
         "estilo del editor {",
-        "install style manager ƒ"
+        "instalar estilos ƒ",
+        "aplicar estilo ƒ",
+        "estilo id ƒ"
     ],
 
-    // El BORDE: lo único que habla con el shell. Cada uno es una línea que pide
-    // un dibujo o un dato; ninguno toca el DOM.
+    // EL BORDE: los átomos que tocan el entorno (document, la ventana) a mano.
+    // Ya no hay un shell intermediario — es el propio universo el que dibuja,
+    // mide y escucha. Aquí están todos, para poder abrirlos, leerlos y cambiarlos.
     "borde #": [
+        "arrancar ƒ",
+        "crear lienzo ƒ",
         "create list menu ƒ",
         "close menu ƒ",
         "clear menus ƒ",
@@ -68,7 +74,17 @@ export default {
         "rect de ítem ƒ",
         "lista de menú ƒ",
         "modal input ƒ",
-        "install style manager ƒ"
+        "notificar ƒ",
+        "log ƒ",
+        "clasificar gesto ƒ",
+        "registro de menús ƒ",
+        "nuevo id de menú ƒ",
+        "abrir en árbol ƒ",
+        "cerrar del árbol ƒ",
+        "cerrar hijos ƒ",
+        "ajustar a ventana ƒ",
+        "cablear menú ƒ",
+        "instalar estilos ƒ"
     ],
 
     // El MARCADO del programa: los átomos "<" (HTML) y lo que los rellena. Es la
@@ -104,7 +120,11 @@ export default {
     // Viajar de un place a otro: lo que le cambia el lienzo al programa.
     "places ƒ #": ["viajar a place ƒ","repintar place ƒ","viajar ƒ","ver dentro ƒ","usa ƒ","place actual §"],
 
-    // La bitácora: host.log escribe aquí, y se lee como un submenú más.
+    // El lienzo del universo: crearlo, escalarlo, pintar en él, vaciarlo. Todo
+    // con document.… a mano; ningún host dibuja por él.
+    "lienzo #": ["crear lienzo ƒ", "escalar lienzo ƒ", "pintar ƒ", "limpiar lienzo ƒ"],
+
+    // La bitácora: «log ƒ» escribe aquí, y se lee como un submenú más.
     "logs #": [],
 
     /* ── LO QUE OFRECE UN CLIC DERECHO ───────────────────────────────────────── */
@@ -177,10 +197,10 @@ export default {
     "viajar a place ƒ": `(nombre) => {
       const pasos = diarsaba.get("lista de ƒ")(nombre);
       if (!pasos) return false;
-      host.clearMenus(true);
-      host.limpiarLienzo(nombre);
+      diarsaba.get("clear menus ƒ")(true);
+      diarsaba.get("limpiar lienzo ƒ")(nombre);
       diarsaba.set("place actual §", nombre);
-      host.log("▶ <b>viajar</b> a «" + nombre + "» (" + pasos.length + " threads)");
+      diarsaba.get("log ƒ")("▶ <b>viajar</b> a «" + nombre + "» (" + pasos.length + " threads)");
       for (const paso of pasos) threads(paso);
       return true;
   }`,
@@ -210,7 +230,7 @@ export default {
     "ver dentro ƒ": `(dataset) => {
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
       const rect = dataset.rect || { right: 40, top: 40 };
-      host.log("  ↳ <b>dentro</b> de «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("  ↳ <b>dentro</b> de «" + sel.texto + "»");
       diarsaba.get("open submenu ƒ")(sel.texto, rect, dataset.desde);
   }`,
 
@@ -302,7 +322,7 @@ export default {
       const lista = diarsaba.get("lista de ƒ")(nombre);
       lista.length = 0;
       for (const usado of diarsaba.get("usados por ƒ")(sel.texto)) lista.push(usado);
-      host.log("  ↳ «" + sel.texto + "» <b>usa</b> " + lista.length + " átomos");
+      diarsaba.get("log ƒ")("  ↳ «" + sel.texto + "» <b>usa</b> " + lista.length + " átomos");
       diarsaba.get("open submenu ƒ")(nombre, dataset.rect || { right: 40, top: 40 }, dataset.desde);
   }`,
 
@@ -368,50 +388,297 @@ export default {
       return plantilla(diarsaba.get("menu <"), { titulo, items });
   }`,
 
-    // Shims del BORDE: el átomo pide el widget, el shell lo pone.
-    // onPick null = el shell entrega el payload (no cruza una función).
-    //
-    // Recibe la LISTA y pinta aquí el marcado: el shell recibe HTML. Un menú de
-    // opciones va de UN elemento ("current"), así que su título es ése y no el de
-    // la lista de la que cuelga.
-    "create list menu ƒ": `(list, parent = "", current = "", x = null, y = null, onPick, desde = "") => {
-      const html = diarsaba.get("pintar menú ƒ")(current || parent, list);
-      return host.menu(html, parent, current, x, y, onPick ?? null, desde);
+    /* ══ EL MENÚ LO PONE EL UNIVERSO ══════════════════════════════════════════
+       Crea su propio nodo, lo posiciona, cablea su clic y lo cuelga del árbol —
+       todo con document.… a mano. El anfitrión no pone ni un div. El menú es un
+       .context-menu con dos ganchos que el gesto reconoce (.menu-item[data-idx],
+       .menu-titulo); lo demás del marcado sale de «menu <».                     */
+
+    // El registro de menús ABIERTOS: un árbol id → {el, desde} y un contador de
+    // ids. Vive en un átomo "֎" (estado efímero: guarda nodos vivos, no se
+    // serializa ni se sincroniza). Nace la primera vez que se pide.
+    "registro de menús ƒ": `() => {
+      let r = diarsaba.get("menús abiertos ֎");
+      if (!r) { r = { arbol: new Map(), seq: 0 }; diarsaba.set("menús abiertos ֎", r); }
+      return r;
   }`,
 
-    "close menu ƒ": `(id) => host.closeMenu(id)`,
+    "nuevo id de menú ƒ": `() => "m" + (++diarsaba.get("registro de menús ƒ")().seq)`,
 
-    // El estilo del programa a la vista: cada átomo "{" se vuelve un <style>, y
-    // guardar uno lo repinta al instante (el shell envuelve diarsaba.set). Lo
-    // pide el universo al arrancar; el HTML no trae ninguna hoja de estilo.
-    "install style manager ƒ": `() => host.installStyles()`,
+    // Un menú tiene como mucho UN hijo abierto: colgar otro cierra el anterior.
+    // Las raíces (desde = "") no se estorban — por eso cada clic derecho suma.
+    "abrir en árbol ƒ": `(id, el, desde = "") => {
+      const r = diarsaba.get("registro de menús ƒ")();
+      if (desde) diarsaba.get("cerrar hijos ƒ")(desde);
+      r.arbol.set(id, { el, desde });
+  }`,
 
-    // Repinta donde sea que esa lista esté abierta. El átomo dice QUÉ lista
-    // cambió, no qué menú: quién la esté mostrando es cosa del shell.
-    "rect de ítem ƒ": `(id, index) => host.itemRect(id, index)`,
+    // Cerrar un menú se lleva por delante todo lo que colgaba de él.
+    "cerrar del árbol ƒ": `(id) => {
+      const r = diarsaba.get("registro de menús ƒ")();
+      const w = r.arbol.get(id);
+      if (!w) return;
+      diarsaba.get("cerrar hijos ƒ")(id);
+      if (w.el && w.el.remove) w.el.remove();
+      r.arbol.delete(id);
+  }`,
 
-    "lista de menú ƒ": `(id) => host.listaDe(id)`,
+    "cerrar hijos ƒ": `(id) => {
+      const r = diarsaba.get("registro de menús ƒ")();
+      for (const [k, w] of [...r.arbol]) if (w.desde === id) diarsaba.get("cerrar del árbol ƒ")(k);
+  }`,
 
-    // Repinta esa lista donde sea que esté abierta. El átomo dice QUÉ lista
-    // cambió; el shell dice QUIÉN la muestra, y el átomo pinta. Antes el shell
-    // hacía las dos últimas cosas.
-    "repintar lista ƒ": `(nombre) => {
-      const html = diarsaba.get("pintar menú ƒ")(nombre, diarsaba.get("ítems de menú ƒ")(nombre));
+    // Reposiciona un nodo para que no se salga de la ventana. Mide en (0,0): si
+    // se coloca desbordando, el ancho shrink-to-fit se comprime y mediría mal.
+    "ajustar a ventana ƒ": `(el) => {
+      const margin = 8, vw = innerWidth, vh = innerHeight;
+      const dl = parseFloat(el.style.left) || 0, dt = parseFloat(el.style.top) || 0;
+      el.style.left = "0px"; el.style.top = "0px";
+      const w = el.offsetWidth, h = el.offsetHeight;
+      let left = dl, top = dt;
+      if (left + w > vw - margin) left = vw - margin - w;
+      if (top + h > vh - margin) top = vh - margin - h;
+      if (left < margin) left = margin;
+      if (top < margin) top = margin;
+      el.style.left = left + "px"; el.style.top = top + "px";
+  }`,
+
+    // Cablea el clic de un menú. Al pulsar un ítem arma DATOS —no el DOM— y los
+    // despacha. stopPropagation corta el manejador global (si no, cerraría el
+    // menú antes de despacharlo). El manejador está DELEGADO en el contenedor,
+    // así que repintar sus ítems no lo rompe.
+    "cablear menú ƒ": `(div) => {
+      div.addEventListener("pointerup", (e) => {
+          if (e.button !== 0) return;
+          const item = e.target.closest && e.target.closest(".menu-item");
+          if (!item || !div.contains(item)) return;
+          e.stopPropagation();
+          const b = item.getBoundingClientRect();
+          diarsaba.get("despachar menú ƒ")({
+              label: item.textContent, index: Number(item.dataset.idx),
+              parent: div.dataset.parent || "", current: div.dataset.current || "",
+              menu: div.dataset.menu || "", desde: div.dataset.desde || "",
+              rect: { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height },
+          });
+      });
+  }`,
+
+    // Crea el menú: su nodo, su sitio (junto al puntero si x/y son null), su clic,
+    // su sitio en el árbol. Un menú de opciones va de UN elemento ("current"), así
+    // que su título es ése y no el de la lista de la que cuelga. Devuelve su id.
+    "create list menu ƒ": `(list, parent = "", current = "", x = null, y = null, onPick, desde = "") => {
+      const div = document.createElement("div");
+      div.className = "context-menu";
+      const p = diarsaba.get("puntero ֎") || { x: 20, y: 20 };
+      div.style.left = (x === null ? p.x : x) + "px";
+      div.style.top = (y === null ? p.y : y) + "px";
+      div.dataset.parent = parent;
+      div.dataset.current = current;
+      div.dataset.menu = diarsaba.get("nuevo id de menú ƒ")();
+      div.dataset.desde = desde;
+      div.innerHTML = diarsaba.get("pintar menú ƒ")(current || parent, list);
+      if (desde) div.classList.add("submenu");
+      document.body.appendChild(div);
+      diarsaba.get("ajustar a ventana ƒ")(div);
+      diarsaba.get("cablear menú ƒ")(div);
+      diarsaba.get("abrir en árbol ƒ")(div.dataset.menu, div, desde);
+      return div.dataset.menu;
+  }`,
+
+    "close menu ƒ": `(id) => diarsaba.get("cerrar del árbol ƒ")(id)`,
+
+    /* ══ GESTOS, AVISOS Y BITÁCORA — el universo mira la ventana él mismo ══════ */
+
+    // Clasifica un evento de puntero en un payload SEMÁNTICO: mira el DOM UNA vez
+    // y entrega datos, para que el resto del universo despache sin tocar el event.
+    // Antes era "host.hit"; ahora el universo lee el gesto por su cuenta.
+    "clasificar gesto ƒ": `(e) => {
+      const t = e && e.target;
+      const p = { button: e.button ?? 0, clientX: e.clientX, clientY: e.clientY, kind: "other" };
+      if (t && t.closest && t.closest(".modal-content, .editor-overlay")) { p.kind = "modal"; return p; }
+      const menu = t && t.closest && t.closest(".context-menu");
+      if (menu) {
+          p.kind = "menu"; p.menu = menu.dataset.menu || ""; p.parent = menu.dataset.parent || "";
+          const item = t.closest(".menu-item");
+          if (item) { p.name = item.textContent; p.index = Number(item.dataset.idx); }
+          else if (t.closest(".menu-titulo")) p.titulo = true;
+          return p;
+      }
+      if (!t || t.nodeName === "HTML" || t.nodeName === "BODY") p.kind = "background";
+      return p;
+  }`,
+
+    // Un aviso. Era "host.notify"; sigue siendo alert, pero lo dice el universo.
+    "notificar ƒ": `(msg) => alert(msg)`,
+
+    // La bitácora: cada línea se anota en «logs #», que se abre como un submenú
+    // más. Sin marcas (es texto), y con un tope para que no crezca sin fin.
+    "log ƒ": `(html) => {
+      const bitacora = diarsaba.get("logs #");
+      if (!Array.isArray(bitacora)) return;
+      bitacora.unshift(String(html).replace(/<[^>]+>/g, ""));
+      while (bitacora.length > 40) bitacora.pop();
+  }`,
+
+    // EL ARRANQUE del universo. Es su "on start": instala los estilos, crea el
+    // lienzo, cablea los gestos de la ventana y viaja al primer place. El
+    // anfitrión sólo compila los átomos y llama a esto — todo lo demás es del
+    // universo. Los listeners viven aquí, no en el HTML ni en un shell.
+    "arrancar ƒ": `() => {
+      diarsaba.get("instalar estilos ƒ")();
+      diarsaba.get("crear lienzo ƒ")();
+
+      addEventListener("contextmenu", (e) => e.preventDefault());
+      addEventListener("keydown", (e) => { if (e.key === "Escape") diarsaba.get("clear menus ƒ")(true); });
+      addEventListener("pointerup", (e) => {
+          diarsaba.set("pointer up event", diarsaba.get("clasificar gesto ƒ")(e));
+          if (e.button === 0) diarsaba.get("handle click ƒ")();
+          if (e.button === 2) diarsaba.get("show context menu ƒ")();
+      });
+      addEventListener("pointermove", (e) => diarsaba.set("puntero ֎", { x: e.clientX, y: e.clientY }));
+      addEventListener("resize", () => diarsaba.get("escalar lienzo ƒ")());
+
+      diarsaba.get("viajar a place ƒ")("escena @");
+      diarsaba.get("log ƒ")("listo — clic derecho en el fondo abre un menú; sobre un ítem, sus opciones");
+  }`,
+
+    /* ══ EL ESTILO LO INSTALA EL UNIVERSO ═════════════════════════════════════
+       Cada átomo "{" es CSS y se vuelve un <style> del documento. Lo hace el
+       universo con document.… a mano; antes vivía en el shell, que además
+       envolvía diarsaba.set para repintar. Ese enganche se fue: quien edita un
+       "{" (editar ƒ / editor ƒ) reaplica su estilo al guardar. Un writer menos
+       oculto, y todo a la vista.                                                */
+
+    // El id del <style> de un átomo "{". Del nombre sale un id estable, así que
+    // reaplicar reusa la misma etiqueta en vez de apilar otra.
+    "estilo id ƒ": `(clave) => "diarsaba-style-" +
+      String(clave).replace(/\\s*\\{$/, "").trim().replace(/[^\\w-]/g, "_").replace(/^_+|_+$/g, "")`,
+
+    // Lleva el CSS de UN átomo "{" a su <style>, creándolo si no está.
+    "aplicar estilo ƒ": `(clave) => {
+      const id = diarsaba.get("estilo id ƒ")(clave);
+      let el = document.getElementById(id);
+      if (!el) { el = document.createElement("style"); el.id = id; document.head.appendChild(el); }
+      const v = diarsaba.get(clave);
+      el.textContent = typeof v === "string" ? v : "";
+  }`,
+
+    // Instala TODOS los estilos "{" que haya. Lo llama "arrancar ƒ". Devuelve
+    // cuántos puso.
+    "instalar estilos ƒ": `() => {
       let n = 0;
-      for (const id of host.menusDe(nombre)) if (host.repintar(id, html)) n++;
+      for (const clave of diarsaba.keys())
+          if (typeof clave === "string" && clave.endsWith("{")) { diarsaba.get("aplicar estilo ƒ")(clave); n++; }
       return n;
   }`,
 
-    // Shim del BORDE: el shell pide el nombre (host.modal). Igual que en la app.
-    "modal input ƒ": `async (pre) => {
-      return host.modal(pre);
+    /* ══ EL LIENZO ES DEL UNIVERSO ════════════════════════════════════════════
+       El universo crea su propio lienzo, pinta en él y lo vacía — con document.…
+       a mano, sin ningún host de por medio. No hay "host.crearCirculo": hay HTML
+       (los átomos "<") que un átomo mete en un nodo que el propio universo puso.
+       El anfitrión sólo tiene que darle un <body> donde vivir; lo demás es suyo.  */
+
+    // Crea el nodo del lienzo y el del nombre del place, si no están. Idempotente:
+    // se puede llamar en cada arranque. Los estila «estilo del lienzo {».
+    "crear lienzo ƒ": `() => {
+      if (!document.getElementById("lienzo")) {
+          const l = document.createElement("div"); l.id = "lienzo";
+          document.body.appendChild(l);
+      }
+      if (!document.getElementById("place-nombre")) {
+          const p = document.createElement("span"); p.id = "place-nombre";
+          document.body.appendChild(p);
+      }
   }`,
 
-    // (Aquí estaba "create list ƒ", el segundo mecanismo: una lista suelta, con
-    //  ítems "[n] ", fuera del árbol. Se fue con él — todo se abre como submenú,
-    //  y por eso todo se puede cerrar y tiene opciones.)
+    // El escenario mide 200×200 y se escala a la ventana: una escena en % y px se
+    // ve igual en cualquier pantalla. El 200 vive en «estilo del lienzo {»; aquí
+    // sólo se lee la ventana. Es lo único que el universo mira del anfitrión.
+    "escalar lienzo ƒ": `() => {
+      const escala = Math.min(innerWidth, innerHeight) * 0.86 / 200;
+      document.documentElement.style.setProperty("--escala", escala.toFixed(3));
+  }`,
 
-    "clear menus ƒ": `() => host.clearMenus()`,
+    // Añade marcado al lienzo. El átomo que dibuja arma su HTML (con "plantilla ƒ")
+    // y lo mete aquí. Un solo verbo para las tres formas y para las de mañana.
+    "pintar ƒ": `(html) => {
+      const el = document.getElementById("lienzo");
+      if (!el) return false;
+      el.insertAdjacentHTML("beforeend", String(html));
+      return true;
+  }`,
+
+    // Vaciar el lienzo y decir en qué place estamos. Lo primero de cada viaje.
+    // Aquí está la línea que antes vivía en el shell —place-nombre.textContent—,
+    // ahora dicha por el universo sobre un nodo que el universo puso: soberana.
+    "limpiar lienzo ƒ": `(nombre = "") => {
+      const el = document.getElementById("lienzo");
+      if (el) el.innerHTML = "";
+      diarsaba.get("escalar lienzo ƒ")();
+      const p = document.getElementById("place-nombre");
+      if (p) p.textContent = nombre;
+  }`,
+
+    // La caja de un ítem de un menú abierto, por su índice: el ancla para colgar
+    // un submenú de un elemento. Lee el registro y mide el nodo.
+    "rect de ítem ƒ": `(id, index) => {
+      const w = diarsaba.get("registro de menús ƒ")().arbol.get(id);
+      const item = w && w.el && w.el.querySelectorAll(".menu-item")[index];
+      if (!item) return null;
+      const b = item.getBoundingClientRect();
+      return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height };
+  }`,
+
+    // Qué lista muestra un menú abierto, por su id.
+    "lista de menú ƒ": `(id) => {
+      const w = diarsaba.get("registro de menús ƒ")().arbol.get(id);
+      return (w && w.el && w.el.dataset.parent) || "";
+  }`,
+
+    // Repinta esa lista donde sea que esté abierta, conservando el menú (mismo id,
+    // sitio, hijos): editar un elemento se VE sin cerrar nada. Sólo los que la
+    // MUESTRAN — un menú de opciones cuelga de ella pero enseña otra cosa.
+    "repintar lista ƒ": `(nombre) => {
+      const html = diarsaba.get("pintar menú ƒ")(nombre, diarsaba.get("ítems de menú ƒ")(nombre));
+      const r = diarsaba.get("registro de menús ƒ")();
+      let n = 0;
+      for (const [id, w] of r.arbol) {
+          if (!w.el || w.el.dataset.parent !== nombre || w.el.dataset.current) continue;
+          w.el.innerHTML = String(html);
+          diarsaba.get("ajustar a ventana ƒ")(w.el);
+          n++;
+      }
+      return n;
+  }`,
+
+    // Pide un texto de una línea. Construye su propio modal y devuelve una PROMESA
+    // que resuelve el texto (Continue) o null (Cancel). Es DOM a mano, del universo.
+    "modal input ƒ": `async (pre = "") => new Promise((resolve) => {
+      const div = document.createElement("div");
+      div.className = "modal-content";
+      const input = document.createElement("input");
+      input.type = "text"; input.value = pre || ""; input.spellcheck = false;
+      const bc = document.createElement("div");
+      bc.className = "modal-buttons";
+      ["Cancel", "Continue"].forEach((text) => {
+          const btn = document.createElement("button");
+          btn.textContent = text; btn.dataset.modal = text.toLowerCase();
+          btn.onclick = () => { div.remove(); resolve(text === "Cancel" ? null : input.value.trim()); };
+          bc.append(btn);
+      });
+      div.append(input, bc);
+      document.body.append(div);
+      input.focus();
+  })`,
+
+    // Cierra TODOS los menús. Con "alsoModals" barre además los modales — es lo
+    // que usa el cambio de place. (Aquí estaba "create list ƒ", el segundo
+    // mecanismo de listas sueltas; se fue: todo es el árbol de menús.)
+    "clear menus ƒ": `(alsoModals) => {
+      const r = diarsaba.get("registro de menús ƒ")();
+      for (const k of [...r.arbol.keys()]) diarsaba.get("cerrar del árbol ƒ")(k);
+      if (alsoModals) document.querySelectorAll(".context-menu, .modal-content").forEach((el) => el.remove());
+  }`,
 
     /* ── qué se DIBUJA de una lista ──────────────────────────────────────────── */
 
@@ -427,7 +694,7 @@ export default {
       if (!Array.isArray(lista) && diarsaba.get("sigilos lista #").includes(nombre.slice(-1))) {
           lista = [];
           diarsaba.set(nombre, lista);
-          host.log("· <b>nace</b> «" + nombre + "», vacía");
+          diarsaba.get("log ƒ")("· <b>nace</b> «" + nombre + "», vacía");
       }
       return Array.isArray(lista) ? lista : null;
   }`,
@@ -487,13 +754,14 @@ export default {
       if (res === null) return;
       if (tipo === ":") {
           try { JSON.parse(res); }
-          catch (e) { host.notify(nombre + " no se guardó: el JSON no vale.\\n\\n" + e.message); return; }
+          catch (e) { diarsaba.get("notificar ƒ")(nombre + " no se guardó: el JSON no vale.\\n\\n" + e.message); return; }
       }
       try {
           diarsaba.set(nombre, diarsaba.get("interpretar valor ƒ")(nombre, res));
-          host.log("▶ <b>" + nombre + "</b> guardada desde el editor (" + lang + ")");
+          if (tipo === "{") diarsaba.get("aplicar estilo ƒ")(nombre);   // un estilo: se ve al guardar
+          diarsaba.get("log ƒ")("▶ <b>" + nombre + "</b> guardada desde el editor (" + lang + ")");
       } catch (e) {
-          host.notify('"' + nombre + '" no se guardó: ' + e.message);
+          diarsaba.get("notificar ƒ")('"' + nombre + '" no se guardó: ' + e.message);
       }
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
@@ -510,13 +778,14 @@ export default {
       const antes = diarsaba.get(nombre);
       const fuente = diarsaba.get("mostrar valor ƒ")(antes);
       if (fuente.includes("\\n")) {
-          host.log("· «" + nombre + "» tiene varias líneas: eso pide «<b>editor ƒ</b>», no el modal");
+          diarsaba.get("log ƒ")("· «" + nombre + "» tiene varias líneas: eso pide «<b>editor ƒ</b>», no el modal");
           return;
       }
       const texto = await diarsaba.get("modal input ƒ")(fuente);
       if (texto === null) return;
       diarsaba.set(nombre, diarsaba.get("interpretar valor ƒ")(nombre, texto));
-      host.log("▶ <b>" + nombre + "</b> = " + texto);
+      if (nombre.slice(-1) === "{") diarsaba.get("aplicar estilo ƒ")(nombre);   // un estilo: se ve al guardar
+      diarsaba.get("log ƒ")("▶ <b>" + nombre + "</b> = " + texto);
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
 
@@ -532,7 +801,7 @@ export default {
     // no hace falta — pulsar es abrir para los tres sigilos.
     "ejecutar ƒ": `(dataset) => {
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
-      host.log("▶ <b>ejecutar</b> «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("▶ <b>ejecutar</b> «" + sel.texto + "»");
       diarsaba.get("cerrar opciones ƒ")(dataset);
       threads(sel.texto);
   }`,
@@ -541,7 +810,7 @@ export default {
     "tomar ƒ": `(dataset) => {
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
       diarsaba.set("tomado §", sel.texto);
-      host.log("▶ <b>tomar</b> «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("▶ <b>tomar</b> «" + sel.texto + "»");
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
 
@@ -550,7 +819,7 @@ export default {
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
       diarsaba.set("tomado §", sel.texto);
       diarsaba.get(dataset.parent).splice(sel.indice, 1);
-      host.log("▶ <b>cortar</b> «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("▶ <b>cortar</b> «" + sel.texto + "»");
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
 
@@ -558,26 +827,26 @@ export default {
     // Sin nada tomado no hay nada que pegar: se avisa y no se toca la lista.
     "antes ƒ": `(dataset) => {
       const tomado = diarsaba.get("tomado §");
-      if (!tomado) { host.log("· nada tomado todavía"); return; }
+      if (!tomado) { diarsaba.get("log ƒ")("· nada tomado todavía"); return; }
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
       diarsaba.get(dataset.parent).splice(sel.indice, 0, tomado);
-      host.log("▶ <b>antes</b> de «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("▶ <b>antes</b> de «" + sel.texto + "»");
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
 
     "despues ƒ": `(dataset) => {
       const tomado = diarsaba.get("tomado §");
-      if (!tomado) { host.log("· nada tomado todavía"); return; }
+      if (!tomado) { diarsaba.get("log ƒ")("· nada tomado todavía"); return; }
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
       diarsaba.get(dataset.parent).splice(sel.indice + 1, 0, tomado);
-      host.log("▶ <b>despues</b> de «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("▶ <b>despues</b> de «" + sel.texto + "»");
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
 
     "eliminar ƒ": `(dataset) => {
       const sel = diarsaba.get("obtener index [0] ƒ")(dataset.current);
       diarsaba.get(dataset.parent).splice(sel.indice, 1);
-      host.log("▶ <b>eliminar</b> «" + sel.texto + "»");
+      diarsaba.get("log ƒ")("▶ <b>eliminar</b> «" + sel.texto + "»");
       diarsaba.get("cerrar opciones ƒ")(dataset);
   }`,
 
@@ -604,7 +873,7 @@ export default {
       const texto = await diarsaba.get("modal input ƒ")("");
       if (texto === null || texto === "") return;
       lista.push(texto);
-      host.log("▶ <b>nuevo</b> «" + texto + "» en «" + nombre + "»");
+      diarsaba.get("log ƒ")("▶ <b>nuevo</b> «" + texto + "» en «" + nombre + "»");
       diarsaba.get("close menu ƒ")(dataset.menu);
       diarsaba.get("repintar lista ƒ")(nombre);
   }`,
@@ -629,7 +898,7 @@ export default {
       const dataset = { parent: p.parent, current: p.current, menu: p.menu,
                         desde: p.desde, rect: p.rect };
 
-      host.log("· clic en «<b>" + content + "</b>»");
+      diarsaba.get("log ƒ")("· clic en «<b>" + content + "</b>»");
 
       const tipo = content.slice(-1);
       // Todo lo que es una lista por dentro se ABRE como submenú, colgado del
@@ -668,7 +937,7 @@ export default {
           diarsaba.get("ítems de menú ƒ")(nombre), nombre, "",
           rect.right + 6, rect.top, null, desde);
       // Se apunta DESPUÉS de dibujar: si no, abrir «logs #» se listaría a sí mismo.
-      host.log("  ↳ <b>submenú</b> de «" + nombre + "» (" + lista.length + " ítems)");
+      diarsaba.get("log ƒ")("  ↳ <b>submenú</b> de «" + nombre + "» (" + lista.length + " ítems)");
       return true;
   }`,
 
@@ -756,7 +1025,7 @@ export default {
     // este mismo menú de acciones). El átomo decide QUÉ cerrar por su id, sin ver
     // ningún elemento.
     "cerrar ƒ": `(dataset) => {
-      host.log("▶ <b>cerrar</b> «" + diarsaba.get("lista de menú ƒ")(dataset.desde) + "»");
+      diarsaba.get("log ƒ")("▶ <b>cerrar</b> «" + diarsaba.get("lista de menú ƒ")(dataset.desde) + "»");
       diarsaba.get("close menu ƒ")(dataset.desde);
   }`,
 

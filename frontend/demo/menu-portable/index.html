@@ -11,13 +11,10 @@
 
 <body>
 
-    <!-- El lienzo del place activo. Está vacío: lo pinta el shell cuando el
-         universo dice a qué "@" se viaja. -->
-    <div id="lienzo"></div>
-    <span id="place-nombre"></span>
-
-    <!-- Lo único que hay en el HTML. Todo lo demás son módulos y datos: el HTML
-         no sabe nada del programa, y por eso el programa no depende del HTML. -->
+    <!-- Un <body> vacío, y nada más. El universo construye su propio lienzo al
+         arrancar («crear lienzo ƒ»): ni el lienzo ni el nombre del place son
+         muebles del HTML, son nodos que el programa pone y gobierna. El anfitrión
+         sólo presta el <body> y el motor. -->
     <script type="module" src="src/arranque.js"></script>
 </body>
 

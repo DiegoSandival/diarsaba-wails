@@ -5,49 +5,58 @@ otro anfitrión (Tauri, un navegador suelto, lo que venga). **No hay nada de Go,
 de Wails, ni de Three.js.** Lo que hay es HTML/CSS/JS y el motor de threads.
 
 El demo de un archivo sigue en `../menu/index.html`, intacto y funcionando: éste es
-la misma cosa reorganizada (más el editor del proyecto principal, y el estilo y la
-forma convertidos en átomos), 130 átomos.
+la misma cosa, pero **con el universo soberano**: dibuja, mide, escucha y se
+arranca solo. 149 átomos.
 
-## Las tres capas
+## El universo se gobierna solo
 
-| Capa | Qué es | Sabe del DOM | Sabe del anfitrión |
-|---|---|---|---|
-| **kernel** (`src/kernel.js`) | el `Map`, `createFunction`, `threads` | no | no |
-| **universo** (`src/atomos/*.json`) | el programa, como datos | no | no |
-| **shell** (`src/shell/*.js`) | dibuja y clasifica gestos | **sí, sólo él** | por el broker |
+El corazón es el **universo de átomos**. Se vale por sí mismo: toca el `document`
+y la ventana **a mano, desde sus propios átomos** —no hay un host que dibuje por
+él ni un `host.crearCirculo()` que sepa qué es un círculo—. El HTML y el CSS viven
+dentro como átomos (`<` y `{`) para construir las cosas ahí mismo.
 
-La regla que decide cada duda es la de `CONTENEDOR.md`: *si algo puede vivir sin
-ojos que lo miren, es del universo; si sólo existe para que un humano lo vea o lo
-toque, es del shell.*
+| Capa | Qué es | Toca el DOM |
+|---|---|---|
+| **motor** (`src/kernel.js`) | el `Map`, `createFunction`, `threads` | no |
+| **universo** (`src/atomos/*`) | el programa: datos, código, forma, estilo, y **su propio dibujo** | **sí, él mismo** |
+| **shell mínima** (`src/shell/host.js`) | sólo presta librerías externas (Monaco). No decide ni dibuja | — |
+
+La regla de este lado: *si el universo no puede tocarlo, no debe existir dentro de
+su mundo.* Un nodo que el universo no puso (el viejo `<div id=lienzo>` del HTML) o
+un verbo que dibuja por él (`host.pintar`) violaban su soberanía. Ya no están: el
+universo crea su lienzo, sus menús y su modal, y escribe hasta el nombre del place.
+Lo único que la shell le presta es lo que no puede fabricar: **Monaco** (el editor),
+que consume directo. El motor (`createFunction` + `threads`) es la otra shell —la
+que nombraste—; Tauri será la tercera, afuera, y al universo le da igual.
 
 ## Los archivos
 
 ```
-index.html              20 líneas: el lienzo y un <script type="module">. Sin CSS
-un-archivo.html         GENERADO — el mismo programa en una pieza, abre a doble clic
+index.html              un <body> vacío y un <script>. El universo crea lo demás
+CRDT.md                 el plan del CRDT (nada implementado)
+servidor/main.go        servidor mínimo en Go, sólo para desarrollar sin Tauri
 herramientas/
   atomos-a-json.mjs     átomos: la fuente .mjs → el .json que lee el cargador
   json-a-atomos.mjs     la vuelta, recuperando los comentarios
-  empaquetar.mjs        lo que genera un-archivo.html desde src/
 src/
-  kernel.js             Map + createFunction + threads  ← el motor de threads
+  kernel.js             Map + createFunction + threads  ← el motor (una shell)
   cargador.js           siembra el Map desde los JSON, compilando los "ƒ"
-  arranque.js           EL ÚNICO archivo que sabe en qué anfitrión estamos
+  arranque.js           presta el entorno y cede el control a «arrancar ƒ»
   shell/
-    host.js             ensambla el shell y lo pone en window.host
-    widgets.js          menús (contenedor), modal, scene (árbol), hit() (eventos)
-    lienzo.js           el lienzo y host.pintar(html). Sin formas
-    editor.js           el editor de la app: Monaco + selector de lenguaje + ✨
-    estilos.js          los átomos "{" → <style>, y repintado al guardar
-    aislamiento.js      el worker con reloj: correr algo que no es de fiar
-    broker.js           kv / save / load / p2p / ai — NULO, para que lo enchufes
+    host.js             la shell mínima: sólo presta Monaco al universo
+    editor.js           Monaco: la librería externa que el universo consume
+    broker.js           ai (para el editor) / exportar. El resto se fue con el CRDT
   atomos/
-    nucleo.mjs   ← FUENTE   74 átomos: sigilos, despacho, menús, opciones, places
+    nucleo.mjs   ← FUENTE   ~95 átomos: sigilos, despacho, menús, lienzo, gestos, arranque
     estilo.mjs   ← FUENTE    5 átomos: el CSS, uno por sujeto
     escena.mjs   ← FUENTE   29 átomos: el árbol de escena.png
-    pruebas.mjs  ← FUENTE   22 átomos: el banco de pruebas aislado
+    pruebas.mjs  ← FUENTE   23 átomos: el banco de pruebas aislado (worker incluido)
     *.json       GENERADOS  lo que lee el cargador
 ```
+
+Los `.js` de dibujo, menús, estilos y aislamiento **ya no existen**: eran del
+shell, y su lógica vive ahora en átomos de `nucleo.mjs`/`pruebas.mjs`. Lo que un
+átomo hace con el DOM lo hace con `document.…` directo, dentro de su propia fuente.
 
 ## El estilo es del programa
 
@@ -114,7 +123,6 @@ de línea y sus comentarios.
 ```bash
 node herramientas/atomos-a-json.mjs            # fuente → json
 node herramientas/atomos-a-json.mjs --revisar  # sólo comprueba, no escribe
-node herramientas/empaquetar.mjs               # y de ahí a un-archivo.html
 ```
 
 El JSON sigue siendo el formato de **ejecución**, y eso no cambia: es lo que la
@@ -156,80 +164,70 @@ fuente da un archivo idéntico byte a byte.
 
 ## Correrlo
 
-**`index.html` necesita servidor.** Es la versión de verdad —módulos y átomos en
-disco—, y es lo que usa Tauri, que sirve sus assets. Abrirlo a doble clic **no
-funciona**: desde `file://` un `<script type="module">` está bloqueado por CORS
-(origen `null`) y el `fetch` de los JSON también, así que no arranca nada — ni
-siquiera se registra el clic derecho, y lo que sale al pulsar es el menú del
-navegador. Cualquier servidor estático vale:
+Hay **una sola versión**: `index.html` + `src/`. Necesita que alguien lo sirva,
+porque los módulos ES y el `fetch` de los JSON están bloqueados en `file://`.
+**Tauri lo sirve** por su propio protocolo, así que ahí no hay nada que hacer. Para
+mirarlo sin Tauri, hay un servidor mínimo en Go (`servidor/main.go`, sólo la
+librería estándar, sin depender del `go.mod` de la app real más que en compartir
+módulo):
+
+```bash
+go run ./frontend/demo/menu-portable/servidor            # localhost:8778
+go run ./frontend/demo/menu-portable/servidor -puerto 9000
+```
+
+Sirve esta carpeta **sin importar desde dónde se invoque** (resuelve su propia
+ubicación en tiempo de compilación, así que `go run ./servidor` desde dentro o
+`go run ./frontend/demo/menu-portable/servidor` desde la raíz del repo dan lo
+mismo), fuerza los tipos MIME de `.mjs`/`.json` (el registro de Windows a veces no
+los tiene, y sin `application/javascript` un `<script type="module">` no arranca),
+y no cachea nada — editas un átomo, refrescas, lo ves. No es el shell de Tauri: no
+tiene broker, y no sirve `vs/` ni `fa/` salvo que los copies dentro de esta carpeta
+(entonces el editor los encuentra solo, por las rutas relativas que ya prueba).
+
+Cualquier servidor estático vale igual, claro — por ejemplo:
 
 ```bash
 python -m http.server 8778 --directory frontend/demo/menu-portable
 ```
 
-**`un-archivo.html` sí abre a doble clic.** Es el mismo programa sin módulos y sin
-fetch, generado desde `src/`:
-
-```bash
-node herramientas/empaquetar.mjs
-```
-
-Es una **salida, no la fuente**: se regenera cuando cambias algo en `src/`. Sirve
-para mirar el programa sin montar nada y para mandárselo a alguien de una pieza.
-Una advertencia: desde `file://` un navegador estricto puede negarse a crear el
-worker del aislamiento (un `blob:` desde un origen opaco). No se rompe nada — las
-pruebas contestan `sin aislamiento`, que es justo lo que ese veredicto significa: si
-no hay sandbox, no se ejecuta.
+*(Hubo un `un-archivo.html` —todo aplanado en una pieza, sin módulos ni fetch—
+para poder abrirlo a doble clic. Se fue al elegir Tauri: existía sólo para el caso
+que Tauri elimina, y mantener dos versiones del mismo programa es exactamente la
+clase de cosa que acaba divergiendo. Con él se fueron `herramientas/empaquetar.mjs`
+y las marcas `⟨sembrar⟩` del cargador, que sólo servían para copiar la regla de
+sembrado al bundle.)*
 
 ## El borde — lo que el anfitrión tiene que dar
 
-El universo **nunca** ve un elemento, ni una función que cruce el borde, ni un
-socket. Habla estos verbos y nada más. Todos devuelven datos o promesas de datos,
-así que todos sobreviven a un `postMessage`.
+Casi nada, y ahí está el punto: **un `<body>` y Monaco cargado.** Eso es todo lo
+que el universo no puede fabricar. Lo demás lo hace él.
 
-### Widgets (humano ↔ datos)
+Lo que antes eran verbos del host —`menu`, `pintar`, `hit`, `worker`, `modal`,
+`notify`, `installStyles`, `clamp`…— ahora son **átomos** que tocan el `document`
+y la ventana directo. Viven en `nucleo.mjs` (dibujar, menús, gestos, estilos,
+arranque) y `pruebas.mjs` (el aislamiento). Se abren, se leen y se cambian desde el
+menú como cualquier otro átomo; están en los catálogos `borde #`, `lienzo #`,
+`estilos #`, `marcado #`, `despacho #`.
 
-| Verbo | Qué hace |
-|---|---|
-| `host.menu(html, parent, current, x, y, onPick, desde) → id` | un menú, con el marcado ya hecho; `x/y` nulos = junto al puntero |
-| `host.modal(pre) → texto \| null` | pedir una línea |
-| `host.editor(nombre, src, lang) → src' \| null` | editar un cuerpo |
-| `host.diff(titulo, a, b, lang) → bool` | comparar dos versiones (true = restaurar) |
-| `host.notify(msg)` | un aviso |
-| `host.installStyles()` | los átomos `{` a `<style>`, y repintado al guardar |
-| `host.closeMenu(id)` / `host.clearMenus(alsoModals)` | cerrar uno / barrer todo |
-| `host.menusDe(nombre)` / `host.repintar(id, html)` | quién muestra esa lista / cambiarle el contenido |
-| `host.listaDe(id)` / `host.itemRect(id, i)` | qué muestra un menú / dónde está un ítem |
+El punto de entrada es el átomo **`arrancar ƒ`**: instala los estilos, crea el
+lienzo, cablea los gestos de la ventana (`pointerup`/`keydown`/`resize`…) y viaja
+al primer place. `arranque.js` no hace más que compilar los átomos y llamarlo — los
+listeners viven en el universo, no en el HTML ni en un shell.
 
-### Escena (el lienzo del place)
+- **Dibujo:** `pintar ƒ` mete marcado en `#lienzo` (un nodo que crea `crear lienzo ƒ`);
+  las formas son `circulo <`/`trazo <`/`texto <`. Coordenadas en **% del place**,
+  tamaños en **px de un escenario 200×200** (`estilo del lienzo {`). Otro shell con
+  Three.js necesitaría otros átomos `<` — la vista web es *una* vista, no *la* vista.
+- **Menús:** `create list menu ƒ` crea el `.context-menu`, `cablear menú ƒ` arma el
+  payload del clic, `registro de menús ֎` lleva el árbol de abiertos. Dos ganchos
+  bastan para leer un clic: `.menu-item[data-idx]` y `.menu-titulo`.
+- **Gestos:** `clasificar gesto ƒ` convierte el evento del DOM en datos
+  (`{ kind, menu, parent, name, index, titulo, … }`); nadie más toca `event.target`.
+- **Aislamiento:** `probar aislado ƒ` crea el `Worker` desde `sandbox de pruebas §`,
+  con reloj; devuelve siempre un veredicto (`ok`/`colgada`/`reventó`), nunca lanza.
 
-| Verbo | Qué hace |
-|---|---|
-| `host.limpiarLienzo(nombre)` | vaciar: lo primero de un viaje |
-| `host.pintar(html)` | añade marcado al lienzo — el único verbo de dibujo |
-
-Las coordenadas son **% del place**; los tamaños, **px de un escenario de
-200×200** que se escala a la ventana. Pero eso ya no lo sabe el shell: vive en los
-átomos `circulo <` / `trazo <` / `texto <` y en `estilo del lienzo {`. El shell
-sólo mete marcado. Un shell con Three.js no cumpliría `pintar` sino otro verbo, y
-ahí es donde harían falta otros átomos `<` — la vista web de este universo es una
-vista, no *la* vista.
-
-### Eventos (shell → universo)
-
-`host.hit(domEvent)` clasifica el clic real en un payload semántico
-`{ kind: "background" | "menu" | "modal" | "other", menu, parent, name, index, titulo, button, clientX/Y }`.
-Los átomos leen eso; nunca `event.target`. El reparto vive en `arranque.js`, que es
-el bloque que se muda al shell cuando el universo se vaya a un worker.
-
-### Aislamiento
-
-`host.worker(fuente, args, ms) → veredicto`. Devuelve **siempre**, nunca lanza:
-`{ ok:true, valor }`, o `{ ok:false, motivo:"colgada" | "reventó" | "sin aislamiento", error }`.
-Sólo cruza la **fuente** (texto) y datos estructurables — una función no cabe en un
-`postMessage`, y eso es una garantía, no un límite.
-
-### El editor
+### El editor — la librería que la shell presta
 
 Es el del proyecto principal, con el mismo marcado y las mismas clases CSS
 (`.language-selector`, `.dropdown-item`, `.save-button`, `.ai-prompt`…), copiadas
@@ -263,44 +261,52 @@ Tres cosas son configuración, no dependencias:
   no a una binding de Go. El `system` sale del átomo `ai system §`. Sin anfitrión lo
   dice en la bitácora y no pasa nada más.
 
-### Broker (lo de fuera) — **esto es lo que te toca rellenar**
+### Broker (lo de fuera) — lo que queda
 
-`host.broker.{kv.set/get/delete/history/restore, exportar, guardar, cargar, p2p.*, ai, recargar, al, emitir}`.
-Está en `src/shell/broker.js` con una implementación nula: cada verbo contesta
-`{ ok:false, motivo:"sin anfitrión" }` y lo apunta en la bitácora. Por eso el
-programa entero funciona sin backend — sólo le faltan persistencia y red.
-`exportar()` sí funciona de verdad: el universo ya sabe serializarse.
+`host.broker.{exportar, ai, recargar, al, emitir}`. Eso es todo.
+
+Se quitaron `kv.*`, `guardar`, `cargar` y `p2p.*`: **la única persistencia y el
+único contacto con el exterior van a ser los JSON de los átomos, gestionados con
+CRDT.** Un almacén por clave y una red por verbos son dos maneras de resolver lo
+mismo que el CRDT resuelve de una — y tenerlos a la vez dejaba tres verdades
+posibles del mismo átomo (la del `Map`, la del `kv`, la del par remoto), que es
+justo el problema del que el CRDT te saca. Ningún átomo los usaba.
+
+De lo que queda, `exportar()` es el único que funciona sin anfitrión —serializa,
+no escribe— y es la forma exacta de lo que el CRDT gestionará. `ai` y `recargar`
+son capacidades del anfitrión, no persistencia. `al`/`emitir` es el gancho por
+donde entrará un cambio remoto cuando el CRDT exista.
+
+**El CRDT no está escrito.** Cuando lo esté, entra por aquí; y para que tenga
+dónde agarrarse falta una cosa en el universo. El plan entero está en [CRDT.md](CRDT.md).
 
 ## Llevarlo a Tauri
 
 1. Copia la carpeta a `src/` (o donde sirva tu app) y apúntale el `index.html`.
-2. Escribe un broker contra `invoke()` — el esqueleto y un ejemplo están en los
-   comentarios de `src/shell/broker.js`. **Tu librería p2p de Go entra sólo por
-   `broker.p2p.*`**: el universo no ve un socket, pide "anuncia" o "abre un stream".
-3. En `src/arranque.js`, una línea:
+2. En `src/arranque.js`, una línea:
    ```js
-   const host = crearHost({ broker: brokerTauri, vs: "/vs/" });
+   const host = crearHost({ broker: miBroker, vs: "/vs/", iconos: "/fa/css/all.min.css" });
    ```
-4. Si quieres que los átomos vengan de Rust en vez de los JSON, pasa un lector:
-   ```js
-   await cargar({ leer: (grupo) => invoke("cargar_atomos", { grupo }) });
-   ```
+3. Cuando el CRDT exista, los átomos dejarán de venir de los `.json` de disco y
+   vendrán de él. El sitio ya está: `cargar({ leer })` en `src/cargador.js` recibe
+   de dónde leer cada grupo, sin que ningún átomo cambie.
 
-Ningún átomo cambia en ninguno de los cuatro pasos. Eso es lo que significa que
-esté preparado.
+Ningún átomo cambia en ninguno de los tres pasos. Eso es lo que significa que esté
+preparado.
 
 ## Lo que NO viene (a propósito)
 
 - **Three.js, chips, cámara, panorámica, grafo**: la app real proyecta el place en
-  3D; aquí el lienzo son divs y SVG. Los cuatro verbos de escena son los mismos.
-- **La implementación del p2p**: es tu librería de Go, y entra por el broker.
-- **El transporte worker (T3 de `CONTENEDOR.md`)**: el universo todavía corre en el
-  hilo principal. Pero ya está listo para el flip — el kernel es un archivo
-  independiente, ningún átomo toca el DOM, ninguno recibe elementos, ninguno pasa
-  funciones por el borde, y `arranque.js` aísla la entrega de gestos. Volverlo un
-  worker es mover `kernel.js` + `cargador.js` + los JSON al worker y hacer que
-  `host.*` sea `postMessage`. Y el `aislamiento.js` que ya está aquí es el mismo
-  patrón, en pequeño: un mundo sin DOM al otro lado de un `postMessage`.
+  3D; aquí el lienzo son divs y SVG, creados por el propio universo.
+- **El CRDT**, que será la única persistencia y el único contacto con el exterior.
+  Con él se fueron del broker el `kv`, el `guardar`/`cargar` y el `p2p`.
+- **El worker de T3 (`CONTENEDOR.md`)**, y a propósito. Ese plan quería el universo
+  SIN DOM para poder correrlo en un worker; este lado eligió lo contrario —el
+  universo **toca el `document` a mano**, es soberano de su propia vista—, y un
+  worker no tiene DOM. Es soberanía a cambio de separabilidad-en-worker, una
+  decisión de diseño de este paquete, no un descuido. El aislamiento (`probar
+  aislado ƒ`) sigue usando un worker, pero para lo que no es de fiar, no para el
+  universo entero.
 
 ## Los átomos de datos, uno por uno
 
@@ -384,3 +390,11 @@ proyecto principal **`{` es un estilo (CSS)** —`todo el estilo {`— mientras 
 estructura JSON es **`:`**. Se corrigió: `colores :`, `veredictos :`, `lenguajes :`,
 y `interpretar valor ƒ` parsea JSON en `:` y deja `{` como texto CSS. Si te llevas
 átomos de un lado al otro, ahora los sigilos significan lo mismo en los dos.
+
+## El CRDT
+
+El plan está en [CRDT.md](CRDT.md): qué se fusiona, dónde vive cada pieza, qué
+no sincroniza nunca, las fases, y lo que le falta al programa para que tenga
+dónde agarrarse (un punto único por el que pasen los cambios — hoy no existe).
+
+Nada de eso está implementado.
